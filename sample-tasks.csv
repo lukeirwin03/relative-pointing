@@ -1,0 +1,16 @@
+Issue Key,Summary,Issue Type,Status,Priority,Description
+PROJ-123,Implement user authentication,Story,To Do,High,Add login and signup functionality with OAuth support
+PROJ-124,Design homepage mockup,Story,To Do,Medium,Create visual design for landing page with modern UI
+PROJ-125,Set up CI/CD pipeline,Task,To Do,High,Configure automated deployment with GitHub Actions
+PROJ-126,Write API documentation,Task,To Do,Low,Document all REST endpoints with examples
+PROJ-127,Add error logging,Story,To Do,Medium,Implement error tracking system with Sentry
+PROJ-128,Optimize database queries,Task,In Progress,High,Improve query performance for user dashboard
+PROJ-129,Create user onboarding flow,Story,To Do,Medium,Guide new users through app features
+PROJ-130,Fix mobile responsive issues,Bug,To Do,High,Resolve layout problems on mobile devices
+PROJ-131,Add dark mode support,Story,To Do,Low,Implement dark theme with theme switcher
+PROJ-132,Upgrade React to latest version,Task,To Do,Medium,Update React and dependencies to v18
+PROJ-133,Implement search functionality,Story,To Do,High,Add full-text search across all content
+PROJ-134,Add email notifications,Story,To Do,Medium,Send email alerts for important events
+PROJ-135,Create admin dashboard,Story,To Do,Low,Build admin interface for user management
+PROJ-136,Fix login redirect bug,Bug,To Do,High,Users not redirected after successful login
+PROJ-137,Add file upload feature,Story,To Do,Medium,Allow users to upload documents and images
