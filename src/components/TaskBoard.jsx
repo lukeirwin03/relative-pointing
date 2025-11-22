@@ -289,22 +289,11 @@ function TaskBoard({ user }) {
         </div>
       )}
 
-      {/* CSV Uploader & Create Task (Creator Only) */}
+      {/* CSV Uploader (Creator Only) */}
       {isCreator && (
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4">
-          <div className="max-w-7xl mx-auto px-4 space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <CSVUploader roomCode={roomCode} />
-              </div>
-              <button
-                onClick={() => setShowCreateTask(true)}
-                className="px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors whitespace-nowrap"
-                title="Add a new task manually"
-              >
-                + Create Task
-              </button>
-            </div>
+          <div className="max-w-7xl mx-auto px-4">
+            <CSVUploader roomCode={roomCode} />
           </div>
         </div>
       )}
@@ -391,7 +380,19 @@ function TaskBoard({ user }) {
 
           {/* Tasks Queue Panel - Right Sidebar */}
           <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            {/* Create Task Button */}
+            {isCreator && (
+              <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                <button
+                  onClick={() => setShowCreateTask(true)}
+                  className="w-full px-3 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors font-medium text-sm"
+                  title="Add a new task manually"
+                >
+                  + Create Task
+                </button>
+              </div>
+            )}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-1 overflow-y-auto">
               <Column
                 columnId="unsorted"
                 title="Tasks"
