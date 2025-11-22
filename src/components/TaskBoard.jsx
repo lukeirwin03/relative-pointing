@@ -305,7 +305,6 @@ function TaskBoard({ user }) {
             <div className="flex-1 h-1 bg-gradient-to-r from-gray-400 to-gray-300 dark:from-gray-500 dark:to-gray-600 rounded"></div>
             <div className="text-center whitespace-nowrap">
               <div className="text-gray-600 dark:text-gray-300 font-semibold text-sm">Complexity</div>
-              <div className="text-xs text-gray-400 dark:text-gray-500">Less ───→ More</div>
             </div>
             <div className="flex-1 h-1 bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-500 rounded"></div>
           </div>
