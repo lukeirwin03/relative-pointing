@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
+import TaskInfoModal from './TaskInfoModal';
 
 function Column({ columnId, title, tasks = [], canDrag = false, variant = 'default', onDelete = null, onDeleteTask = null }) {
+  const [selectedTask, setSelectedTask] = useState(null);
   const { setNodeRef, isOver } = useDroppable({
     id: columnId,
   });
@@ -21,30 +23,40 @@ function Column({ columnId, title, tasks = [], canDrag = false, variant = 'defau
   const canDelete = variant !== 'tasks' && tasks.length === 1 && onDelete;
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`${baseClasses} ${variantClasses}`}
-      style={{ minHeight: '500px' }}
-    >
-      {variant === 'tasks' && (
-        <div className="flex items-center justify-between mb-3">
-          <h3 className={`${titleClasses}`}>{title}</h3>
+    <>
+      <div
+        ref={setNodeRef}
+        className={`${baseClasses} ${variantClasses}`}
+        style={{ minHeight: '500px' }}
+      >
+        {variant === 'tasks' && (
+          <div className="flex items-center justify-between mb-3">
+            <h3 className={`${titleClasses}`}>{title}</h3>
+          </div>
+        )}
+        <div className="space-y-2 flex-1 overflow-y-auto">
+          {tasks.length === 0 ? (
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No tasks yet</p>
+          ) : (
+            tasks.map(task => (
+              <TaskItem key={task.id} task={task} onDeleteTask={onDeleteTask} onShowInfo={setSelectedTask} />
+            ))
+          )}
         </div>
+      </div>
+
+      {/* Task Info Modal */}
+      {selectedTask && (
+        <TaskInfoModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+        />
       )}
-       <div className="space-y-2 flex-1 overflow-y-auto">
-         {tasks.length === 0 ? (
-           <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No tasks yet</p>
-         ) : (
-           tasks.map(task => (
-             <TaskItem key={task.id} task={task} onDeleteTask={onDeleteTask} />
-           ))
-         )}
-       </div>
-    </div>
+    </>
   );
 }
 
-function TaskItem({ task, onDeleteTask = null }) {
+function TaskItem({ task, onDeleteTask = null, onShowInfo = null }) {
   const {
     attributes,
     listeners,
@@ -92,19 +104,41 @@ function TaskItem({ task, onDeleteTask = null }) {
           )}
         </div>
       </div>
-      {onDeleteTask && (
-        <button
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onClick={handleDelete}
-          className="absolute top-1 right-1 flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-          title="Delete task"
-          aria-label="Delete task"
-        >
-          ✕
-        </button>
+      {(onDeleteTask || onShowInfo) && (
+        <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onShowInfo && (
+            <button
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onShowInfo(task);
+              }}
+              className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+              title="View task details"
+              aria-label="View task details"
+            >
+              ℹ
+            </button>
+          )}
+          {onDeleteTask && (
+            <button
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={handleDelete}
+              className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+              title="Delete task"
+              aria-label="Delete task"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
