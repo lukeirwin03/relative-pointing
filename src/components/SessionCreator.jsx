@@ -86,31 +86,32 @@ function SessionCreator({ onSessionCreated }) {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Creating Session...' : 'Create New Session'}
-          </button>
-        </form>
+           <button
+             type="submit"
+             disabled={loading || !userName.trim()}
+             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-400"
+           >
+             {loading ? 'Creating Session...' : 'Create New Session'}
+           </button>
+         </form>
 
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-600 text-center mb-2">
-            Have a room code?
-          </p>
-          <button
-            onClick={() => {
-              const code = prompt('Enter room code:');
-              if (code) {
-                navigate(`/session/${code.toLowerCase()}`);
-              }
-            }}
-            className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Join Existing Session
-          </button>
-        </div>
+         <div className="mt-6 pt-6 border-t border-gray-200">
+           <p className="text-sm text-gray-600 text-center mb-2">
+             Have a room code?
+           </p>
+           <button
+             onClick={() => {
+               const code = prompt('Enter room code:');
+               if (code) {
+                 navigate(`/session/${code.toLowerCase()}`);
+               }
+             }}
+             disabled={!userName.trim()}
+             className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed disabled:hover:bg-gray-300"
+           >
+             Join Existing Session
+           </button>
+         </div>
       </div>
     </div>
   );
