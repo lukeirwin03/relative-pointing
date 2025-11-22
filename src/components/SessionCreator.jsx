@@ -3,11 +3,10 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ref, set } from 'firebase/database';
-import { database } from '../services/firebase';
-import { generateRoomCode } from '../utils/roomCodeGenerator';
+import { v4 as uuidv4 } from 'uuid';
+import APIService from '../services/api';
 
-function SessionCreator() {
+function SessionCreator({ onSessionCreated }) {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -15,7 +14,7 @@ function SessionCreator() {
 
   const handleCreateSession = async (e) => {
     e.preventDefault();
-    
+
     if (!userName.trim()) {
       setError('Please enter your name');
       return;
@@ -25,45 +24,25 @@ function SessionCreator() {
     setError(null);
 
     try {
-      // Generate unique room code
-      const roomCode = generateRoomCode();
-      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const userId = uuidv4();
 
-      // Initialize session in Firebase
-      const sessionRef = ref(database, `sessions/${roomCode}`);
-      await set(sessionRef, {
-        metadata: {
-          createdAt: Date.now(),
-          createdBy: userId,
-          status: 'active',
-        },
-        participants: {
-          [userId]: {
-            name: userName.trim(),
-            joinedAt: Date.now(),
-            color: '#3B82F6', // Blue for creator
-            isCreator: true,
-          },
-        },
-        currentTurn: userId,
-        turnOrder: [userId],
-        tasks: {},
-        columns: {
-          unsorted: {
-            id: 'unsorted',
-            name: 'Unsorted',
-            order: 0,
-          },
-        },
-        chat: {},
-      });
+      // Create session via API
+      const result = await APIService.createSession(userId, userName.trim());
 
       // Store user info in localStorage
       localStorage.setItem('userId', userId);
       localStorage.setItem('userName', userName);
 
+      // Set current user (this auto-logs them in)
+      if (onSessionCreated) {
+        onSessionCreated({
+          id: userId,
+          name: userName.trim()
+        });
+      }
+
       // Navigate to session
-      navigate(`/session/${roomCode}`);
+      navigate(`/session/${result.roomCode}`);
     } catch (err) {
       console.error('Error creating session:', err);
       setError('Failed to create session. Please try again.');
@@ -124,7 +103,7 @@ function SessionCreator() {
             onClick={() => {
               const code = prompt('Enter room code:');
               if (code) {
-                navigate(`/session/${code.toUpperCase()}`);
+                navigate(`/session/${code.toLowerCase()}`);
               }
             }}
             className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"

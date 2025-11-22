@@ -3,6 +3,8 @@
 
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
+import APIService from '../services/api';
 
 function SessionJoin({ onJoin }) {
   const { roomCode } = useParams();
@@ -12,8 +14,38 @@ function SessionJoin({ onJoin }) {
 
   const handleJoin = async (e) => {
     e.preventDefault();
-    // TODO: Implement join logic
-    console.log('Joining session:', roomCode, userName);
+
+    if (!userName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const userId = uuidv4();
+
+      console.log(`[SessionJoin] Attempting to join session ${roomCode} as ${userName} with userId ${userId}`);
+
+      // Call API to join session
+      const result = await APIService.joinSession(roomCode, userId, userName.trim());
+      console.log(`[SessionJoin] Join successful:`, result);
+
+      // Store user info in localStorage
+      localStorage.setItem('userId', userId);
+      localStorage.setItem('userName', userName);
+
+      // Set current user (this triggers route change to TaskBoard)
+      onJoin({
+        id: userId,
+        name: userName.trim()
+      });
+    } catch (err) {
+      console.error('Error joining session:', err);
+      setError(err.message || 'Failed to join session. Check the room code.');
+      setLoading(false);
+    }
   };
 
   return (

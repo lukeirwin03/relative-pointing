@@ -1,43 +1,62 @@
 // src/utils/roomCodeGenerator.js
-// Generate unique room codes for sessions
+// Generate unique and fun room names for sessions
+
+const ADJECTIVES = [
+  'happy', 'lucky', 'swift', 'clever', 'bold', 'bright',
+  'quick', 'calm', 'eager', 'gentle', 'jolly', 'keen',
+  'lively', 'neat', 'noble', 'proud', 'quiet', 'rapid',
+  'smart', 'tiny', 'vital', 'wise', 'zippy', 'alert',
+  'brave', 'cool', 'eager', 'funny', 'grand', 'happy',
+  'ideal', 'jolly', 'kind', 'lush', 'merry', 'neat',
+  'okay', 'plucky', 'quirky', 'rosy', 'super', 'tasty',
+  'unique', 'vivid', 'witty', 'young', 'zealous'
+];
+
+const NOUNS = [
+  'panda', 'tiger', 'eagle', 'fox', 'owl', 'bear',
+  'seal', 'otter', 'hawk', 'raven', 'wolf', 'moose',
+  'lynx', 'ibex', 'okapi', 'emu', 'ant', 'bat',
+  'cat', 'dog', 'elk', 'frog', 'gnu', 'hare',
+  'ibis', 'jay', 'kiwi', 'lark', 'mink', 'newt',
+  'ox', 'pig', 'quail', 'rat', 'swan', 'toad',
+  'vole', 'wasp', 'yak', 'zebra', 'dolphin', 'falcon',
+  'cody', 'jesse', 'joe', 'paul', 'doug', 'ben',
+  'sanjay', 'bryan', 'luke'
+];
 
 /**
- * Generates a random 6-character alphanumeric room code
- * Example: "A3X9K2"
- * @returns {string} Room code
+ * Generates a random fun room name
+ * Example: "happy-panda", "swift-eagle", "clever-fox"
+ * @returns {string} Room name (lowercase)
  */
 export function generateRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude similar chars (I, 1, O, 0)
-  let code = '';
-  
-  for (let i = 0; i < 6; i++) {
-    const randomIndex = Math.floor(Math.random() * chars.length);
-    code += chars[randomIndex];
-  }
-  
-  return code;
+  const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  return `${adjective}-${noun}`.toLowerCase();
 }
 
 /**
- * Validates a room code format
+ * Validates a room code format (now validates fun names)
  * @param {string} code - Room code to validate
  * @returns {boolean} True if valid format
  */
 export function isValidRoomCode(code) {
   if (typeof code !== 'string') return false;
-  if (code.length !== 6) return false;
-  
-  const validChars = /^[A-HJ-NP-Z2-9]{6}$/;
-  return validChars.test(code);
+
+  // Simple validation: must contain hyphen and be reasonable length
+  const parts = code.split('-');
+  if (parts.length !== 2) return false;
+  if (code.length > 20) return false;
+  if (code.length < 5) return false;
+
+  return true;
 }
 
 /**
- * Formats a room code for display (adds hyphen in middle)
- * Example: "A3X9K2" -> "A3X-9K2"
+ * Formats a room code for display (no formatting needed for fun names)
  * @param {string} code - Room code
  * @returns {string} Formatted code
  */
 export function formatRoomCode(code) {
-  if (!isValidRoomCode(code)) return code;
-  return `${code.slice(0, 3)}-${code.slice(3)}`;
+  return code;
 }

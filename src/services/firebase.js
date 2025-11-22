@@ -1,25 +1,12 @@
 // src/services/firebase.js
-// Firebase configuration and initialization
+// DEPRECATED: This file is no longer used
+// The app now uses a local Express backend with SQLite
 
-import { initializeApp } from 'firebase/app';
-import { getDatabase } from 'firebase/database';
+// This file is kept for backwards compatibility
+// If you see imports from this file, update them to use:
+// import APIService from './api';
 
-// Firebase configuration from environment variables
-const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-};
+console.warn('Warning: firebase.js is deprecated. Use APIService from ./api.js instead');
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Initialize Realtime Database
-export const database = getDatabase(app);
-
-// Export app for other Firebase services if needed
-export default app;
+export const database = null;
+export default null;

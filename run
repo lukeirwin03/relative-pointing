@@ -43,6 +43,15 @@ fi
 
 print_header "Relative Pointing App - Setup & Run"
 
+# 0. Clean database for fresh start
+print_info "Cleaning database for fresh development environment..."
+rm -f server/app.db
+if [ -f "server/app.db" ]; then
+    print_warning "Could not delete old database, but continuing anyway..."
+else
+    print_success "Database cleaned"
+fi
+
 # 1. Check Node.js and npm
 print_info "Checking Node.js and npm..."
 
@@ -92,57 +101,21 @@ if [ ! -f ".env.local" ]; then
     echo ""
     echo "Creating .env.local from template..."
     cp .env.example .env.local
-    print_info "Template created at .env.local"
-    echo ""
-    echo -e "${YELLOW}⚠️  ACTION REQUIRED:${NC}"
-    echo "You need to add your Firebase credentials to .env.local"
-    echo ""
-    echo "Steps to get Firebase credentials:"
-    echo "1. Go to https://console.firebase.google.com"
-    echo "2. Create a new project (or select existing)"
-    echo "3. Enable Realtime Database (start in test mode)"
-    echo "4. Go to Project Settings → Service Accounts → Web"
-    echo "5. Copy the config values to .env.local"
-    echo ""
-    echo "Or follow: docs/FIREBASE_SETUP.md"
-    echo ""
-    read -p "Press Enter once you've updated .env.local with your Firebase credentials..."
-fi
-
-# Validate .env.local has required Firebase config
-if ! grep -q "REACT_APP_FIREBASE_API_KEY" .env.local || [ -z "$(grep 'REACT_APP_FIREBASE_API_KEY' .env.local | cut -d= -f2)" ]; then
-    print_warning "Firebase API key not configured in .env.local"
-    echo "The app may not work without proper Firebase credentials."
-    echo ""
-    echo "Follow these steps:"
-    echo "1. Edit .env.local"
-    echo "2. Replace placeholder values with your Firebase credentials"
-    echo "3. Save the file"
-    echo "4. Run this script again"
-    echo ""
-    read -p "Continue anyway? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
+    print_success "Template created at .env.local"
 fi
 
 print_success "Environment configuration OK"
 
 # 5. Show useful information
 echo ""
-print_header "Starting Development Server"
+print_header "Starting Development Servers"
 echo ""
-print_info "Server will be available at http://localhost:3000"
-print_info "Ctrl+C to stop the server"
+print_info "Backend API will be available at http://localhost:5000"
+print_info "Frontend will be available at http://localhost:3000"
 echo ""
-
-# Optional: Show sample credentials reminder
-if [ -f "docs/FIREBASE_SETUP.md" ]; then
-    print_info "Need help with Firebase? See: docs/FIREBASE_SETUP.md"
-fi
-
+print_info "Both servers starting... this may take a moment"
+print_info "Press Ctrl+C to stop all servers"
 echo ""
 
-# 6. Start the development server
-npm start
+# 6. Start both backend and frontend
+npm run dev

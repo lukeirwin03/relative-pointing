@@ -2,8 +2,7 @@
 // Custom hook for managing chat functionality
 
 import { useState, useEffect } from 'react';
-import { ref, onValue, push, query, orderByChild, limitToLast } from 'firebase/database';
-import { database } from '../services/firebase';
+import APIService from '../services/api';
 
 /**
  * Hook to manage chat messages
@@ -23,46 +22,38 @@ export function useChat(roomCode, userId, userName) {
       return;
     }
 
-    const chatRef = ref(database, `sessions/${roomCode}/chat`);
-    
-    // Query last 50 messages, ordered by timestamp
-    const chatQuery = query(
-      chatRef,
-      orderByChild('timestamp'),
-      limitToLast(50)
-    );
+    let mounted = true;
+    let pollInterval = null;
 
-    // Listen for new messages
-    const unsubscribe = onValue(
-      chatQuery,
-      (snapshot) => {
-        const data = snapshot.val();
-        
-        if (data) {
-          // Convert to array and sort by timestamp
-          const messagesList = Object.entries(data)
-            .map(([id, msg]) => ({
-              id,
-              ...msg,
-            }))
-            .sort((a, b) => a.timestamp - b.timestamp);
-          
-          setMessages(messagesList);
-        } else {
-          setMessages([]);
+    const fetchMessages = async () => {
+      try {
+        const msgs = await APIService.getChatMessages(roomCode);
+        if (mounted) {
+          setMessages(msgs);
+          setError(null);
         }
-        
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error('Chat listener error:', err);
-        setError(err.message);
-        setLoading(false);
+      } catch (err) {
+        console.error('Chat fetch error:', err);
+        if (mounted) {
+          setError(err.message);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    );
+    };
 
-    return () => unsubscribe();
+    // Fetch immediately
+    fetchMessages();
+
+    // Poll for new messages every 2 seconds
+    pollInterval = setInterval(fetchMessages, 2000);
+
+    return () => {
+      mounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, [roomCode]);
 
   /**
@@ -75,16 +66,12 @@ export function useChat(roomCode, userId, userName) {
       throw new Error('Invalid message parameters');
     }
 
-    const chatRef = ref(database, `sessions/${roomCode}/chat`);
-    
-    const message = {
-      userId,
-      userName,
-      text: text.trim(),
-      timestamp: Date.now(),
-    };
-
-    await push(chatRef, message);
+    try {
+      await APIService.sendChatMessage(roomCode, userId, userName, text.trim());
+    } catch (err) {
+      console.error('Error sending message:', err);
+      throw err;
+    }
   };
 
   /**

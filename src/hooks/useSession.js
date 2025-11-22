@@ -1,9 +1,8 @@
 // src/hooks/useSession.js
-// Custom hook for managing session state with Firebase
+// Custom hook for managing session state with API
 
 import { useState, useEffect } from 'react';
-import { ref, onValue, set, update, get } from 'firebase/database';
-import { database } from '../services/firebase';
+import APIService from '../services/api';
 
 /**
  * Hook to manage session data
@@ -13,6 +12,8 @@ import { database } from '../services/firebase';
 export function useSession(roomCode) {
   const [session, setSession] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -22,41 +23,42 @@ export function useSession(roomCode) {
       return;
     }
 
-    const sessionRef = ref(database, `sessions/${roomCode}`);
+    let mounted = true;
+    let pollInterval = null;
 
-    // Listen for session changes
-    const unsubscribe = onValue(
-      sessionRef,
-      (snapshot) => {
-        const data = snapshot.val();
-        
-        if (data) {
-          setSession(data);
-          
-          // Convert participants object to array
-          const participantsList = data.participants 
-            ? Object.entries(data.participants).map(([id, data]) => ({
-                id,
-                ...data,
-              }))
-            : [];
-          
-          setParticipants(participantsList);
+    const fetchSession = async () => {
+      try {
+        const data = await APIService.getSession(roomCode);
+
+        if (mounted) {
+          setSession(data.session);
+          setParticipants(data.participants || []);
+          setTasks(data.tasks || []);
+          setColumns(data.columns || []);
           setError(null);
-        } else {
-          setError('Session not found');
         }
-        
-        setLoading(false);
-      },
-      (err) => {
-        console.error('Session listener error:', err);
-        setError(err.message);
-        setLoading(false);
+      } catch (err) {
+        console.error('Session fetch error:', err);
+        if (mounted) {
+          setError(err.message || 'Session not found');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    );
+    };
 
-    return () => unsubscribe();
+    // Fetch immediately
+    fetchSession();
+
+    // Poll for updates every 2 seconds
+    pollInterval = setInterval(fetchSession, 2000);
+
+    return () => {
+      mounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, [roomCode]);
 
   /**
@@ -72,23 +74,19 @@ export function useSession(roomCode) {
 
   /**
    * Join existing session
+   * @param {string} userId - User ID
    * @param {string} userName - User's name
    * @returns {Promise<void>}
    */
-  const joinSession = async (userName) => {
+  const joinSession = async (userId, userName) => {
     if (!roomCode) throw new Error('No room code provided');
-    
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const participantRef = ref(database, `sessions/${roomCode}/participants/${userId}`);
-    
-    await set(participantRef, {
-      name: userName,
-      joinedAt: Date.now(),
-      color: generateUserColor(),
-      isCreator: false,
-    });
 
-    return userId;
+    await APIService.joinSession(roomCode, userId, userName);
+
+    // Refresh session data
+    const data = await APIService.getSession(roomCode);
+    setSession(data.session);
+    setParticipants(data.participants || []);
   };
 
   /**
@@ -98,9 +96,9 @@ export function useSession(roomCode) {
    */
   const updateSession = async (updates) => {
     if (!roomCode) throw new Error('No room code provided');
-    
-    const sessionRef = ref(database, `sessions/${roomCode}/metadata`);
-    await update(sessionRef, updates);
+
+    // TODO: Implement session metadata update via API
+    console.warn('updateSession not yet implemented for API backend');
   };
 
   /**
@@ -109,14 +107,19 @@ export function useSession(roomCode) {
    * @returns {Promise<boolean>}
    */
   const sessionExists = async (code) => {
-    const sessionRef = ref(database, `sessions/${code}`);
-    const snapshot = await get(sessionRef);
-    return snapshot.exists();
+    try {
+      await APIService.getSession(code);
+      return true;
+    } catch (err) {
+      return false;
+    }
   };
 
   return {
     session,
     participants,
+    tasks,
+    columns,
     loading,
     error,
     createSession,
@@ -124,22 +127,4 @@ export function useSession(roomCode) {
     updateSession,
     sessionExists,
   };
-}
-
-/**
- * Generate random color for user avatar
- * @returns {string} Hex color code
- */
-function generateUserColor() {
-  const colors = [
-    '#EF4444', // red
-    '#F59E0B', // amber
-    '#10B981', // emerald
-    '#3B82F6', // blue
-    '#8B5CF6', // violet
-    '#EC4899', // pink
-    '#14B8A6', // teal
-  ];
-  
-  return colors[Math.floor(Math.random() * colors.length)];
 }

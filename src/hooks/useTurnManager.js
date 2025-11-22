@@ -2,8 +2,7 @@
 // Custom hook for managing turn-based gameplay
 
 import { useState, useEffect } from 'react';
-import { ref, onValue, set, get } from 'firebase/database';
-import { database } from '../services/firebase';
+import APIService from '../services/api';
 
 /**
  * Hook to manage turn rotation
@@ -17,29 +16,35 @@ export function useTurnManager(roomCode, participants, currentUserId) {
   const [turnOrder, setTurnOrder] = useState([]);
   const [isMyTurn, setIsMyTurn] = useState(false);
 
-  // Listen for turn changes
+  // Poll for turn changes
   useEffect(() => {
     if (!roomCode) return;
 
-    const turnRef = ref(database, `sessions/${roomCode}/currentTurn`);
-    const orderRef = ref(database, `sessions/${roomCode}/turnOrder`);
+    let mounted = true;
+    let pollInterval = null;
 
-    // Listen to current turn
-    const unsubscribeTurn = onValue(turnRef, (snapshot) => {
-      const turn = snapshot.val();
-      setCurrentTurn(turn);
-      setIsMyTurn(turn === currentUserId);
-    });
+    const fetchTurnData = async () => {
+      try {
+        const turnData = await APIService.getTurn(roomCode);
+        if (mounted) {
+          setCurrentTurn(turnData.currentTurnUserId);
+          setTurnOrder(turnData.turnOrder || []);
+          setIsMyTurn(turnData.currentTurnUserId === currentUserId);
+        }
+      } catch (err) {
+        console.error('Error fetching turn data:', err);
+      }
+    };
 
-    // Listen to turn order
-    const unsubscribeOrder = onValue(orderRef, (snapshot) => {
-      const order = snapshot.val() || [];
-      setTurnOrder(order);
-    });
+    // Fetch immediately
+    fetchTurnData();
+
+    // Note: Polling disabled for now - can be re-enabled if needed for real-time turn updates
+    // pollInterval = setInterval(fetchTurnData, 1000);
 
     return () => {
-      unsubscribeTurn();
-      unsubscribeOrder();
+      mounted = false;
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [roomCode, currentUserId]);
 
@@ -50,16 +55,9 @@ export function useTurnManager(roomCode, participants, currentUserId) {
   const initializeTurnOrder = async () => {
     if (!roomCode || participants.length === 0) return;
 
-    const orderRef = ref(database, `sessions/${roomCode}/turnOrder`);
-    const turnRef = ref(database, `sessions/${roomCode}/currentTurn`);
-
-    // Shuffle participants for random order
-    const shuffled = [...participants]
-      .map(p => p.id)
-      .sort(() => Math.random() - 0.5);
-
-    await set(orderRef, shuffled);
-    await set(turnRef, shuffled[0]);
+    // Turn order is initialized when session is created
+    // This is a placeholder for future implementation
+    console.log('Turn order already initialized on session creation');
   };
 
   /**
@@ -69,12 +67,14 @@ export function useTurnManager(roomCode, participants, currentUserId) {
   const nextTurn = async () => {
     if (!roomCode || turnOrder.length === 0) return;
 
-    const currentIndex = turnOrder.indexOf(currentTurn);
-    const nextIndex = (currentIndex + 1) % turnOrder.length;
-    const nextUserId = turnOrder[nextIndex];
-
-    const turnRef = ref(database, `sessions/${roomCode}/currentTurn`);
-    await set(turnRef, nextUserId);
+    try {
+      const turnData = await APIService.advanceTurn(roomCode);
+      // Update local state
+      setCurrentTurn(turnData.currentTurnUserId);
+      setIsMyTurn(turnData.currentTurnUserId === currentUserId);
+    } catch (err) {
+      console.error('Error advancing turn:', err);
+    }
   };
 
   /**

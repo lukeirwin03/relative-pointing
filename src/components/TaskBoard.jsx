@@ -20,6 +20,7 @@ import CSVUploader from './CSVUploader';
 import Column from './Column';
 import ParticipantList from './ParticipantList';
 import SessionComplete from './SessionComplete';
+import CreateTaskModal from './CreateTaskModal';
 import { useTheme } from '../hooks/useTheme';
 
 function CreateColumnDropZone({ zoneId = 'new-column', isFirst = false }) {
@@ -54,6 +55,7 @@ function TaskBoard({ user }) {
   const { isDark, toggleTheme } = useTheme();
 
   const [showComplete, setShowComplete] = useState(false);
+  const [showCreateTask, setShowCreateTask] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [optimisticTasks, setOptimisticTasks] = useState({});
@@ -188,6 +190,12 @@ function TaskBoard({ user }) {
     }
   };
 
+  const handleTaskCreated = (newTask) => {
+    // The task list will be automatically refreshed via the useSession hook
+    // since it listens to the database for changes
+    setShowCreateTask(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -281,11 +289,22 @@ function TaskBoard({ user }) {
         </div>
       )}
 
-      {/* CSV Uploader (Creator Only) */}
+      {/* CSV Uploader & Create Task (Creator Only) */}
       {isCreator && (
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4">
-          <div className="max-w-7xl mx-auto px-4">
-            <CSVUploader roomCode={roomCode} />
+          <div className="max-w-7xl mx-auto px-4 space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <CSVUploader roomCode={roomCode} />
+              </div>
+              <button
+                onClick={() => setShowCreateTask(true)}
+                className="px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors whitespace-nowrap"
+                title="Add a new task manually"
+              >
+                + Create Task
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -405,6 +424,15 @@ function TaskBoard({ user }) {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Create Task Modal */}
+      {showCreateTask && (
+        <CreateTaskModal
+          roomCode={roomCode}
+          onTaskCreated={handleTaskCreated}
+          onClose={() => setShowCreateTask(false)}
+        />
       )}
 
       {/* Session Complete Modal */}
