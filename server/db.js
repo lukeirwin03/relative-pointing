@@ -20,21 +20,29 @@ db.run('PRAGMA foreign_keys = ON');
 function initializeDatabase() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
 
-  // Split schema by statements and execute each one
+  // Split schema by statements and execute each one sequentially
   const statements = schema.split(';').filter(stmt => stmt.trim());
 
-  let completed = 0;
-  statements.forEach(statement => {
+  let index = 0;
+
+  const executeNextStatement = () => {
+    if (index >= statements.length) {
+      console.log('Database schema initialized');
+      return;
+    }
+
+    const statement = statements[index];
+    index++;
+
     db.run(statement + ';', (err) => {
-      if (err) {
+      if (err && !err.message.includes('already exists')) {
         console.error('Error executing schema:', err);
       }
-      completed++;
-      if (completed === statements.length) {
-        console.log('Database schema initialized');
-      }
+      executeNextStatement();
     });
-  });
+  };
+
+  executeNextStatement();
 }
 
 // Helper functions for common operations

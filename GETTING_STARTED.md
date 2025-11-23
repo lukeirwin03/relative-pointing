@@ -1,14 +1,14 @@
 # Getting Started - Quick Setup
 
-This is the fastest way to get the Relative Pointing App running.
+Get the Relative Pointing App running in 2 minutes.
 
 ## Prerequisites
 
-You need **Node.js 18+** installed. Download from: https://nodejs.org/
+- **Node.js 18+** - Download from https://nodejs.org/
 
-That's it! Everything else is automated.
+That's it! No other setup required.
 
-## Quick Start (2 minutes)
+## Quick Start
 
 ### macOS / Linux
 
@@ -22,204 +22,120 @@ That's it! Everything else is automated.
 run.bat
 ```
 
-That's it! The script will:
+The script will:
 1. ✅ Check Node.js and npm
 2. ✅ Install dependencies
-3. ✅ Set up environment variables
-4. ✅ Start the development server
+3. ✅ Create environment file
+4. ✅ Start backend (port 5000) and frontend (port 3000)
 
-## First Time Setup
+**Done!** App opens at `http://localhost:3000`
 
-When you run the script for the first time:
+## Using the App
 
-1. It will create `.env.local` from the template
-2. You'll need to add your **Firebase credentials**
-3. Follow the on-screen instructions
+### Create a Session
 
-### Getting Firebase Credentials (2 minutes)
+1. Go to http://localhost:3000
+2. Enter your name
+3. Click "Create Session"
+4. Copy the room code (e.g., "friendly-tiger")
 
-1. Go to https://console.firebase.google.com
-2. Click "Create Project" (or select existing)
-3. Enable "Realtime Database"
-   - Start in "Test Mode" (for development)
-4. Go to **Project Settings** (gear icon) → **Service Accounts** → **Web**
-5. Copy the config values into `.env.local`:
+### Join from Another User
 
-```
-REACT_APP_FIREBASE_API_KEY=your_api_key_here
-REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-REACT_APP_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com
-REACT_APP_FIREBASE_PROJECT_ID=your_project_id
-REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-REACT_APP_FIREBASE_APP_ID=your_app_id
-```
+1. Open a new browser in incognito/private mode
+2. Go to http://localhost:3000
+3. Click "Join Session" tab
+4. Enter your name
+5. Paste the room code
+6. Click "Join Session"
 
-### Detailed Firebase Setup
+Both users should now see each other in the participant list (top-right corner).
 
-For step-by-step Firebase setup, see: [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)
+### Upload Tasks
 
-## Running the App
+1. Create or obtain a CSV file with your tasks
+2. Drag and drop it onto the app, or use the upload button
+3. Tasks appear in the "Tasks" panel on the right
 
-### Start Development Server
+### Point Tasks
+
+1. Drag tasks from the "Tasks" panel into complexity columns
+2. Create new columns by dragging between existing columns
+3. Watch updates happen in real-time across all open sessions
+
+## What's Running
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| Frontend | http://localhost:3000 | React app |
+| Backend API | http://localhost:5000/api | REST API |
+| Health Check | http://localhost:5000/api/health | Backend status |
+
+## Commands
 
 ```bash
-# macOS / Linux
+# Start everything (recommended)
 ./run
 
-# Windows
-run.bat
+# Just the backend
+npm run start:backend
+
+# Just the frontend
+npm start
+
+# Both together (alternative)
+npm run dev
 ```
-
-Opens at `http://localhost:3000`
-
-### Other Commands
-
-```bash
-# Run tests
-npm test
-
-# Build for production
-npm run build
-
-# Format code
-npm run format
-
-# Check for lint errors
-npm run lint
-```
-
-## Testing the App
-
-Once running, try this flow:
-
-1. **Create a Session**
-   - Click "Create Session"
-   - Get a room code (e.g., "A3X9K2")
-
-2. **Join from Another Tab**
-   - Open a new tab: `http://localhost:3000`
-   - Click "Join Session"
-   - Enter the room code
-   - Use different username
-
-3. **Upload Sample Data**
-   - Use the included `sample-tasks.csv`
-   - Or create your own
-
-4. **Test Real-time Sync**
-   - Drag tasks in one tab
-   - See them update in the other tab instantly
 
 ## Troubleshooting
 
-### "Port 3000 already in use"
-
-The port is taken by another process. Solutions:
+### Port Already in Use
 
 ```bash
-# Use a different port
-PORT=3001 npm start
+# Kill processes on ports
+lsof -ti:3000 | xargs kill -9   # Frontend
+lsof -ti:5000 | xargs kill -9   # Backend
 
-# Or kill the process using port 3000
-# macOS/Linux:
-lsof -ti:3000 | xargs kill -9
-
-# Windows:
-netstat -ano | findstr :3000
-taskkill /PID <PID> /F
+# Or use different ports
+PORT=3001 npm start              # Frontend on 3001
+PORT=5001 npm run start:backend  # Backend on 5001
 ```
 
-### "Permission denied" when running ./run
-
-Make the script executable:
-
-```bash
-chmod +x run
-./run
-```
-
-### Firebase connection errors
-
-Check:
-1. `.env.local` values are correct
-2. Firebase project exists and is active
-3. Realtime Database is enabled
-4. Security rules allow read/write (test mode does)
-
-See: [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)
-
-### "Cannot find module" errors
-
-Clear cache and reinstall:
+### Missing Dependencies
 
 ```bash
 rm -rf node_modules package-lock.json
 ./run
 ```
 
-## What the Scripts Do
+### Backend Not Responding
 
-### `run` (macOS/Linux)
-
-The bash script automatically:
-- Checks Node.js version (18+)
-- Validates npm is installed
-- Creates `.env.local` if missing
-- Installs dependencies if needed
-- Validates Firebase credentials
-- Starts the dev server on port 3000
-- Shows helpful error messages
-
-### `run.bat` (Windows)
-
-Same as above, but for Windows Command Prompt.
-
-### `.nvmrc`
-
-Specifies Node version (18.17.1) for nvm users.
-If you use nvm: `nvm use` before running the script.
-
-## Project Structure
-
-```
-relative-pointing-app/
-├── run                    ← Linux/macOS launcher
-├── run.bat               ← Windows launcher
-├── .nvmrc                ← Node version specification
-├── .env.example          ← Environment template
-├── .env.local            ← Your Firebase config (created by script)
-├── package.json          ← Dependencies
-├── src/                  ← React source code
-├── docs/                 ← Full documentation
-└── sample-tasks.csv      ← Test data
+Check health:
+```bash
+curl http://localhost:5000/api/health
 ```
 
-## Need Help?
+Should return `{"status":"ok"}`
 
-1. **Setup issues?** → Read [docs/SETUP.md](docs/SETUP.md)
-2. **Firebase problems?** → Read [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)
-3. **Architecture questions?** → Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-4. **Development help?** → Read [CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md)
-5. **Quick reference?** → Read [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+## Data Persistence
 
-## Tech Stack
-
-- **React 18** - UI framework
-- **Firebase Realtime Database** - Backend
-- **Tailwind CSS** - Styling
-- **@dnd-kit** - Drag and drop
-- **React Router** - Navigation
-- **PapaParse** - CSV parsing
+- Database is at `server/app.db`
+- Data persists between restarts
+- To reset: `rm server/app.db && ./run`
 
 ## Next Steps
 
-1. ✅ Run the app: `./run` (or `run.bat`)
-2. ✅ Create a test session
-3. ✅ Upload sample CSV
-4. ✅ Test multi-user with 2 browser tabs
-5. 📚 Read [CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md) for development
+1. ✅ Run `./run` and test the app
+2. ✅ Create a session and join from another tab
+3. ✅ Upload sample tasks
+4. ✅ Try dragging tasks between columns
+5. 📚 Read [LOCAL_SETUP.md](LOCAL_SETUP.md) for more details
+
+## Need Help?
+
+- **Setup issues?** → See "Troubleshooting" above
+- **Want to know more?** → Read [LOCAL_SETUP.md](LOCAL_SETUP.md)
+- **Exploring code?** → Read [SECURITY.md](SECURITY.md)
 
 ---
 
-**That's it!** You're ready to build. Just run `./run` and start developing! 🚀
+**That's it!** You're ready to use the app. Just run `./run` 🚀

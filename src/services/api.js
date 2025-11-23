@@ -185,88 +185,9 @@ class APIService {
     }
   }
 
-  /**
-   * Get chat messages for a session
-   */
-  static async getChatMessages(roomCode) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/chat`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch messages');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Send a chat message
-   */
-  static async sendChatMessage(roomCode, userId, userName, message) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, userName, message })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get current turn information
-   */
-  static async getTurn(roomCode) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/turns`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch turn information');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching turn:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Advance to the next turn
-   */
-  static async advanceTurn(roomCode) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/turns/advance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to advance turn');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error advancing turn:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create a new column
-   */
+   /**
+    * Create a new column
+    */
   static async createColumn(roomCode, columnId, name, order) {
     try {
       const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/columns`, {

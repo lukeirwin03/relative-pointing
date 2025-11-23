@@ -14,7 +14,6 @@ import {
   useDroppable,
 } from '@dnd-kit/core';
 import { useSession } from '../hooks/useSession';
-import { useTurnManager } from '../hooks/useTurnManager';
 import APIService from '../services/api';
 import Column from './Column';
 import ParticipantList from './ParticipantList';
@@ -45,11 +44,6 @@ function TaskBoard({ user, onLogout }) {
   const { roomCode } = useParams();
   const navigate = useNavigate();
   const { session, participants, tasks, columns, loading } = useSession(roomCode);
-  const { isMyTurn, getCurrentTurnUser, nextTurn } = useTurnManager(
-    roomCode,
-    participants,
-    user?.id
-  );
 
   const { isDark, toggleTheme } = useTheme();
 
@@ -142,13 +136,7 @@ function TaskBoard({ user, onLogout }) {
         }
       }
 
-      // Advance to next player's turn after successful placement
-      try {
-        await nextTurn();
-      } catch (turnErr) {
-        console.error('Error advancing turn:', turnErr);
-        // Don't fail the whole operation if turn advancement fails
-      }
+
     } catch (err) {
       console.error('Error moving task:', err);
       // Revert optimistic update on error
@@ -229,7 +217,6 @@ function TaskBoard({ user, onLogout }) {
   }
 
   const isCreator = user?.id === session?.creator_id;
-  const currentTurnUser = getCurrentTurnUser();
 
   // Merge optimistic updates with actual tasks
   const displayTasks = tasks.map((task) =>
@@ -288,26 +275,11 @@ function TaskBoard({ user, onLogout }) {
                   Logout
                 </button>
               )}
-              <ParticipantList participants={participants} currentUser={user} currentTurnUser={currentTurnUser} />
+              <ParticipantList participants={participants} currentUser={user} />
             </div>
           </div>
         </div>
       </header>
-
-      {/* Turn Indicator */}
-      {currentTurnUser && (
-        <div className={`py-4 px-4 text-center transition-colors border-b-2 ${isMyTurn ? 'bg-blue-100 dark:bg-blue-900 border-blue-400 dark:border-blue-600' : 'bg-amber-50 dark:bg-amber-900 border-amber-300 dark:border-amber-600'}`}>
-          <p className="text-lg font-bold">
-            {isMyTurn ? (
-              <span className="text-blue-700 dark:text-blue-200">🎯 Your Turn! Place a task →</span>
-            ) : (
-              <span className="text-amber-700 dark:text-amber-200">
-                ⏳ Waiting for <strong>{currentTurnUser.name}</strong>
-              </span>
-            )}
-          </p>
-        </div>
-      )}
 
       {/* Complexity Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4">
@@ -361,7 +333,7 @@ function TaskBoard({ user, onLogout }) {
                                 columnId={column.id}
                                 title={column.name}
                                 tasks={columnTasks}
-                                canDrag={isMyTurn}
+                                canDrag={true}
                                 onDelete={handleDeleteColumn}
                               />
                             </div>
@@ -395,7 +367,7 @@ function TaskBoard({ user, onLogout }) {
                 columnId="unsorted"
                 title="Tasks"
                 tasks={displayTasks.filter((t) => t.column_id === 'unsorted')}
-                canDrag={isMyTurn}
+                canDrag={true}
                 variant="tasks"
                 onDeleteTask={handleDeleteTask}
               />

@@ -8,8 +8,6 @@ require('./db'); // Initialize database
 
 const sessionsRouter = require('./routes/sessions');
 const tasksRouter = require('./routes/tasks');
-const chatRouter = require('./routes/chat');
-const turnsRouter = require('./routes/turns');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -94,8 +92,7 @@ app.post('/api/sessions/:roomCode/join', joinSessionLimiter);
 // Standard routes
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/sessions/:roomCode/tasks', tasksRouter);
-app.use('/api/sessions/:roomCode/chat', chatRouter);
-app.use('/api/sessions/:roomCode/turns', turnsRouter);
+
 
 // Health check
 app.get('/api/health', (req, res) => {

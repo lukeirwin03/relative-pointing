@@ -1,5 +1,5 @@
 // src/components/SessionCreator.jsx
-// Component for creating new pointing sessions
+// Component for creating or joining pointing sessions
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,8 @@ import APIService from '../services/api';
 
 function SessionCreator({ onSessionCreated }) {
   const [userName, setUserName] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [mode, setMode] = useState('create'); // 'create' or 'join'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -50,6 +52,49 @@ function SessionCreator({ onSessionCreated }) {
     }
   };
 
+  const handleJoinSession = async (e) => {
+    e.preventDefault();
+
+    if (!userName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+
+    if (!roomCode.trim()) {
+      setError('Please enter a room code');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const userId = uuidv4();
+
+      // Join session via API
+      await APIService.joinSession(roomCode.toLowerCase(), userId, userName.trim());
+
+      // Store user info in localStorage
+      localStorage.setItem('userId', userId);
+      localStorage.setItem('userName', userName);
+
+      // Set current user (this auto-logs them in)
+      if (onSessionCreated) {
+        onSessionCreated({
+          id: userId,
+          name: userName.trim()
+        });
+      }
+
+      // Navigate to session
+      navigate(`/session/${roomCode.toLowerCase()}`);
+    } catch (err) {
+      console.error('Error joining session:', err);
+      setError(err.message || 'Failed to join session. Check the room code.');
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
@@ -60,60 +105,123 @@ function SessionCreator({ onSessionCreated }) {
           Collaborative story pointing for Scrum teams
         </p>
 
-        <form onSubmit={handleCreateSession}>
-          <div className="mb-4">
-            <label 
-              htmlFor="userName" 
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Your Name
-            </label>
-            <input
-              type="text"
-              id="userName"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter your name"
-              maxLength={50}
-              disabled={loading}
-            />
-          </div>
+        {/* Tab buttons */}
+        <div className="flex gap-2 mb-6">
+          <button
+            type="button"
+            onClick={() => setMode('create')}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+              mode === 'create'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Create Session
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('join')}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+              mode === 'join'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Join Session
+          </button>
+        </div>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
+        {mode === 'create' ? (
+          <form onSubmit={handleCreateSession}>
+            <div className="mb-4">
+              <label 
+                htmlFor="userName" 
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Your Name
+              </label>
+              <input
+                type="text"
+                id="userName"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your name"
+                maxLength={50}
+                disabled={loading}
+                autoFocus
+              />
             </div>
-          )}
 
-           <button
-             type="submit"
-             disabled={loading || !userName.trim()}
-             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-400"
-           >
-             {loading ? 'Creating Session...' : 'Create New Session'}
-           </button>
-         </form>
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
 
-         <div className="mt-6 pt-6 border-t border-gray-200">
-           <p className="text-sm text-gray-600 text-center mb-2">
-             Have a room code?
-           </p>
-           <button
-             onClick={() => {
-               const code = prompt('Enter room code:');
-               if (code) {
-                 // Store the name temporarily so SessionJoin can use it
-                 sessionStorage.setItem('pendingUserName', userName.trim());
-                 navigate(`/session/${code.toLowerCase()}`);
-               }
-             }}
-             disabled={!userName.trim()}
-             className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed disabled:hover:bg-gray-300"
+            <button
+              type="submit"
+              disabled={loading || !userName.trim()}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-400"
             >
-              Join Existing Session
+              {loading ? 'Creating Session...' : 'Create New Session'}
             </button>
-         </div>
+          </form>
+        ) : (
+          <form onSubmit={handleJoinSession}>
+            <div className="mb-4">
+              <label 
+                htmlFor="userName-join" 
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Your Name
+              </label>
+              <input
+                type="text"
+                id="userName-join"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your name"
+                maxLength={50}
+                disabled={loading}
+                autoFocus
+              />
+            </div>
+
+            <div className="mb-4">
+              <label 
+                htmlFor="roomCode" 
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Room Code
+              </label>
+              <input
+                type="text"
+                id="roomCode"
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toLowerCase())}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter room code"
+                disabled={loading}
+              />
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || !userName.trim() || !roomCode.trim()}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-400"
+            >
+              {loading ? 'Joining...' : 'Join Session'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

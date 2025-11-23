@@ -1,216 +1,220 @@
 # 📖 Documentation Index
 
-Welcome to the Relative Pointing App! This document helps you navigate all the project documentation and get started quickly.
+Welcome! This guide helps you navigate all project documentation.
 
 ## 🎯 Start Here
 
-### For First-Time Setup
-1. **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Read this first! Overview of what's built and what's next
-2. **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick commands and common tasks
-3. **[docs/SETUP.md](docs/SETUP.md)** - Detailed setup instructions
+1. **[START_HERE.md](START_HERE.md)** - Quick overview (5 min read)
+2. **[GETTING_STARTED.md](GETTING_STARTED.md)** - Setup instructions (2 min)
+3. **[README.md](README.md)** - Project overview (2 min)
 
-### For Development
-1. **[CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md)** - Step-by-step development guide
-2. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design and data structures
-3. **[docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)** - Firebase configuration
-
-### For Deployment
-1. **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - AWS S3 + CloudFront deployment guide
-
-## 📚 Complete Documentation List
-
-### Root Level
-| File | Purpose | Audience |
-|------|---------|----------|
-| [README.md](README.md) | Project overview and structure | Everyone |
-| [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) | What's built and what's next | Developers |
-| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | Quick reference card | Developers |
-| [CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md) | Development continuation guide | Claude Code / Developers |
-| [sample-tasks.csv](sample-tasks.csv) | Sample Jira CSV for testing | Testers |
-
-### Documentation Folder (`/docs`)
-| File | Purpose | Read When |
-|------|---------|-----------|
-| [SETUP.md](docs/SETUP.md) | Local development setup | Starting development |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, data flow, schemas | Understanding the system |
-| [FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) | Firebase project configuration | Setting up backend |
-| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment guide | Ready to deploy |
-
-### Configuration Files
-| File | Purpose |
-|------|---------|
-| [package.json](package.json) | Dependencies and scripts |
-| [.env.example](.env.example) | Environment variables template |
-| [tailwind.config.js](tailwind.config.js) | Tailwind CSS configuration |
-| [postcss.config.js](postcss.config.js) | PostCSS configuration |
-| [.gitignore](.gitignore) | Git ignore rules |
-
-## 🗂️ Code Structure
-
-### Components (`/src/components`)
-- **SessionCreator.jsx** - Create new pointing sessions
-- **SessionJoin.jsx** - Join existing sessions  
-- **TaskBoard.jsx** - Main board interface
-- **CSVUploader.jsx** - Upload and parse Jira CSV
-- **ComponentStubs.jsx** - Column, TaskCard, Chat, ParticipantList, SessionComplete
-
-### Custom Hooks (`/src/hooks`)
-- **useSession.js** - Session state management
-- **useChat.js** - Real-time chat functionality
-- **useTurnManager.js** - Turn-based gameplay logic
-
-### Utilities (`/src/utils`)
-- **roomCodeGenerator.js** - Generate and validate room codes
-- **csvParser.js** - Parse Jira CSV files
-- **jiraUrlBuilder.js** - Build Jira URLs and open tabs
-
-### Services (`/src/services`)
-- **firebase.js** - Firebase initialization and configuration
-
-## 🎓 Learning Path
-
-### Beginner (Never used this project)
-```
-1. Read PROJECT_SUMMARY.md (5 min)
-2. Read QUICK_REFERENCE.md (10 min)
-3. Follow SETUP.md (15 min)
-4. Run npm start and explore (10 min)
-5. Read CLAUDE_CODE_GUIDE.md (20 min)
+Then run:
+```bash
+./run
 ```
 
-### Intermediate (Familiar with React)
+## 📚 Full Documentation
+
+### Quick Reference
+| Document | Purpose | Audience | Read Time |
+|----------|---------|----------|-----------|
+| [START_HERE.md](START_HERE.md) | Project overview | Everyone | 5 min |
+| [README.md](README.md) | Technical overview | Developers | 5 min |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | How to start | Everyone | 5 min |
+| [LOCAL_SETUP.md](LOCAL_SETUP.md) | Architecture & setup | Developers | 10 min |
+| [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) | What's built | Developers | 10 min |
+| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | Commands | Developers | 5 min |
+| [SECURITY.md](SECURITY.md) | Security details | DevOps/Security | 5 min |
+
+## 🚀 By Use Case
+
+### I Want to Use the App
+1. [GETTING_STARTED.md](GETTING_STARTED.md) - Setup
+2. Run `./run`
+3. Start pointing stories
+
+### I Want to Deploy It
+1. [LOCAL_SETUP.md](LOCAL_SETUP.md) - Architecture
+2. [README.md](README.md) - How it works
+3. Deploy backend and frontend separately
+
+### I Want to Understand the Code
+1. [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - What's built
+2. [LOCAL_SETUP.md](LOCAL_SETUP.md) - Architecture
+3. Read source files with inline comments
+
+### I Need to Secure It
+1. [SECURITY.md](SECURITY.md) - Built-in measures
+2. Plan deployment security
+3. Configure production environment
+
+## 📋 Document Descriptions
+
+### START_HERE.md
+- Quick project overview
+- What's included
+- First steps
+- Common tasks
+- **Best for**: Anyone new to the project
+
+### README.md
+- Project description
+- Features list
+- Tech stack
+- Quick start
+- API endpoints
+- **Best for**: Understanding what it does
+
+### GETTING_STARTED.md
+- Setup instructions
+- Running the app
+- Testing with multiple users
+- Troubleshooting
+- **Best for**: Getting it running fast
+
+### LOCAL_SETUP.md
+- Detailed architecture
+- File structure
+- How everything works
+- Database schema
+- API endpoints explained
+- **Best for**: Understanding internals
+
+### PROJECT_SUMMARY.md
+- What's built
+- What's removed
+- Technology stack
+- File listing
+- Status and next steps
+- **Best for**: Project overview
+
+### QUICK_REFERENCE.md
+- Common commands
+- Key files
+- Quick lookups
+- **Best for**: Quick answers
+
+### SECURITY.md
+- Rate limiting
+- Input validation
+- Security measures
+- Best practices
+- **Best for**: Security review
+
+## 🎓 Learning Paths
+
+### For New Users
 ```
-1. Read PROJECT_SUMMARY.md (3 min)
-2. Skim ARCHITECTURE.md (10 min)
-3. Follow FIREBASE_SETUP.md (10 min)
-4. Start implementing from CLAUDE_CODE_GUIDE.md
+START_HERE.md
+    ↓
+GETTING_STARTED.md
+    ↓
+./run
+    ↓
+Use the app!
 ```
 
-### Advanced (Just ship it!)
+### For Developers
 ```
-1. npm install
-2. Set up .env.local
-3. Read CLAUDE_CODE_GUIDE.md Phase 1
-4. Start coding
-```
-
-## 🔍 Find Answers Fast
-
-### "How do I...?"
-| Question | Answer |
-|----------|--------|
-| ...set up the project? | [docs/SETUP.md](docs/SETUP.md) |
-| ...configure Firebase? | [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) |
-| ...understand the data structure? | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → Firebase Schema |
-| ...deploy to production? | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
-| ...continue development? | [CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md) |
-| ...find a quick command? | [QUICK_REFERENCE.md](QUICK_REFERENCE.md) |
-
-### "What is...?"
-| Question | Answer |
-|----------|--------|
-| ...the tech stack? | [README.md](README.md) → Tech Stack |
-| ...the project status? | [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) → What Works Now |
-| ...the architecture? | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| ...the data flow? | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → Data Flow |
-| ...the cost estimate? | [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) → Cost Estimate |
-
-### "Where is...?"
-| Question | Answer |
-|----------|--------|
-| ...the Firebase config? | [src/services/firebase.js](src/services/firebase.js) |
-| ...the room code logic? | [src/utils/roomCodeGenerator.js](src/utils/roomCodeGenerator.js) |
-| ...the CSV parser? | [src/utils/csvParser.js](src/utils/csvParser.js) |
-| ...the main app? | [src/App.jsx](src/App.jsx) |
-| ...the session logic? | [src/hooks/useSession.js](src/hooks/useSession.js) |
-
-## 🚦 Project Status
-
-### ✅ Complete
-- Project structure and organization
-- All documentation
-- Core utility functions
-- Firebase service setup
-- Basic component structure
-- Configuration files
-
-### 🔄 In Progress
-- Component implementations
-- Drag-and-drop functionality
-- Real-time synchronization
-- Turn management
-
-### ⏳ To Do
-- Full testing suite
-- Error handling
-- Loading states
-- Mobile optimization
-- Deployment
-
-## 🎯 Quick Start Paths
-
-### Path 1: "I want to understand the system"
-```
-1. PROJECT_SUMMARY.md
-2. ARCHITECTURE.md
-3. Explore code in /src
+README.md
+    ↓
+LOCAL_SETUP.md
+    ↓
+Explore src/ and server/
+    ↓
+Make changes
 ```
 
-### Path 2: "I want to start developing"
+### For DevOps
 ```
-1. SETUP.md
-2. FIREBASE_SETUP.md
-3. CLAUDE_CODE_GUIDE.md
-4. Start coding!
-```
-
-### Path 3: "I want to deploy"
-```
-1. Complete development
-2. npm run build
-3. DEPLOYMENT.md
-4. Deploy!
+PROJECT_SUMMARY.md
+    ↓
+LOCAL_SETUP.md
+    ↓
+SECURITY.md
+    ↓
+Plan deployment
 ```
 
-### Path 4: "I just want to test"
+## 🔑 Key Concepts
+
+### Session
+- Unique room code (e.g., "friendly-tiger")
+- Multiple participants can join
+- Persists until server restarts
+- Uses SQLite database
+
+### Participant
+- User in a session
+- Real-time list displayed
+- Identified by UUID
+- Sees all other participants
+
+### Task
+- Story or item to point
+- From CSV or manual entry
+- Placed in columns by complexity
+- Can be dragged between columns
+
+### Column
+- Represents complexity level
+- Created dynamically
+- Can be deleted
+- Tasks grouped by complexity
+
+## 🛠️ Tech Stack Reference
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| Frontend | React 18 | User interface |
+| Styling | Tailwind CSS | Component design |
+| Drag-Drop | @dnd-kit | Reorder tasks |
+| Routing | React Router | Navigation |
+| Backend | Express.js | REST API |
+| Database | SQLite | Data storage |
+| CSV | PapaParse | File parsing |
+| Security | express-rate-limit | API protection |
+
+## 🚀 Getting Help
+
+| Question | Document |
+|----------|----------|
+| How do I start? | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| How does it work? | [LOCAL_SETUP.md](LOCAL_SETUP.md) |
+| What's built? | [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) |
+| How do I deploy? | [README.md](README.md) (Deployment section) |
+| Is it secure? | [SECURITY.md](SECURITY.md) |
+| Quick reference? | [QUICK_REFERENCE.md](QUICK_REFERENCE.md) |
+
+## 📁 File Locations
+
 ```
-1. SETUP.md → Install
-2. Use sample-tasks.csv
-3. Test with multiple tabs
+relative-pointing-app/
+├── START_HERE.md              ← Read first
+├── README.md                  ← Project overview
+├── GETTING_STARTED.md         ← Setup instructions
+├── LOCAL_SETUP.md             ← Architecture
+├── PROJECT_SUMMARY.md         ← What's built
+├── QUICK_REFERENCE.md         ← Quick lookups
+├── SECURITY.md                ← Security details
+├── INDEX.md                   ← You are here
+│
+├── run                        ← Start script
+├── package.json               ← Dependencies
+├── src/                       ← Frontend
+├── server/                    ← Backend
+└── public/                    ← Static files
 ```
 
-## 📞 Support Matrix
+## ✨ Quick Navigation
 
-| Issue Type | Check Here |
-|------------|-----------|
-| Setup problems | [docs/SETUP.md](docs/SETUP.md) |
-| Firebase errors | [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) |
-| Code questions | [CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md) |
-| Architecture questions | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| Deployment issues | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
-| Quick how-tos | [QUICK_REFERENCE.md](QUICK_REFERENCE.md) |
-
-## 🎓 Best Practices
-
-1. **Always read docs before asking questions** - Answer is probably here
-2. **Start with SETUP.md** - Don't skip the setup
-3. **Use sample-tasks.csv** - Great for testing
-4. **Test with multiple tabs** - Simulates real users
-5. **Read inline comments** - Code has helpful TODOs
-6. **Follow CLAUDE_CODE_GUIDE.md** - Systematic development approach
-
-## 🎉 You're Ready!
-
-You now have:
-- ✅ Complete project scaffold
-- ✅ All documentation
-- ✅ Working utilities
-- ✅ Clear development path
-- ✅ Deployment guide
-- ✅ Sample data
-
-**Just start with [SETUP.md](docs/SETUP.md) and begin building!**
+- **"I just want to run it"** → [GETTING_STARTED.md](GETTING_STARTED.md)
+- **"I want to understand it"** → [LOCAL_SETUP.md](LOCAL_SETUP.md)
+- **"I want to modify it"** → Read [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) then explore src/
+- **"I want to deploy it"** → Check [README.md](README.md) deployment section
+- **"I need quick answers"** → [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+- **"I need security info"** → [SECURITY.md](SECURITY.md)
 
 ---
 
-*Questions? All answers are in the docs. Happy coding! 🚀*
+**All documentation is organized and up-to-date. Pick any doc above based on your needs!**

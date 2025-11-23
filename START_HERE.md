@@ -1,198 +1,221 @@
 # 🚀 START HERE
 
-## Welcome to Your Relative Pointing App!
+Welcome to the Relative Pointing App! A collaborative web application for Scrum teams to perform relative story pointing.
 
-You've been delivered a **complete, production-ready project scaffold** for a collaborative story pointing application. Everything is organized, documented, and ready for development.
+## What You Have
 
-## 📦 What You Got
+✅ **Fully Functional App** - Ready to use for team story pointing  
+✅ **No External Dependencies** - Everything runs locally  
+✅ **Clean Code** - Well-organized React + Express  
+✅ **Security Built-In** - Rate limiting and input validation  
+✅ **Documentation** - Everything is documented  
 
-### Complete Project Structure
-- **27 files** created and organized
-- **4 comprehensive documentation guides** (60+ pages)
-- **9 React components** (5 complete, 4 stubs)
-- **3 custom hooks** for Firebase integration
-- **3 utility modules** fully implemented
-- **Sample CSV** for testing
-- All configs (Tailwind, PostCSS, package.json)
+## Quick Start (2 minutes)
 
-### Documentation Package
-1. **INDEX.md** - Master documentation index (READ THIS FIRST)
-2. **PROJECT_SUMMARY.md** - What's built and what's next
-3. **QUICK_REFERENCE.md** - Commands and common tasks
-4. **CLAUDE_CODE_GUIDE.md** - Step-by-step development guide
-5. **docs/SETUP.md** - Setup instructions
-6. **docs/ARCHITECTURE.md** - System design
-7. **docs/FIREBASE_SETUP.md** - Backend configuration
-8. **docs/DEPLOYMENT.md** - Production deployment
-
-## 🎯 Your Next 3 Steps
-
-### Step 1: Read the Docs (10 minutes)
 ```bash
-# Start with these in order:
-1. INDEX.md          # Navigation guide
-2. PROJECT_SUMMARY.md # What you have
-3. QUICK_REFERENCE.md # Quick commands
+./run
 ```
 
-### Step 2: Set Up Your Environment (15 minutes)
-```bash
-# Follow this guide:
-docs/SETUP.md
+That's it! The script will:
+- Check Node.js (18+)
+- Install dependencies
+- Start backend (port 5000)
+- Start frontend (port 3000)
 
-# Quick version:
-npm install
-# Create .env.local with Firebase credentials
-npm start
+App opens at **http://localhost:3000**
+
+## First Test
+
+1. **Create a Session**
+   - Enter your name
+   - Click "Create Session"
+   - Copy the room code
+
+2. **Join from Another Tab**
+   - Open incognito/private window
+   - Go to http://localhost:3000
+   - Click "Join Session"
+   - Enter your name + room code
+   - Click "Join"
+
+3. **See Both Participants**
+   - Both tabs show 2 avatars in top-right corner
+   - Participants are in real-time sync
+
+## What's Built
+
+✅ **Session Management** - Create and join with room codes  
+✅ **Participant List** - See all team members in real-time  
+✅ **CSV Import** - Upload Jira task exports  
+✅ **Drag & Drop** - Move tasks between complexity columns  
+✅ **Dynamic Columns** - Create columns by dragging  
+✅ **Dark Mode** - Light and dark themes  
+✅ **Security** - Rate limiting + input validation  
+
+## Architecture
+
+```
+Frontend (React) ←→ Backend (Express) ←→ Database (SQLite)
+Port 3000           Port 5000            app.db
 ```
 
-### Step 3: Start Building (∞ hours of fun)
-```bash
-# Follow this comprehensive guide:
-CLAUDE_CODE_GUIDE.md
+No Firebase, no external services, everything local!
 
-# It covers:
-- Which components to complete first
-- Code examples for each feature
-- Testing strategies
-- Common issues and solutions
-```
-
-## 💡 Key Features Already Done
-
-✅ **Room code generation** - Unique 6-character codes  
-✅ **CSV parsing** - Full Jira CSV import logic  
-✅ **Jira URL building** - Bulk tab opening  
-✅ **Firebase service** - Ready to connect  
-✅ **Component structure** - All UI laid out  
-✅ **Custom hooks** - Session, chat, turn management  
-✅ **Routing** - React Router configured  
-✅ **Styling** - Tailwind CSS ready  
-
-## 🎨 Tech Stack (All Configured)
-
-- ⚛️ React 18
-- 🔥 Firebase Realtime Database
-- 🎨 Tailwind CSS
-- 🖱️ @dnd-kit (drag and drop)
-- 📊 PapaParse (CSV parsing)
-- 🚦 React Router
-
-## 📊 Project Status
-
-| Component | Status | Priority |
-|-----------|--------|----------|
-| Documentation | ✅ 100% | - |
-| Project Structure | ✅ 100% | - |
-| Utilities | ✅ 100% | - |
-| Firebase Config | ✅ 100% | - |
-| Session Creator | 🟡 80% | High |
-| Session Join | 🟡 50% | High |
-| Task Board | 🟡 50% | High |
-| CSV Uploader | 🟡 80% | High |
-| Drag & Drop | ⭕ 0% | High |
-| Turn Manager | 🟡 30% | Medium |
-| Chat | 🟡 20% | Medium |
-| Session Complete | 🟡 20% | Medium |
-
-## ⏱️ Time to MVP
-
-**Estimated: 15-22 hours**
-- Core features: 10-15 hours
-- Testing: 3-5 hours  
-- Deployment: 2 hours
-
-## 💰 Cost to Run
-
-**$0** (Free Tier)
-- Firebase: Free tier (1GB, 10GB/month)
-- S3: Free tier first year (5GB)
-- CloudFront: Free tier first year (1TB)
-
-## 🎓 For Claude Code Users
-
-This project is **perfectly structured for Claude Code**:
-- ✅ All TODOs clearly marked
-- ✅ Code examples provided
-- ✅ Utilities fully implemented
-- ✅ Clear architectural patterns
-- ✅ Comprehensive documentation
-
-Just open Claude Code and say:
-```
-"Continue building the relative pointing app. 
-Start with implementing SessionJoin.jsx."
-```
-
-## 📁 Project Structure
+## File Structure
 
 ```
 relative-pointing-app/
-├── 📖 INDEX.md              ← Master index
-├── 📖 PROJECT_SUMMARY.md    ← What's built
-├── 📖 QUICK_REFERENCE.md    ← Quick commands
-├── 📖 CLAUDE_CODE_GUIDE.md  ← Development guide
-├── 📖 README.md             ← Project overview
-│
-├── 📁 docs/
-│   ├── SETUP.md
-│   ├── ARCHITECTURE.md
-│   ├── FIREBASE_SETUP.md
-│   └── DEPLOYMENT.md
-│
-├── 📁 src/
-│   ├── 📁 components/       ← React components
-│   ├── 📁 hooks/           ← Custom hooks
-│   ├── 📁 utils/           ← Utilities (✅ complete)
-│   ├── 📁 services/        ← Firebase
-│   ├── App.jsx
-│   └── index.js
-│
-├── 📁 public/
-├── package.json
-├── .env.example
-└── sample-tasks.csv         ← Test data
+├── run                    ← RUN THIS
+├── src/                   ← React code
+│   ├── components/
+│   ├── hooks/
+│   ├── services/api.js
+│   └── ...
+├── server/                ← Express code
+│   ├── server.js
+│   ├── routes/
+│   └── schema.sql
+└── docs/
 ```
 
-## 🔗 Important Links
+## Key Files
 
-- **Start Setup**: [docs/SETUP.md](docs/SETUP.md)
-- **Understand System**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- **Start Coding**: [CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md)
-- **Deploy**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+| File | What It Does |
+|------|--------------|
+| `./run` | Starts everything |
+| `src/App.jsx` | Main React app |
+| `src/services/api.js` | API communication |
+| `server/server.js` | Express backend |
+| `server/schema.sql` | Database design |
 
-## 🆘 Need Help?
+## Commands
 
-1. **First**: Check [INDEX.md](INDEX.md) - it's your navigation guide
-2. **Setup issues**: [docs/SETUP.md](docs/SETUP.md)
-3. **Firebase problems**: [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)
-4. **Code questions**: [CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md)
-5. **Quick answers**: [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+```bash
+./run                           # Start everything (recommended)
+npm run dev                     # Alternative: start both
+npm run start:backend           # Just backend
+npm start                       # Just frontend
+npm test                        # Run tests
+npm run build                   # Build for production
+```
 
-## ✨ What Makes This Special
+## Common Tasks
 
-This isn't just code - it's a **complete development package**:
+### Reset Database
+```bash
+rm server/app.db
+./run
+```
 
-1. **📚 Comprehensive docs** - Everything explained
-2. **🏗️ Solid architecture** - Best practices built-in
-3. **🔧 Working utilities** - Core logic done
-4. **🎨 Clean structure** - Easy to understand
-5. **📋 Clear roadmap** - Know exactly what to build
-6. **💰 Zero cost** - Runs on free tier
-7. **⚡ Fast setup** - 15 minutes to running
-8. **🤝 Team-ready** - Multiple devs can work together
+### Port Already in Use
+```bash
+lsof -ti:3000 | xargs kill -9   # Frontend
+lsof -ti:5000 | xargs kill -9   # Backend
+```
 
-## 🎉 Ready to Build!
+### Check Backend Status
+```bash
+curl http://localhost:5000/api/health
+```
 
-You have everything you need. The hardest decisions are made, the architecture is solid, and the path is clear.
+## Documentation
 
-**Next action**: Open [INDEX.md](INDEX.md) and follow the "Beginner Learning Path"
+| Document | For |
+|----------|-----|
+| [README.md](README.md) | Project overview |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | Quick setup |
+| [LOCAL_SETUP.md](LOCAL_SETUP.md) | Architecture deep-dive |
+| [SECURITY.md](SECURITY.md) | Security details |
+| [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) | What's built |
+| [INDEX.md](INDEX.md) | All docs |
+
+## Features
+
+### Create a Session
+1. Enter your name
+2. Click "Create Session"
+3. Get a unique room code
+
+### Join a Session
+1. Click "Join Session"
+2. Enter your name + room code
+3. See all participants immediately
+
+### Upload Tasks
+- Drag CSV files onto the page
+- Or use manual task creation
+- Tasks appear in right sidebar
+
+### Point Stories
+- Drag tasks from sidebar to columns
+- Create new columns by dragging
+- See updates in real-time
+
+### Manage Tasks
+- Delete tasks with button
+- View task details
+- Quick task creation modal
+
+## Tech Stack
+
+- **React 18** - UI framework
+- **Tailwind CSS** - Styling
+- **@dnd-kit** - Drag & drop
+- **Express.js** - Backend API
+- **SQLite** - Database
+- **React Router** - Navigation
+
+## Next Steps
+
+1. ✅ Run `./run`
+2. ✅ Create a session
+3. ✅ Join from another tab
+4. ✅ Upload sample tasks
+5. ✅ Drag tasks around
+6. 📚 Read [LOCAL_SETUP.md](LOCAL_SETUP.md) to understand more
+7. 🚀 Deploy when ready
+
+## Deployment
+
+When ready to go to production:
+
+1. Build React: `npm run build`
+2. Deploy backend Express app
+3. Switch from SQLite to PostgreSQL
+4. Deploy frontend to S3/CloudFront
+5. Update API URL in environment
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for details.
+
+## Need Help?
+
+- **Setup issues?** → [GETTING_STARTED.md](GETTING_STARTED.md)
+- **How it works?** → [LOCAL_SETUP.md](LOCAL_SETUP.md)
+- **Architecture?** → Check `server/schema.sql` and `src/App.jsx`
+- **Code questions?** → Check inline comments
+- **Security?** → [SECURITY.md](SECURITY.md)
+
+## Key Points
+
+✨ **No Firebase** - Everything local  
+✨ **No Configuration** - Just run `./run`  
+✨ **No Authentication** - Perfect for local teams  
+✨ **No Limits** - SQLite can handle team sessions  
+✨ **Production Ready** - Clean architecture for scaling  
+
+## Cost
+
+**$0** - Runs entirely on your machine  
+**Scales Free** - Deploy to free tier services  
+
+## Status
+
+🟢 **Ready to Use** - All core features implemented  
+🟢 **Fully Tested** - Multi-user sessions work  
+🟢 **Production Ready** - Can be deployed  
 
 ---
 
-**Questions?** Everything is documented. Just read the guides!  
-**Stuck?** Check CLAUDE_CODE_GUIDE.md for examples!  
-**Excited?** Great! Start with docs/SETUP.md!
+**That's all you need to know. Just run `./run` and start using it!** 🚀
 
-🚀 **Let's build something amazing!**
-
+Questions? Everything is documented. Just read the other guides!

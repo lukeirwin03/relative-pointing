@@ -35,29 +35,22 @@ router.post('/', async (req, res) => {
 
     console.log(`[CREATE] Creating session with room code: ${roomCode}`);
 
-    // Create session
-    await dbPromise.run(
-      `INSERT INTO sessions (id, room_code, creator_id, status) VALUES (?, ?, ?, ?)`,
-      [sessionId, roomCode, creatorId, 'active']
-    );
+     // Create session
+     await dbPromise.run(
+       `INSERT INTO sessions (id, room_code, creator_id, creator_name) VALUES (?, ?, ?, ?)`,
+       [sessionId, roomCode, creatorId, creatorName]
+     );
 
     // Add creator as first participant
     const participantId = uuidv4();
     console.log(`[CREATE] Adding creator as participant: ${creatorId} (${creatorName})`);
 
     await dbPromise.run(
-      `INSERT INTO participants (id, session_id, user_id, user_name, turn_order) VALUES (?, ?, ?, ?, ?)`,
-      [participantId, sessionId, creatorId, creatorName, 1]
+      `INSERT INTO participants (id, session_id, user_id, user_name) VALUES (?, ?, ?, ?)`,
+      [participantId, sessionId, creatorId, creatorName]
     );
 
     console.log(`[CREATE] Session created successfully`);
-
-    // Initialize turn management
-    const turnId = uuidv4();
-    await dbPromise.run(
-      `INSERT INTO turns (id, session_id, current_turn_user_id, turn_order) VALUES (?, ?, ?, ?)`,
-      [turnId, sessionId, creatorId, JSON.stringify([creatorId])]
-    );
 
     // Note: Columns are created dynamically when tasks are dragged to new locations
     // No default columns are created - start with blank work area
@@ -166,7 +159,7 @@ router.get('/:roomCode', async (req, res) => {
 
     // Get participants
     const participants = await dbPromise.all(
-      `SELECT * FROM participants WHERE session_id = ? ORDER BY turn_order ASC`,
+      `SELECT * FROM participants WHERE session_id = ? ORDER BY joined_at ASC`,
       [session.id]
     );
 
@@ -182,25 +175,18 @@ router.get('/:roomCode', async (req, res) => {
       [session.id]
     );
 
-    // Parse metadata and turn order
-    const processedTasks = tasks.map(task => ({
-      ...task,
-      metadata: task.metadata ? JSON.parse(task.metadata) : {}
-    }));
+     // Parse metadata
+     const processedTasks = tasks.map(task => ({
+       ...task,
+       metadata: task.metadata ? JSON.parse(task.metadata) : {}
+     }));
 
-    const turn = await dbPromise.get(
-      `SELECT * FROM turns WHERE session_id = ?`,
-      [session.id]
-    );
-
-    res.json({
-      session,
-      participants,
-      columns,
-      tasks: processedTasks,
-      currentTurn: turn ? turn.current_turn_user_id : null,
-      turnOrder: turn ? JSON.parse(turn.turn_order) : []
-    });
+     res.json({
+       session,
+       participants,
+       columns,
+       tasks: processedTasks
+     });
   } catch (err) {
     console.error('Error fetching session:', err);
     res.status(500).json({ error: 'Failed to fetch session' });
@@ -271,47 +257,23 @@ router.post('/:roomCode/join', async (req, res) => {
       [session.id, userName]
     );
 
-    if (usernameTaken) {
-      console.log(`[JOIN] Username already taken: ${userName}`);
-      return res.status(400).json({ error: 'That username is already taken in this session' });
-    }
+     if (usernameTaken) {
+       console.log(`[JOIN] Username already taken: ${userName}`);
+       return res.status(400).json({ error: 'That username is already taken in this session' });
+     }
 
-    // Get max turn order
-    const maxTurn = await dbPromise.get(
-      `SELECT MAX(turn_order) as max_turn FROM participants WHERE session_id = ?`,
-      [session.id]
-    );
+     // Add participant
+     const participantId = uuidv4();
+     console.log(`[JOIN] Adding participant: ${participantId} to session ${session.id}`);
 
-    const nextTurnOrder = (maxTurn?.max_turn || 0) + 1;
+     await dbPromise.run(
+       `INSERT INTO participants (id, session_id, user_id, user_name) VALUES (?, ?, ?, ?)`,
+       [participantId, session.id, userId, userName]
+     );
 
-    // Add participant
-    const participantId = uuidv4();
-    console.log(`[JOIN] Adding participant: ${participantId} to session ${session.id} with turn order ${nextTurnOrder}`);
+     console.log(`[JOIN] Successfully added participant`);
 
-    await dbPromise.run(
-      `INSERT INTO participants (id, session_id, user_id, user_name, turn_order) VALUES (?, ?, ?, ?, ?)`,
-      [participantId, session.id, userId, userName, nextTurnOrder]
-    );
-
-    console.log(`[JOIN] Successfully added participant`);
-
-    // Update turn order
-    const turn = await dbPromise.get(
-      `SELECT * FROM turns WHERE session_id = ?`,
-      [session.id]
-    );
-
-    const turnOrder = JSON.parse(turn.turn_order);
-    if (!turnOrder.includes(userId)) {
-      turnOrder.push(userId);
-    }
-
-    await dbPromise.run(
-      `UPDATE turns SET turn_order = ? WHERE session_id = ?`,
-      [JSON.stringify(turnOrder), session.id]
-    );
-
-    res.json({ success: true, sessionId: session.id });
+     res.json({ success: true, sessionId: session.id });
   } catch (err) {
     console.error('Error joining session:', err);
     res.status(500).json({ error: 'Failed to join session' });

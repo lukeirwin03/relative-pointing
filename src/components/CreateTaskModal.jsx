@@ -3,7 +3,6 @@ import APIService from '../services/api';
 
 function CreateTaskModal({ roomCode, onTaskCreated, onClose }) {
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -19,7 +18,7 @@ function CreateTaskModal({ roomCode, onTaskCreated, onClose }) {
     setError('');
 
     try {
-      const result = await APIService.createTask(roomCode, title, description);
+      const result = await APIService.createTask(roomCode, title);
       
       if (result.success && result.task) {
         // Call the callback with the new task
@@ -27,7 +26,6 @@ function CreateTaskModal({ roomCode, onTaskCreated, onClose }) {
         
         // Reset form
         setTitle('');
-        setDescription('');
         
         // Close modal
         onClose();
@@ -80,30 +78,7 @@ function CreateTaskModal({ roomCode, onTaskCreated, onClose }) {
             </p>
           </div>
 
-          {/* Description Field */}
-          <div>
-            <label 
-              htmlFor="task-description"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              Description (Optional)
-            </label>
-            <textarea
-              id="task-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter task description"
-              rows={4}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              maxLength={500}
-              disabled={loading}
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {description.length}/500
-            </p>
-          </div>
-
-          {/* Error Message */}
+           {/* Error Message */}
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

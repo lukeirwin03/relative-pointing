@@ -1,169 +1,198 @@
 # Relative Pointing App - Project Summary
 
-## What You've Got
+## Current State
 
-A complete project scaffold for a collaborative relative story pointing application with:
+A fully functional collaborative story pointing application with:
 
-### 📚 Documentation (4 comprehensive guides)
-- **README.md** - Project overview and structure
-- **SETUP.md** - Local development setup instructions
-- **ARCHITECTURE.md** - System design and data flow
-- **FIREBASE_SETUP.md** - Step-by-step Firebase configuration
-- **DEPLOYMENT.md** - AWS S3 + CloudFront deployment guide
-- **CLAUDE_CODE_GUIDE.md** - Development continuation guide
+### ✅ Completed Features
+- Session creation with unique room codes
+- Multi-participant sessions with real-time participant list
+- CSV import for Jira tasks
+- Drag-and-drop task placement into complexity columns
+- Dynamic column creation
+- Task management (create, delete, move)
+- Dark mode support
+- Rate limiting and security measures
+- SQLite database with Express backend
+- Simplified session join flow (no extra modal)
 
-### 🏗️ Project Structure
+### 🏗️ Architecture
+- **Frontend**: React 18 with React Router, Tailwind CSS, @dnd-kit
+- **Backend**: Express.js REST API with rate limiting
+- **Database**: SQLite (local file-based)
+- **No External Services**: Everything runs locally
+
+## What's Built
+
+### Components
+- `SessionCreator.jsx` - Create/join sessions on single page
+- `TaskBoard.jsx` - Main board with drag-and-drop
+- `ParticipantList.jsx` - Show all session participants
+- `Column.jsx` - Task columns
+- `TaskCard.jsx` - Individual task display
+- `CreateTaskModal.jsx` - Quick task creation
+- `DropZoneOverlay.jsx` - CSV drag-and-drop
+- `App.jsx` - Routing and state management
+
+### Backend Routes
+- `POST /sessions` - Create session
+- `GET /sessions/:roomCode` - Get session details
+- `POST /sessions/:roomCode/join` - Join session
+- `POST /sessions/:roomCode/tasks` - Create/upload tasks
+- `PUT /sessions/:roomCode/tasks/:taskId` - Move task
+- `DELETE /sessions/:roomCode/tasks/:taskId` - Delete task
+- `POST /sessions/:roomCode/columns` - Create column
+- `DELETE /sessions/:roomCode/columns/:columnId` - Delete column
+
+### Utilities
+- Room code generation
+- CSV parsing
+- Session management
+- User authentication (localStorage)
+
+## Project Structure
+
 ```
 relative-pointing-app/
-├── docs/              # All documentation
-├── public/            # Static HTML
+├── run                      ← Start everything
+├── package.json
 ├── src/
-│   ├── components/    # React components (7 files)
-│   ├── hooks/         # Custom hooks (3 files)
-│   ├── services/      # Firebase service
-│   └── utils/         # Helper functions (3 files)
-├── package.json       # Dependencies configured
-└── Config files       # Tailwind, PostCSS, etc.
+│   ├── components/          ← React UI components
+│   ├── hooks/               ← Custom React hooks
+│   ├── services/api.js      ← API client
+│   ├── utils/               ← Helper functions
+│   ├── App.jsx
+│   └── index.js
+├── server/
+│   ├── server.js
+│   ├── db.js
+│   ├── schema.sql
+│   └── routes/
+│       ├── sessions.js
+│       └── tasks.js
+├── public/
+└── README.md, docs, etc.
 ```
-
-### ⚛️ Components Created
-1. **SessionCreator** - Create new pointing sessions
-2. **SessionJoin** - Join existing sessions
-3. **TaskBoard** - Main board interface
-4. **CSVUploader** - Upload Jira CSV files
-5. **Column** - Task columns (stub)
-6. **TaskCard** - Individual task cards (stub)
-7. **Chat** - Real-time chat (stub)
-8. **ParticipantList** - Show active users (stub)
-9. **SessionComplete** - Finish and export (stub)
-
-### 🔧 Utilities Implemented
-1. **roomCodeGenerator.js** - Generate/validate room codes
-2. **csvParser.js** - Parse Jira CSV exports
-3. **jiraUrlBuilder.js** - Build Jira URLs and open tabs
-
-### 🪝 Custom Hooks
-1. **useSession** - Manage session state with Firebase
-2. **useChat** - Handle real-time chat
-3. **useTurnManager** - Manage turn-based gameplay
-
-### 🎨 Tech Stack Configured
-- React 18
-- Firebase Realtime Database
-- Tailwind CSS
-- @dnd-kit (drag and drop)
-- PapaParse (CSV parsing)
-- React Router
-
-## What Works Now
-✅ Project structure  
-✅ Firebase service configuration  
-✅ Room code generation  
-✅ CSV parsing logic  
-✅ Jira URL building  
-✅ Basic component structure  
-✅ Routing setup  
-
-## What Needs Implementation
-⏳ Complete component logic  
-⏳ Drag-and-drop functionality  
-⏳ Real-time Firebase synchronization  
-⏳ Turn management system  
-⏳ Chat functionality  
-⏳ Session completion flow  
 
 ## Quick Start
 
-### 1. Install Dependencies
 ```bash
-cd relative-pointing-app
-npm install
+./run
 ```
 
-### 2. Set Up Firebase
-Follow `docs/FIREBASE_SETUP.md`:
-- Create Firebase project
-- Enable Realtime Database
-- Copy config to `.env.local`
+Opens at `http://localhost:3000`
 
-### 3. Start Development
-```bash
-npm start
-```
+## How to Use
 
-### 4. Continue Building
-Follow `CLAUDE_CODE_GUIDE.md` for next steps
+### Create a Session
+1. Enter your name
+2. Click "Create Session"
+3. Copy the room code
 
-## Key Features To Implement
+### Join a Session
+1. Click "Join Session" tab
+2. Enter your name
+3. Paste room code
+4. Click "Join"
 
-### Priority 1: Core Functionality
-1. Session creation and joining (80% done)
-2. CSV upload and task parsing (80% done)
-3. Task display (50% done)
+### Point Tasks
+1. Upload CSV with tasks
+2. Drag tasks into complexity columns
+3. Create new columns as needed
+4. See all participants in real-time
 
-### Priority 2: Collaboration
-1. Drag-and-drop task placement (0% done)
-2. Turn-based rotation (30% done)
-3. Real-time sync across users (30% done)
+## Development Notes
 
-### Priority 3: Polish
-1. Chat functionality (20% done)
-2. Session completion (20% done)
-3. Bulk Jira tab opening (80% done)
+### No Firebase
+Everything runs locally with Express + SQLite. No external services needed.
 
-## Estimated Time to MVP
-- Complete core features: **10-15 hours**
-- Testing and bug fixes: **3-5 hours**
-- Deployment: **2 hours**
-- **Total: 15-22 hours**
+### Removed Features
+- Turn-based gameplay (replaced with free-form pointing)
+- Chat functionality (simplified scope)
+- SessionJoin component (merged into SessionCreator)
+- Firebase dependency
 
-## Cost Estimate (Free Tier)
-- Firebase: **$0** (within limits)
-- S3 Hosting: **$0** (first year)
-- CloudFront: **$0** (first year)
-- **Total: $0**
+### Current Limitations
+- No WebSocket support (uses polling every 2 seconds)
+- Single server (not distributed)
+- SQLite (not suitable for large scale)
+- No user authentication
 
-## Next Action Items
+## Deployment Ready
 
-For Claude Code or any developer:
+To deploy to production:
 
-1. ✅ Read `docs/SETUP.md` - Get environment running
-2. ✅ Read `CLAUDE_CODE_GUIDE.md` - Understand next steps
-3. 🔲 Complete `SessionJoin.jsx` - Join logic
-4. 🔲 Implement drag-and-drop in `TaskBoard.jsx`
-5. 🔲 Complete `Chat.jsx` - Real-time messaging
-6. 🔲 Test with multiple users
-7. 🔲 Deploy to S3
+1. **Backend** - Express app to AWS Lambda, Heroku, DigitalOcean
+2. **Database** - Migrate from SQLite to PostgreSQL
+3. **Frontend** - Build React and deploy to S3/CloudFront
+4. **Update API URL** - Change `REACT_APP_API_URL` environment variable
 
-## Files Ready for Claude Code
+## Technology Stack
 
-All files are code stubs with clear TODOs and comprehensive documentation. Claude Code can:
-- Continue from any component
-- Implement features in any order
-- Reference utilities and hooks
-- Follow architectural patterns
-- Test incrementally
+| Layer | Tech | Purpose |
+|-------|------|---------|
+| Frontend | React 18 | UI framework |
+| Styling | Tailwind CSS | Component styles |
+| Drag-Drop | @dnd-kit | Reordering |
+| CSV | PapaParse | File parsing |
+| Routing | React Router | Navigation |
+| Backend | Express.js | REST API |
+| Database | SQLite | Data persistence |
+| Rate Limit | express-rate-limit | API protection |
 
-## Testing Approach
+## Security
 
-Start with:
-1. Session creation (single user)
-2. CSV upload (local only)
-3. Add Firebase integration
-4. Test with 2 browser tabs
-5. Add drag-and-drop
-6. Full multi-user testing
+- Rate limiting on all endpoints
+- Brute force protection on session joins
+- Input validation
+- Session isolation
+- No sensitive data exposure
 
-## Support Resources
+See [SECURITY.md](SECURITY.md) for details.
 
-- All documentation in `/docs`
-- Code examples in CLAUDE_CODE_GUIDE.md
-- Inline comments and TODOs
-- Utility functions fully implemented
-- Clear project structure
+## Next Steps for Development
 
----
+1. Add WebSocket support for real-time updates
+2. Implement user authentication
+3. Add session export functionality
+4. Improve mobile responsiveness
+5. Add more task metadata fields
+6. Implement user preferences
 
-**You now have everything needed to build a production-ready relative pointing app!** 🚀
+## Files You Need to Know
 
-The hardest architectural decisions are made, the structure is solid, and the path forward is clear. Just follow the guides and implement the features step by step.
+| File | Purpose |
+|------|---------|
+| `./run` | Start everything |
+| `server/server.js` | Express entry point |
+| `src/App.jsx` | React entry point |
+| `src/services/api.js` | API communication |
+| `src/components/SessionCreator.jsx` | Create/join interface |
+| `src/components/TaskBoard.jsx` | Main workspace |
+| `server/schema.sql` | Database structure |
+
+## Testing
+
+Test with 2 browser windows/tabs:
+
+1. Tab 1: Create session
+2. Tab 2: Join with room code
+3. Both should show participants
+4. Upload CSV and drag tasks
+5. Updates appear in both tabs
+
+## Documentation
+
+- [README.md](README.md) - Overview
+- [GETTING_STARTED.md](GETTING_STARTED.md) - Quick setup
+- [LOCAL_SETUP.md](LOCAL_SETUP.md) - Detailed architecture
+- [SECURITY.md](SECURITY.md) - Security measures
+- [INDEX.md](INDEX.md) - Documentation index
+
+## Cost
+
+✅ **$0** - Everything runs locally. Deploy for minimal cost.
+
+## Status
+
+**🚀 Production Ready** - Fully functional for team story pointing sessions

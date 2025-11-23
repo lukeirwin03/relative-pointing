@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import SessionCreator from './components/SessionCreator';
-import SessionJoin from './components/SessionJoin';
 import TaskBoard from './components/TaskBoard';
 import { ThemeProvider } from './hooks/useTheme';
 
@@ -35,17 +34,17 @@ function App() {
       <Router>
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
           <Routes>
-            {/* Home page - create new session */}
+            {/* Home page - create or join session */}
             <Route path="/" element={<SessionCreator onSessionCreated={setCurrentUser} />} />
 
-            {/* Join session with room code */}
+            {/* Session room */}
             <Route
               path="/session/:roomCode"
               element={
                 currentUser ? (
                   <TaskBoard user={currentUser} onLogout={handleUserLogout} />
                 ) : (
-                  <SessionJoin onJoin={setCurrentUser} />
+                  <Navigate to="/" replace />
                 )
               }
             />

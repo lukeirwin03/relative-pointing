@@ -1,297 +1,384 @@
-# Claude Code Development Guide
+# Development Guide
 
-This guide provides instructions for continuing development of the Relative Pointing App using Claude Code.
+Guide for understanding and modifying the Relative Pointing App.
 
-## Project Status
+## Current State
 
-This project currently contains:
-- ✅ Complete documentation (SETUP, ARCHITECTURE, FIREBASE_SETUP, DEPLOYMENT)
-- ✅ Project structure and configuration files
-- ✅ Code stubs for all major components
-- ✅ Utility functions (CSV parsing, room codes, Jira URLs)
-- ✅ Custom React hooks (useSession, useChat, useTurnManager)
-- ⏳ Component implementations (partially complete)
-- ⏳ Firebase integration (needs testing)
-- ⏳ Drag-and-drop functionality (not implemented)
-- ⏳ Real-time synchronization (basic structure only)
+✅ **Fully Functional**
+- Sessions with room codes
+- Multi-participant support  
+- CSV upload
+- Drag-and-drop task placement
+- Dynamic columns
+- Dark mode
+
+🗑️ **Removed**
+- Firebase (replaced with Express + SQLite)
+- Turn-based gameplay
+- Chat functionality
+- SessionJoin component (merged into SessionCreator)
+
+## Architecture Overview
+
+```
+┌─────────────────┐
+│   React App     │
+│   (Port 3000)   │
+└────────┬────────┘
+         │ REST API
+         ↓
+┌─────────────────┐
+│  Express Server │
+│   (Port 5000)   │
+└────────┬────────┘
+         │ SQL
+         ↓
+┌─────────────────┐
+│    SQLite DB    │
+│   (app.db)      │
+└─────────────────┘
+```
+
+## Code Organization
+
+### Frontend (src/)
+
+**Components**
+- `App.jsx` - Main app with routing
+- `SessionCreator.jsx` - Create/join sessions
+- `TaskBoard.jsx` - Main workspace
+- `ParticipantList.jsx` - Show participants
+- `Column.jsx` - Task column
+- `TaskCard.jsx` - Individual task
+- `CreateTaskModal.jsx` - Task creation
+- `DropZoneOverlay.jsx` - CSV drag-drop
+
+**Hooks**
+- `useSession.js` - Fetch and sync session data
+- `useTheme.js` - Dark mode support
+
+**Services**
+- `api.js` - REST API client
+
+**Utils**
+- `csvParser.js` - Parse CSV files
+- `roomCodeGenerator.js` - Generate room codes
+
+### Backend (server/)
+
+**Routes**
+- `sessions.js` - Session endpoints
+- `tasks.js` - Task endpoints
+
+**Core**
+- `server.js` - Express server
+- `db.js` - SQLite initialization
+- `schema.sql` - Database schema
+
+## Key Data Flows
+
+### Create Session
+
+```
+User enters name
+     ↓
+SessionCreator.jsx calls APIService.createSession()
+     ↓
+POST /sessions
+     ↓
+server/routes/sessions.js creates record
+     ↓
+Returns room code
+     ↓
+User navigated to /session/:roomCode
+     ↓
+TaskBoard loads
+```
+
+### Join Session
+
+```
+User enters name + room code
+     ↓
+SessionCreator.jsx calls APIService.joinSession()
+     ↓
+POST /sessions/:roomCode/join
+     ↓
+server/routes/sessions.js creates participant record
+     ↓
+User navigated to /session/:roomCode
+     ↓
+TaskBoard loads
+     ↓
+useSession hook fetches participants
+     ↓
+ParticipantList updates
+```
+
+### Move Task
+
+```
+User drags task
+     ↓
+TaskBoard.handleDragEnd()
+     ↓
+APIService.moveTask()
+     ↓
+PUT /sessions/:roomCode/tasks/:taskId
+     ↓
+server/routes/tasks.js updates database
+     ↓
+useSession hook polls and fetches new state
+     ↓
+TaskBoard re-renders with updated position
+```
+
+## Important Files
+
+| File | What It Does | Key Functions |
+|------|-------------|----------------|
+| src/App.jsx | Routing & user state | Routes, user persistence |
+| src/components/SessionCreator.jsx | Create/join UI | handleCreateSession, handleJoinSession |
+| src/components/TaskBoard.jsx | Main board | handleDragEnd, handleDeleteTask |
+| src/hooks/useSession.js | Data fetching | Polls API every 2 seconds |
+| src/services/api.js | API calls | All fetch calls to backend |
+| server/server.js | Express app | Middleware, error handling |
+| server/routes/sessions.js | Session logic | Create, get, join |
+| server/routes/tasks.js | Task logic | Create, move, delete |
+| server/schema.sql | Database design | Tables and schema |
+
+## Database Tables
+
+### sessions
+```
+id, room_code, creator_id, creator_name, created_at
+```
+
+### participants
+```
+id, session_id, user_id, user_name, joined_at
+```
+
+### tasks
+```
+id, session_id, jira_key, title, description, column_id, task_order, metadata
+```
+
+### columns
+```
+id, session_id, name, column_order, created_at
+```
+
+## API Response Format
+
+### Success
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+### Error
+```json
+{
+  "error": "Error message"
+}
+```
+
+## Development Workflow
+
+### 1. Understand the Current State
+
+Read:
+- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - What's built
+- [LOCAL_SETUP.md](LOCAL_SETUP.md) - Architecture
+- This document
+
+### 2. Make a Change
+
+Example: Add a new task field
+
+**Frontend (src/components/CreateTaskModal.jsx)**
+```jsx
+// Add to state
+const [priority, setPriority] = useState('medium');
+
+// Add to form
+<select value={priority} onChange={(e) => setPriority(e.target.value)}>
+  <option>Low</option>
+  <option>Medium</option>
+  <option>High</option>
+</select>
+
+// Pass to API
+APIService.createTask(roomCode, title, priority);
+```
+
+**Backend (server/routes/tasks.js)**
+```js
+// Add column to insert
+INSERT INTO tasks (..., priority) 
+VALUES (..., ?)
+```
+
+**Database (server/schema.sql)**
+```sql
+ALTER TABLE tasks ADD COLUMN priority TEXT;
+```
+
+### 3. Test Locally
+
+```bash
+./run
+# Test in browser
+```
+
+### 4. Deploy
+
+See [LOCAL_SETUP.md](LOCAL_SETUP.md) Deployment section
+
+## Common Modifications
+
+### Add a New API Endpoint
+
+1. Create route in `server/routes/*.js`
+2. Add function to `src/services/api.js`
+3. Call from React component
+
+### Add a New Database Field
+
+1. Update `server/schema.sql`
+2. Delete `server/app.db` to reset
+3. Update API endpoint to use field
+4. Update React component if needed
+
+### Add a New Page/Component
+
+1. Create in `src/components/`
+2. Add route in `src/App.jsx`
+3. Update navigation
+
+### Add Styling
+
+Everything uses Tailwind CSS. Just add classes to JSX:
+
+```jsx
+<div className="bg-blue-500 text-white p-4">
+  Styled content
+</div>
+```
+
+## Debugging
+
+### Check Browser Console
+```
+Press F12 → Console tab
+Look for errors and logs
+```
+
+### Check Backend Logs
+```
+Look at terminal running ./run
+See Express logs
+```
+
+### Test API Endpoint
+```bash
+curl http://localhost:5000/api/health
+```
+
+### Check Database
+```bash
+sqlite3 server/app.db
+SELECT * FROM sessions;
+```
+
+## Performance Considerations
+
+### Polling (Current)
+- useSession hook polls every 2 seconds
+- Works well for team sessions
+- Not real-time for very fast changes
+
+### For Real-Time
+- Could implement WebSocket
+- Use Socket.io with Express
+- Would update participants instantly
+
+## Security Notes
+
+- Rate limiting implemented
+- Input validation in place
+- No authentication (local dev)
+- SQL queries use parameterized statements
+
+See [SECURITY.md](SECURITY.md) for details.
+
+## Testing Tips
+
+### Test Multi-User
+1. Tab 1: Create session
+2. Tab 2 (incognito): Join same session
+3. Both should see same data
+
+### Test Drag-Drop
+1. Upload CSV
+2. Drag tasks between columns
+3. Check both tabs update
+
+### Test Persistence
+1. Make changes
+2. Refresh page
+3. Data should persist
+
+## Common Issues
+
+### "Cannot find module" Error
+```bash
+rm -rf node_modules
+./run
+```
+
+### Port Already in Use
+```bash
+lsof -ti:3000 | xargs kill -9
+```
+
+### Database Locked
+```bash
+rm server/app.db
+./run
+```
 
 ## Next Steps for Development
 
-### Phase 1: Firebase Setup and Testing
-1. Follow `docs/FIREBASE_SETUP.md` to create Firebase project
-2. Add credentials to `.env.local`
-3. Test basic Firebase connection in `src/services/firebase.js`
-4. Verify session creation and joining works
+Possible improvements:
 
-### Phase 2: Complete Core Components
-
-#### SessionJoin Component
-Location: `src/components/SessionJoin.jsx`
-Tasks:
-- Implement join logic with Firebase
-- Validate room code exists
-- Add user to participants list
-- Store user info in localStorage
-- Handle errors (room not found, etc.)
-
-#### TaskBoard Component
-Location: `src/components/TaskBoard.jsx`
-Tasks:
-- Fetch and display tasks from Firebase
-- Render dynamic columns
-- Implement task filtering
-- Add loading states
-- Handle session not found
-
-#### Column Component
-Location: `src/components/Column.jsx` (currently in ComponentStubs.jsx)
-Tasks:
-- Extract to separate file
-- Implement drop zone detection
-- Handle task reordering within column
-- Add column creation between existing columns
-- Show suggested point values
-
-#### TaskCard Component
-Location: `src/components/Column.jsx` (currently in ComponentStubs.jsx)
-Tasks:
-- Extract to separate file
-- Make draggable (use @dnd-kit)
-- Show task metadata
-- Add hover states
-- Display task description in tooltip
-
-### Phase 3: Drag-and-Drop Implementation
-
-Use @dnd-kit library (already in package.json):
-
-```javascript
-import {
-  DndContext,
-  DragOverlay,
-  closestCorners,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-```
-
-Key features to implement:
-1. Draggable task cards
-2. Droppable columns
-3. Drop zone detection between columns
-4. Visual feedback during drag
-5. Update Firebase on drop
-6. Optimistic UI updates
-
-### Phase 4: CSV Upload Integration
-
-Complete `CSVUploader` component:
-1. Parse CSV using existing utility
-2. Create task objects
-3. Upload to Firebase `sessions/{roomCode}/tasks`
-4. Extract and store Jira base URL
-5. Show progress feedback
-6. Handle errors gracefully
-
-### Phase 5: Chat Implementation
-
-Complete `Chat` component:
-1. Use `useChat` hook for messages
-2. Display messages in chronological order
-3. Auto-scroll to newest message
-4. Show user avatars/colors
-5. Add timestamp display
-6. Implement message sending
-7. Add emoji support (optional)
-
-### Phase 6: Turn Management
-
-Integrate turn system:
-1. Complete `useTurnManager` hook implementation
-2. Update UI based on current turn
-3. Only allow active user to drag tasks
-4. Show whose turn it is prominently
-5. Auto-advance turn after task placement
-6. Add manual turn skip option
-
-### Phase 7: Session Completion
-
-Complete `SessionComplete` component:
-1. Display final column layout
-2. Show task counts per column
-3. Let scrum master assign point values to columns
-4. Implement bulk tab opening
-5. Handle browser popup blockers
-6. Add export options (CSV, JSON)
-
-## Code Examples
-
-### Firebase Task Upload
-
-```javascript
-import { ref, set, push } from 'firebase/database';
-
-async function uploadTasks(roomCode, tasks) {
-  const tasksRef = ref(database, `sessions/${roomCode}/tasks`);
-  
-  const taskPromises = tasks.map(task => {
-    const taskRef = push(tasksRef);
-    return set(taskRef, {
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      columnId: 'unsorted',
-      order: 0,
-      metadata: task.metadata,
-    });
-  });
-  
-  await Promise.all(taskPromises);
-}
-```
-
-### Drag and Drop Handler
-
-```javascript
-function handleDragEnd(event) {
-  const { active, over } = event;
-  
-  if (!over) return;
-  
-  const taskId = active.id;
-  const targetColumnId = over.id;
-  
-  // Update Firebase
-  const taskRef = ref(database, `sessions/${roomCode}/tasks/${taskId}`);
-  await update(taskRef, {
-    columnId: targetColumnId,
-    assignedBy: currentUserId,
-    assignedAt: Date.now(),
-  });
-  
-  // Advance turn
-  await nextTurn();
-}
-```
-
-### Create Column Between Existing Columns
-
-```javascript
-async function createColumnBetween(leftColumn, rightColumn) {
-  const newOrder = (leftColumn.order + rightColumn.order) / 2;
-  const newColumnRef = push(ref(database, `sessions/${roomCode}/columns`));
-  
-  await set(newColumnRef, {
-    id: newColumnRef.key,
-    name: 'New Column',
-    order: newOrder,
-    createdBy: currentUserId,
-    createdAt: Date.now(),
-  });
-}
-```
-
-## Testing Strategy
-
-### Manual Testing Checklist
-- [ ] Create session and get room code
-- [ ] Join session from different browser/tab
-- [ ] Upload sample CSV file
-- [ ] Drag task to column
-- [ ] Create new column by dragging between columns
-- [ ] Verify turn advances after placement
-- [ ] Send chat messages
-- [ ] Complete session and open Jira tabs
-- [ ] Test with 5+ participants
-
-### Unit Tests
-Priority files for testing:
-1. `utils/roomCodeGenerator.js`
-2. `utils/csvParser.js`
-3. `utils/jiraUrlBuilder.js`
-4. `hooks/useSession.js`
-5. `hooks/useTurnManager.js`
-
-### Integration Tests
-Test flows:
-1. Session creation → Join → Upload CSV → Point tasks
-2. Multi-user turn rotation
-3. Real-time synchronization across clients
-
-## Common Issues and Solutions
-
-### Issue: Firebase Permission Denied
-Solution: Check security rules in Firebase console. For development, use open rules (see FIREBASE_SETUP.md)
-
-### Issue: React Hook Dependency Warnings
-Solution: Add all dependencies to useEffect arrays, or use useCallback for functions
-
-### Issue: Drag and Drop Not Working
-Solution: Ensure @dnd-kit is properly initialized with DndContext wrapper
-
-### Issue: Multiple Tabs Not Opening
-Solution: Add popup permission prompt and delay between tab opens (see jiraUrlBuilder.js)
-
-### Issue: Real-time Updates Delayed
-Solution: Check Firebase connection status and network latency
-
-## Performance Optimization
-
-Once core features work:
-1. Add React.memo to TaskCard components
-2. Implement virtual scrolling for large task lists
-3. Paginate chat messages
-4. Debounce Firebase writes
-5. Add optimistic UI updates
-6. Lazy load non-critical components
-
-## Deployment
-
-Once development is complete:
-1. Test thoroughly in development
-2. Build production version: `npm run build`
-3. Follow `docs/DEPLOYMENT.md` for S3/CloudFront setup
-4. Configure environment variables for production
-5. Set up Firebase security rules
-6. Test in production environment
-
-## Additional Features (Future)
-
-Ideas for v2:
-- Anonymous voting mode
-- Timer for each turn
-- Historical session archive
-- Custom point scales (Fibonacci, T-shirt sizes)
-- Export session summary as PDF
-- Integrate with Jira API directly
-- Voice chat integration
-- Mobile responsive improvements
-- Keyboard shortcuts
-- Undo/redo functionality
+1. **WebSocket** - Real-time updates instead of polling
+2. **Authentication** - User logins and roles
+3. **Export** - Download results as CSV/Excel
+4. **Undo/Redo** - Task change history
+5. **Notifications** - Real-time alerts
+6. **Mobile App** - React Native version
+7. **Collaboration** - Video/audio chat
+8. **Analytics** - Track pointing metrics
 
 ## Resources
 
-- [React Documentation](https://react.dev)
-- [Firebase Documentation](https://firebase.google.com/docs)
-- [dnd-kit Documentation](https://docs.dndkit.com)
-- [Tailwind CSS](https://tailwindcss.com/docs)
-- [PapaParse](https://www.papaparse.com)
+- [React Docs](https://react.dev)
+- [Express Docs](https://expressjs.com)
+- [SQLite Docs](https://www.sqlite.org)
+- [Tailwind CSS](https://tailwindcss.com)
+- [@dnd-kit](https://docs.dndkit.com)
 
 ## Getting Help
 
-1. Review existing documentation in `/docs`
-2. Check component stubs for TODO comments
-3. Look at utility functions for examples
-4. Test in isolation before integration
-5. Use browser DevTools for debugging
+- Check [INDEX.md](INDEX.md) for all docs
+- Read inline code comments
+- Check git history for changes
+- Run `./run` to test changes locally
 
 ---
 
-**Remember**: This is a collaborative tool. Test with real users early and iterate based on feedback!
+**Happy developing! 🚀**
