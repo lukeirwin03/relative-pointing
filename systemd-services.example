@@ -1,0 +1,208 @@
+# Systemd Service Files for Relative Pointing App
+# 
+# These files should be placed in /etc/systemd/system/
+# 
+# File 1: /etc/systemd/system/relative-pointing-backend.service
+# File 2: /etc/systemd/system/relative-pointing-frontend.service (optional)
+# File 3: /etc/systemd/system/relative-pointing.service (combined - recommended)
+#
+# After copying, run:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable relative-pointing-backend
+#   sudo systemctl start relative-pointing-backend
+#   sudo systemctl status relative-pointing-backend
+#   journalctl -u relative-pointing-backend -f
+
+################################################################################
+# OPTION 1: Backend Service Only (Recommended for Production)
+################################################################################
+# File: /etc/systemd/system/relative-pointing-backend.service
+# This service runs the Express backend on port 5000
+# Frontend is served statically by nginx from the build directory
+
+[Unit]
+Description=Relative Pointing App - Backend API Server
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/var/www/relative-pointing/app
+
+# Environment variables
+Environment="NODE_ENV=production"
+Environment="PORT=5000"
+Environment="DATABASE_PATH=/var/www/relative-pointing/database/app.db"
+Environment="REACT_APP_API_URL=https://relativepointing.app/api"
+
+# Start command
+ExecStart=/usr/bin/npm run start:backend
+
+# Restart policy - restart if it crashes
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=relative-pointing
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/www/relative-pointing/database
+
+[Install]
+WantedBy=multi-user.target
+
+################################################################################
+# OPTION 2: Frontend Build Service (Optional)
+################################################################################
+# File: /etc/systemd/system/relative-pointing-frontend.service
+# This builds the React app (runs once on startup)
+# Not needed if you manually build before deployment
+
+[Unit]
+Description=Relative Pointing App - Frontend Build
+After=network.target
+Before=relative-pointing-backend.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/var/www/relative-pointing/app
+Environment="NODE_ENV=production"
+
+# Build command
+ExecStart=/usr/bin/npm run build
+
+# Keep service marked as active after completion
+RemainAfterExit=yes
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=relative-pointing-build
+
+[Install]
+WantedBy=multi-user.target
+
+################################################################################
+# OPTION 3: Combined Service (Alternative)
+################################################################################
+# File: /etc/systemd/system/relative-pointing.service
+# Simplified single service file combining backend
+
+[Unit]
+Description=Relative Pointing App
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=www-data
+WorkingDirectory=/var/www/relative-pointing/app
+
+# Environment
+Environment="NODE_ENV=production"
+Environment="PORT=5000"
+Environment="DATABASE_PATH=/var/www/relative-pointing/database/app.db"
+Environment="REACT_APP_API_URL=https://relativepointing.app/api"
+
+# Pre-start: rebuild frontend if needed
+ExecStartPre=/bin/bash -c 'npm run build || true'
+
+# Main service
+ExecStart=/usr/bin/npm run start:backend
+
+# Restart
+Restart=on-failure
+RestartSec=10
+
+# Output
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=relative-pointing
+
+[Install]
+WantedBy=multi-user.target
+
+################################################################################
+# SERVICE MANAGEMENT COMMANDS
+################################################################################
+# 
+# Reload systemd daemon (required after creating/modifying service files):
+#   sudo systemctl daemon-reload
+#
+# Enable service to start on boot:
+#   sudo systemctl enable relative-pointing-backend
+#
+# Start service:
+#   sudo systemctl start relative-pointing-backend
+#
+# Stop service:
+#   sudo systemctl stop relative-pointing-backend
+#
+# Restart service:
+#   sudo systemctl restart relative-pointing-backend
+#
+# Check status:
+#   sudo systemctl status relative-pointing-backend
+#
+# View logs (last 50 lines):
+#   journalctl -u relative-pointing-backend -n 50
+#
+# Stream logs in real-time:
+#   journalctl -u relative-pointing-backend -f
+#
+# View logs with timestamps:
+#   journalctl -u relative-pointing-backend -o short-iso
+#
+# View logs from specific time:
+#   journalctl -u relative-pointing-backend --since "1 hour ago"
+#
+# View logs between specific times:
+#   journalctl -u relative-pointing-backend --since "2024-01-15 10:00:00" --until "2024-01-15 11:00:00"
+#
+# Follow logs (like tail -f):
+#   journalctl -u relative-pointing-backend -f
+#
+# Follow logs with timestamps:
+#   journalctl -u relative-pointing-backend -f -o short-iso
+#
+# View all services:
+#   sudo systemctl list-units --type=service
+#
+# View enabled services:
+#   sudo systemctl list-unit-files --state=enabled
+
+################################################################################
+# TROUBLESHOOTING
+################################################################################
+#
+# Service won't start?
+#   1. Check logs: journalctl -u relative-pointing-backend -n 50
+#   2. Verify paths exist: ls -la /var/www/relative-pointing/app
+#   3. Test manually: cd /var/www/relative-pointing/app && npm run start:backend
+#
+# Port already in use?
+#   sudo lsof -i :5000
+#   sudo kill -9 <PID>
+#
+# Permission denied?
+#   sudo chown -R ubuntu:ubuntu /var/www/relative-pointing
+#   chmod -R 755 /var/www/relative-pointing
+#
+# Dependencies missing?
+#   cd /var/www/relative-pointing/app
+#   npm ci --production
+#
+# Database issues?
+#   Check path: echo $DATABASE_PATH
+#   Check permissions: ls -la /var/www/relative-pointing/database/
+#   Check size: du -sh /var/www/relative-pointing/database/app.db
