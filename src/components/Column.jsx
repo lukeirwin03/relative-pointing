@@ -101,6 +101,9 @@ function TaskItem({ task, onDeleteTask = null, onShowInfo = null }) {
        <div className="flex items-start justify-between gap-2">
          <div className="flex-1 min-w-0">
            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 break-words">{task.id}</p>
+           {task.title && (
+             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 break-words line-clamp-2">{task.title}</p>
+           )}
          </div>
        </div>
       {(onDeleteTask || onShowInfo) && (
