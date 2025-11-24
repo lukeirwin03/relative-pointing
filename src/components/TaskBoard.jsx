@@ -132,9 +132,23 @@ function TaskBoard({ user, onLogout }) {
       // Check if the source column is now empty and delete it
       const sourceColumnId = draggedTask.column_id;
       if (sourceColumnId && sourceColumnId !== 'unsorted' && sourceColumnId !== targetColumnId) {
-        // Use the raw tasks array (not displayTasks) to check remaining tasks
-        const tasksInSourceColumn = tasks.filter(
-          (t) => String(t.id) !== taskId && t.column_id === sourceColumnId
+        // Get the optimistic task to check column after move
+        const optimisticTask = optimisticTasks[taskId];
+        const currentColumn = optimisticTask?.column_id || draggedTask.column_id;
+        
+        // Build the display tasks with the optimistic update applied
+        const updatedDisplayTasks = tasks
+          .filter((task) => !deletedTaskIds.has(String(task.id)))
+          .map((task) => {
+            if (String(task.id) === taskId) {
+              return { ...task, column_id: targetColumnId };
+            }
+            return optimisticTasks[String(task.id)] || task;
+          });
+
+        // Check remaining tasks in source column
+        const tasksInSourceColumn = updatedDisplayTasks.filter(
+          (t) => t.column_id === sourceColumnId && String(t.id) !== taskId
         );
 
         // If source column is now empty, delete it
