@@ -133,49 +133,19 @@ function TaskBoard({ user, onLogout }) {
        
        await APIService.moveTask(roomCode, taskId, targetColumnId, user?.id);
 
-      // Check if the source column is now empty and delete it
-      const sourceColumnId = draggedTask.column_id;
-      if (sourceColumnId && sourceColumnId !== 'unsorted' && sourceColumnId !== targetColumnId) {
-        // Get the optimistic task to check column after move
-        const optimisticTask = optimisticTasks[taskId];
-        const currentColumn = optimisticTask?.column_id || draggedTask.column_id;
-        
-        // Build the display tasks with the optimistic update applied
-        const updatedDisplayTasks = tasks
-          .filter((task) => !deletedTaskIds.has(String(task.id)))
-          .map((task) => {
-            if (String(task.id) === taskId) {
-              return { ...task, column_id: targetColumnId };
-            }
-            return optimisticTasks[String(task.id)] || task;
-          });
-
-        // Check remaining tasks in source column
-        const tasksInSourceColumn = updatedDisplayTasks.filter(
-          (t) => t.column_id === sourceColumnId && String(t.id) !== taskId
-        );
-
-        // If source column is now empty, delete it
-        if (tasksInSourceColumn.length === 0) {
-          try {
-            await APIService.deleteColumn(roomCode, sourceColumnId);
-          } catch (deleteErr) {
-            console.error('Error deleting empty column:', deleteErr);
-            // Don't fail the whole operation if column deletion fails
-          }
-        }
-      }
-
-
-    } catch (err) {
-      console.error('Error moving task:', err);
-      // Revert optimistic update on error
-      setOptimisticTasks((prev) => {
-        const updated = { ...prev };
-        delete updated[taskId];
-        return updated;
-      });
-    }
+       // Don't delete columns on move - let the backend or a dedicated cleanup process handle it
+       // This prevents race conditions where we might delete a column that other users are
+       // still using. The column will be deleted when the last task is deleted from it.
+       
+     } catch (err) {
+       console.error('Error moving task:', err);
+       // Revert optimistic update on error
+       setOptimisticTasks((prev) => {
+         const updated = { ...prev };
+         delete updated[taskId];
+         return updated;
+       });
+     }
   };
 
    const handleCopyRoomCode = async () => {
