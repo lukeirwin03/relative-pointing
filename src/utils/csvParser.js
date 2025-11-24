@@ -15,27 +15,30 @@ export function parseJiraCSV(file) {
       skipEmptyLines: true,
       complete: (results) => {
         try {
-          const tasks = results.data.map((row, index) => {
-            // Extract common Jira fields
-            const issueKey = row['Issue Key'] || row['Key'] || `TASK-${index + 1}`;
-            const summary = row['Summary'] || row['Title'] || 'Untitled Task';
-            const description = row['Description'] || '';
-            const issueType = row['Issue Type'] || row['Type'] || '';
-            const priority = row['Priority'] || '';
-            const status = row['Status'] || '';
-            
-            return {
-              id: issueKey,
-              title: summary,
-              description: description,
-              metadata: {
-                issueType,
-                priority,
-                status,
-                originalRow: row,
-              },
-            };
-          });
+           const tasks = results.data.map((row, index) => {
+             // Extract common Jira fields
+             const issueKey = row['Issue Key'] || row['Key'] || `TASK-${index + 1}`;
+             const summary = row['Summary'] || row['Title'] || 'Untitled Task';
+             const description = row['Description'] || '';
+             const issueType = row['Issue Type'] || row['Type'] || '';
+             const priority = row['Priority'] || '';
+             const status = row['Status'] || '';
+             
+             return {
+               jiraKey: issueKey,
+               title: summary,
+               description: description,
+               issueType,
+               priority,
+               status,
+               metadata: {
+                 issueType,
+                 priority,
+                 status,
+                 originalRow: row,
+               },
+             };
+           });
 
           // Try to extract Jira base URL from issue keys
           const jiraBaseUrl = extractJiraBaseUrl(tasks);

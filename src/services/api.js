@@ -121,12 +121,12 @@ class APIService {
    /**
     * Create a new task
     */
-   static async createTask(roomCode, title, description = '') {
+   static async createTask(roomCode, issueKey, title, description = '') {
      try {
        const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/tasks/create-task`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ title, description })
+         body: JSON.stringify({ issueKey, title, description })
        });
 
        if (!response.ok) {

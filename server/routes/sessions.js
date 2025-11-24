@@ -175,9 +175,11 @@ router.get('/:roomCode', async (req, res) => {
       [session.id]
     );
 
-     // Parse metadata
+     // Parse metadata and use jiraKey as display id if available
      const processedTasks = tasks.map(task => ({
        ...task,
+       // Use jiraKey as the display id if available, otherwise use the UUID id
+       id: task.jira_key || task.id,
        metadata: task.metadata ? JSON.parse(task.metadata) : {}
      }));
 

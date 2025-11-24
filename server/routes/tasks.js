@@ -67,7 +67,11 @@ router.post('/', async (req, res) => {
 router.post('/create', async (req, res) => {
   try {
     const { roomCode } = req.params;
-    const { title, description } = req.body;
+    const { issueKey, title, description } = req.body;
+
+    if (!issueKey || issueKey.trim() === '') {
+      return res.status(400).json({ error: 'Issue key is required' });
+    }
 
     if (!title || title.trim() === '') {
       return res.status(400).json({ error: 'Title is required' });
@@ -93,11 +97,12 @@ router.post('/create', async (req, res) => {
     const newOrder = (maxOrder?.max_order || 0) + 1;
 
     await dbPromise.run(
-      `INSERT INTO tasks (id, session_id, title, description, column_id, task_order)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, session_id, jira_key, title, description, column_id, task_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         taskId,
         session.id,
+        issueKey.trim(),
         title.trim(),
         description?.trim() || '',
         'unsorted',
@@ -108,7 +113,7 @@ router.post('/create', async (req, res) => {
     res.json({
       success: true,
       task: {
-        id: taskId,
+        id: issueKey.trim(),
         title: title.trim(),
         description: description?.trim() || '',
         column_id: 'unsorted',
@@ -186,7 +191,11 @@ router.put('/:taskId', async (req, res) => {
 router.post('/create-task', async (req, res) => {
   try {
     const { roomCode } = req.params;
-    const { title, description } = req.body;
+    const { issueKey, title, description } = req.body;
+
+    if (!issueKey || issueKey.trim() === '') {
+      return res.status(400).json({ error: 'Issue key is required' });
+    }
 
     if (!title || title.trim() === '') {
       return res.status(400).json({ error: 'Title is required' });
@@ -212,11 +221,12 @@ router.post('/create-task', async (req, res) => {
     const newOrder = (maxOrder?.max_order || 0) + 1;
 
     await dbPromise.run(
-      `INSERT INTO tasks (id, session_id, title, description, column_id, task_order)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, session_id, jira_key, title, description, column_id, task_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         taskId,
         session.id,
+        issueKey.trim(),
         title.trim(),
         description?.trim() || '',
         'unsorted',
@@ -227,7 +237,7 @@ router.post('/create-task', async (req, res) => {
     res.json({
       success: true,
       task: {
-        id: taskId,
+        id: issueKey.trim(),
         title: title.trim(),
         description: description?.trim() || '',
         column_id: 'unsorted',
