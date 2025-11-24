@@ -228,18 +228,40 @@ class APIService {
     }
   }
 
-  /**
-   * Health check - verify backend is running
-   */
-  static async healthCheck() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/health`);
-      return response.ok;
-    } catch (error) {
-      console.error('Backend health check failed:', error);
-      return false;
-    }
-  }
+   /**
+    * Update session Jira base URL
+    */
+   static async updateSessionJiraUrl(roomCode, jiraBaseUrl) {
+     try {
+       const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}`, {
+         method: 'PATCH',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ jira_base_url: jiraBaseUrl })
+       });
+
+       if (!response.ok) {
+         throw new Error('Failed to update Jira URL');
+       }
+
+       return await response.json();
+     } catch (error) {
+       console.error('Error updating Jira URL:', error);
+       throw error;
+     }
+   }
+
+   /**
+    * Health check - verify backend is running
+    */
+   static async healthCheck() {
+     try {
+       const response = await fetch(`${API_BASE_URL}/health`);
+       return response.ok;
+     } catch (error) {
+       console.error('Backend health check failed:', error);
+       return false;
+     }
+   }
 }
 
 export default APIService;

@@ -1,7 +1,7 @@
 // src/components/TaskBoard.jsx
 // Main board component for displaying and managing tasks
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -52,8 +52,19 @@ function TaskBoard({ user, onLogout }) {
    const [activeId, setActiveId] = useState(null);
    const [optimisticTasks, setOptimisticTasks] = useState({});
    const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
+   const [jiraBaseUrl, setJiraBaseUrl] = useState(session?.jira_base_url || '');
+   const [jiraUrlInput, setJiraUrlInput] = useState(session?.jira_base_url || '');
+   const [showJiraUrlInput, setShowJiraUrlInput] = useState(false);
 
-  const sensors = useSensors(
+   // Update Jira URL when session changes
+   useEffect(() => {
+     if (session?.jira_base_url) {
+       setJiraBaseUrl(session.jira_base_url);
+       setJiraUrlInput(session.jira_base_url);
+     }
+   }, [session?.jira_base_url]);
+
+   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor)
   );
@@ -149,18 +160,29 @@ function TaskBoard({ user, onLogout }) {
     }
   };
 
-  const handleCopyRoomCode = async () => {
-    try {
-      await navigator.clipboard.writeText(roomCode);
-      setCopied(true);
-      // Reset copied message after 2 seconds
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy room code:', err);
-    }
-  };
+   const handleCopyRoomCode = async () => {
+     try {
+       await navigator.clipboard.writeText(roomCode);
+       setCopied(true);
+       // Reset copied message after 2 seconds
+       setTimeout(() => setCopied(false), 2000);
+     } catch (err) {
+       console.error('Failed to copy room code:', err);
+     }
+   };
 
-  const handleDeleteColumn = async (columnId, task) => {
+   const handleSaveJiraUrl = async () => {
+     try {
+       await APIService.updateSessionJiraUrl(roomCode, jiraUrlInput);
+       setJiraBaseUrl(jiraUrlInput);
+       setShowJiraUrlInput(false);
+     } catch (err) {
+       console.error('Error saving Jira URL:', err);
+       alert('Failed to save Jira URL: ' + err.message);
+     }
+   };
+
+   const handleDeleteColumn = async (columnId, task) => {
     try {
       // Move task back to unsorted
       await APIService.moveTask(roomCode, String(task.id), 'unsorted', user?.id);
@@ -257,18 +279,58 @@ function TaskBoard({ user, onLogout }) {
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
                   Relative Pointing
                 </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Room Code:{' '}
-                <span
-                  onClick={handleCopyRoomCode}
-                  className="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
-                  title="Click to copy"
-                >
-                  {roomCode}
-                  {copied && ' ✓'}
-                </span>
-              </p>
-              </div>
+               <p className="text-sm text-gray-600 dark:text-gray-400">
+                 Room Code:{' '}
+                 <span
+                   onClick={handleCopyRoomCode}
+                   className="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+                   title="Click to copy"
+                 >
+                   {roomCode}
+                   {copied && ' ✓'}
+                 </span>
+               </p>
+               {isCreator && (
+                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                   Jira Base URL:{' '}
+                   {showJiraUrlInput ? (
+                     <span className="inline-flex gap-2">
+                       <input
+                         type="text"
+                         value={jiraUrlInput}
+                         onChange={(e) => setJiraUrlInput(e.target.value)}
+                         placeholder="https://company.atlassian.net"
+                         className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
+                         autoFocus
+                       />
+                       <button
+                         onClick={handleSaveJiraUrl}
+                         className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                       >
+                         Save
+                       </button>
+                       <button
+                         onClick={() => setShowJiraUrlInput(false)}
+                         className="px-2 py-1 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white rounded text-sm hover:bg-gray-400"
+                       >
+                         Cancel
+                       </button>
+                     </span>
+                   ) : (
+                     <span
+                       onClick={() => {
+                         setJiraUrlInput(jiraBaseUrl);
+                         setShowJiraUrlInput(true);
+                       }}
+                       className="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+                       title="Click to edit"
+                     >
+                       {jiraBaseUrl || 'Not set'} {jiraBaseUrl && '✎'}
+                     </span>
+                   )}
+                 </p>
+               )}
+               </div>
             </div>
 
             <div className="flex items-center gap-4">

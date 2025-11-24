@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   room_code TEXT UNIQUE NOT NULL,
   creator_id TEXT NOT NULL,
   creator_name TEXT NOT NULL,
+  jira_base_url TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS participants (

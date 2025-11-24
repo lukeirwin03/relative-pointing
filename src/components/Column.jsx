@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
 import TaskInfoModal from './TaskInfoModal';
+import { buildJiraUrl, detectJiraBaseUrl } from '../utils/jiraUrlBuilder';
 
 function Column({ columnId, title, tasks = [], canDrag = false, variant = 'default', onDelete = null, onDeleteTask = null }) {
   const [selectedTask, setSelectedTask] = useState(null);

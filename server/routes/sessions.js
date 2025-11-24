@@ -282,6 +282,39 @@ router.post('/:roomCode/join', async (req, res) => {
   }
 });
 
+// Update session settings (Jira base URL)
+router.patch('/:roomCode', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { jira_base_url } = req.body;
+
+    if (!jira_base_url) {
+      return res.status(400).json({ error: 'jira_base_url is required' });
+    }
+
+    // Get session
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE room_code = ?`,
+      [roomCode]
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Update jira_base_url
+    await dbPromise.run(
+      `UPDATE sessions SET jira_base_url = ? WHERE id = ?`,
+      [jira_base_url, session.id]
+    );
+
+    res.json({ success: true, jira_base_url });
+  } catch (err) {
+    console.error('Error updating session:', err);
+    res.status(500).json({ error: 'Failed to update session' });
+  }
+});
+
 // Create a new column in a session
 router.post('/:roomCode/columns', async (req, res) => {
   try {
