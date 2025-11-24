@@ -33,8 +33,8 @@ function CreateColumnDropZone({ zoneId = 'new-column', isFirst = false }) {
       ref={setNodeRef}
       className={`rounded-lg ${widthClass} flex-shrink-0 min-h-[500px] border-2 border-dashed flex items-center justify-center text-center transition-all duration-300 ease-out transform ${
         isOver
-          ? 'border-green-400 bg-green-50 shadow-md'
-          : 'border-gray-300 bg-gray-50'
+          ? 'border-green-400 bg-green-50 dark:border-green-500 dark:bg-green-900/20 shadow-md'
+          : 'border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50'
       }`}
     />
   );
