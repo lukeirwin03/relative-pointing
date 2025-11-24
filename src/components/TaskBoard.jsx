@@ -47,10 +47,11 @@ function TaskBoard({ user, onLogout }) {
 
   const { isDark, toggleTheme } = useTheme();
 
-  const [showCreateTask, setShowCreateTask] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [activeId, setActiveId] = useState(null);
-  const [optimisticTasks, setOptimisticTasks] = useState({});
+   const [showCreateTask, setShowCreateTask] = useState(false);
+   const [copied, setCopied] = useState(false);
+   const [activeId, setActiveId] = useState(null);
+   const [optimisticTasks, setOptimisticTasks] = useState({});
+   const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -187,15 +188,8 @@ function TaskBoard({ user, onLogout }) {
      const deletedTask = tasks.find((t) => String(t.id) === String(taskId));
      if (!deletedTask) return;
 
-     // Store original state in case we need to revert
-     const originalTasks = tasks;
-
-     // Update UI immediately (remove the task from optimistic updates if present)
-     setOptimisticTasks((prev) => {
-       const updated = { ...prev };
-       delete updated[String(taskId)];
-       return updated;
-     });
+     // Mark task as deleted in optimistic UI state
+     setDeletedTaskIds((prev) => new Set([...prev, String(taskId)]));
 
      try {
        // Delete from backend in background
@@ -203,8 +197,12 @@ function TaskBoard({ user, onLogout }) {
      } catch (err) {
        console.error('Error deleting task:', err);
        alert('Failed to delete task: ' + err.message);
-       // On error, revert the optimistic update by adding it back
-       // (the next poll will sync the actual state)
+       // On error, revert the deletion by removing from deleted set
+       setDeletedTaskIds((prev) => {
+         const updated = new Set(prev);
+         updated.delete(String(taskId));
+         return updated;
+       });
      }
    };
 
@@ -234,10 +232,12 @@ function TaskBoard({ user, onLogout }) {
 
   const isCreator = user?.id === session?.creator_id;
 
-  // Merge optimistic updates with actual tasks
-  const displayTasks = tasks.map((task) =>
-    optimisticTasks[String(task.id)] || task
-  );
+  // Merge optimistic updates with actual tasks, filtering out deleted ones
+  const displayTasks = tasks
+    .filter((task) => !deletedTaskIds.has(String(task.id)))
+    .map((task) =>
+      optimisticTasks[String(task.id)] || task
+    );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
