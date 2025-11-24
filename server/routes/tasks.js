@@ -7,22 +7,22 @@ const router = express.Router({ mergeParams: true });
 // Upload tasks to session
 router.post('/', async (req, res) => {
   try {
-    const { roomCode } = req.params;
-    const { tasks, jiraBaseUrl } = req.body;
+     const { roomCode } = req.params;
+     const { tasks, jiraBaseUrl } = req.body;
 
-    if (!Array.isArray(tasks)) {
-      return res.status(400).json({ error: 'tasks must be an array' });
-    }
+     if (!Array.isArray(tasks)) {
+       return res.status(400).json({ error: 'tasks must be an array' });
+     }
 
-    // Get session
-    const session = await dbPromise.get(
-      `SELECT * FROM sessions WHERE room_code = ?`,
-      [roomCode]
-    );
+     // Get session (case-insensitive for room code)
+     const session = await dbPromise.get(
+       `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+       [roomCode.toLowerCase()]
+     );
 
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
+     if (!session) {
+       return res.status(404).json({ error: 'Session not found' });
+     }
 
     // Update jira_base_url if provided
     if (jiraBaseUrl) {
@@ -79,8 +79,8 @@ router.post('/create', async (req, res) => {
 
     // Get session
     const session = await dbPromise.get(
-      `SELECT * FROM sessions WHERE room_code = ?`,
-      [roomCode]
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
     );
 
     if (!session) {
@@ -131,10 +131,10 @@ router.delete('/:taskId', async (req, res) => {
   try {
     const { roomCode, taskId } = req.params;
 
-    // Get session
+    // Get session (case-insensitive for room code)
     const session = await dbPromise.get(
-      `SELECT * FROM sessions WHERE room_code = ?`,
-      [roomCode]
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
     );
 
     if (!session) {
@@ -157,6 +157,8 @@ router.delete('/:taskId', async (req, res) => {
       [task.id, session.id]
     );
 
+    console.log(`[DELETE] Task ${taskId} deleted`);
+
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting task:', err);
@@ -174,10 +176,10 @@ router.put('/:taskId', async (req, res) => {
       return res.status(400).json({ error: 'columnId required' });
     }
 
-    // Get session
+    // Get session (case-insensitive for room code)
     const session = await dbPromise.get(
-      `SELECT * FROM sessions WHERE room_code = ?`,
-      [roomCode]
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
     );
 
     if (!session) {
@@ -186,7 +188,7 @@ router.put('/:taskId', async (req, res) => {
 
     // Find task by either database id or jira_key (since frontend sends display id)
     const task = await dbPromise.get(
-      `SELECT id FROM tasks WHERE session_id = ? AND (id = ? OR jira_key = ?)`,
+      `SELECT id, column_id FROM tasks WHERE session_id = ? AND (id = ? OR jira_key = ?)`,
       [session.id, taskId, taskId]
     );
 
@@ -194,11 +196,14 @@ router.put('/:taskId', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    // Update task using actual database id
-    await dbPromise.run(
-      `UPDATE tasks SET column_id = ?, assigned_by = ?, assigned_at = CURRENT_TIMESTAMP WHERE id = ? AND session_id = ?`,
-      [columnId, assignedBy, task.id, session.id]
-    );
+    // Only update if the task is actually being moved to a different column
+    if (task.column_id !== columnId) {
+      await dbPromise.run(
+        `UPDATE tasks SET column_id = ?, assigned_by = ?, assigned_at = CURRENT_TIMESTAMP WHERE id = ? AND session_id = ?`,
+        [columnId, assignedBy, task.id, session.id]
+      );
+      console.log(`[MOVE] Task ${taskId} moved from ${task.column_id} to ${columnId}`);
+    }
 
     res.json({ success: true });
   } catch (err) {
@@ -223,8 +228,8 @@ router.post('/create-task', async (req, res) => {
 
     // Get session
     const session = await dbPromise.get(
-      `SELECT * FROM sessions WHERE room_code = ?`,
-      [roomCode]
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
     );
 
     if (!session) {
@@ -276,8 +281,8 @@ router.get('/', async (req, res) => {
     const { roomCode } = req.params;
 
     const session = await dbPromise.get(
-      `SELECT * FROM sessions WHERE room_code = ?`,
-      [roomCode]
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
     );
 
     if (!session) {
