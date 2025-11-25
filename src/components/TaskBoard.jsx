@@ -56,13 +56,37 @@ function TaskBoard({ user, onLogout }) {
    const [jiraUrlInput, setJiraUrlInput] = useState(session?.jira_base_url || '');
    const [showJiraUrlInput, setShowJiraUrlInput] = useState(false);
 
-   // Update Jira URL when session changes
-   useEffect(() => {
-     if (session?.jira_base_url) {
-       setJiraBaseUrl(session.jira_base_url);
-       setJiraUrlInput(session.jira_base_url);
-     }
-   }, [session?.jira_base_url]);
+    // Update Jira URL when session changes
+    useEffect(() => {
+      if (session?.jira_base_url) {
+        setJiraBaseUrl(session.jira_base_url);
+        setJiraUrlInput(session.jira_base_url);
+      }
+    }, [session?.jira_base_url]);
+
+    // Clear optimistic updates that are confirmed by the backend
+    // This ensures stale optimistic updates don't override the server state
+    useEffect(() => {
+      setOptimisticTasks((prev) => {
+        const updated = { ...prev };
+        let hasChanges = false;
+        
+        // For each optimistic task, check if it matches the backend state
+        Object.keys(updated).forEach((taskId) => {
+          const optimisticTask = updated[taskId];
+          const backendTask = tasks.find((t) => String(t.id) === String(taskId));
+          
+          // If the backend task matches the optimistic state, clear the optimistic update
+          if (backendTask && backendTask.column_id === optimisticTask.column_id) {
+            delete updated[taskId];
+            hasChanges = true;
+          }
+        });
+        
+        // Only update state if something changed to avoid unnecessary renders
+        return hasChanges ? updated : prev;
+      });
+    }, [tasks]);
 
    const sensors = useSensors(
     useSensor(PointerSensor),
@@ -132,6 +156,14 @@ function TaskBoard({ user, onLogout }) {
        }
        
        await APIService.moveTask(roomCode, taskId, targetColumnId, user?.id);
+
+       // Clear the optimistic update after backend confirms
+       // This ensures we use the canonical state from the server
+       setOptimisticTasks((prev) => {
+         const updated = { ...prev };
+         delete updated[taskId];
+         return updated;
+       });
 
        // Don't delete columns on move - let the backend or a dedicated cleanup process handle it
        // This prevents race conditions where we might delete a column that other users are
