@@ -56,24 +56,27 @@ function initializeDatabase() {
 
 // Add missing columns to existing databases
 function runMigrations(callback) {
-  // Add last_activity_at column if it doesn't exist
-  // Note: SQLite doesn't allow CURRENT_TIMESTAMP as default in ALTER TABLE
+  // Migration 1: Add last_activity_at column if it doesn't exist
   db.run(`ALTER TABLE sessions ADD COLUMN last_activity_at DATETIME`, (err) => {
     if (err && err.message.includes('duplicate column')) {
-      // Column already exists, that's fine
       console.log('Migration: last_activity_at column already exists');
-      if (callback) callback();
     } else if (!err) {
       console.log('Migration: Added last_activity_at column to sessions');
-      // Update existing sessions to have current timestamp
       db.run(`UPDATE sessions SET last_activity_at = CURRENT_TIMESTAMP`, () => {
         console.log('Migration: Updated existing sessions with current timestamp');
-        if (callback) callback();
       });
-    } else {
-      // Some other error (like table doesn't exist yet)
-      if (callback) callback();
     }
+    
+    // Migration 2: Add color_tag column to tasks if it doesn't exist
+    db.run(`ALTER TABLE tasks ADD COLUMN color_tag TEXT`, (err2) => {
+      if (err2 && err2.message.includes('duplicate column')) {
+        console.log('Migration: color_tag column already exists');
+      } else if (!err2) {
+        console.log('Migration: Added color_tag column to tasks');
+      }
+      
+      if (callback) callback();
+    });
   });
 }
 

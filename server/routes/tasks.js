@@ -172,6 +172,48 @@ router.delete('/:taskId', async (req, res) => {
   }
 });
 
+// Update task color tag
+router.patch('/:taskId/color', async (req, res) => {
+  try {
+    const { roomCode, taskId } = req.params;
+    const { colorTag } = req.body;
+
+    // Get session (case-insensitive for room code)
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Find task by either database id or jira_key
+    const task = await dbPromise.get(
+      `SELECT id FROM tasks WHERE session_id = ? AND (id = ? OR jira_key = ?)`,
+      [session.id, taskId, taskId]
+    );
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Update color tag (null to clear)
+    await dbPromise.run(
+      `UPDATE tasks SET color_tag = ? WHERE id = ?`,
+      [colorTag || null, task.id]
+    );
+
+    // Update session activity
+    await touchSessionByRoomCode(roomCode.toLowerCase());
+
+    res.json({ success: true, colorTag: colorTag || null });
+  } catch (err) {
+    console.error('Error updating task color:', err);
+    res.status(500).json({ error: 'Failed to update task color' });
+  }
+});
+
 // Move task to column
 router.put('/:taskId', async (req, res) => {
   try {

@@ -164,6 +164,28 @@ class APIService {
     }
 
     /**
+     * Update task color tag
+     */
+    static async updateTaskColor(roomCode, taskId, colorTag) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/tasks/${taskId}/color`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ colorTag })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update task color');
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Error updating task color:', error);
+        throw error;
+      }
+    }
+
+    /**
      * Move a task to a column
      */
     static async moveTask(roomCode, taskId, columnId, assignedBy) {

@@ -51,8 +51,11 @@ function TaskBoard({ user, onLogout }) {
    const [showCreateTask, setShowCreateTask] = useState(false);
    const [copied, setCopied] = useState(false);
    const [activeId, setActiveId] = useState(null);
+   // Optimistic state: { taskId: { ...taskData, _optimisticAt: timestamp } }
    const [optimisticTasks, setOptimisticTasks] = useState({});
+   const [optimisticColumns, setOptimisticColumns] = useState([]);
    const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
+   const [deletedColumnIds, setDeletedColumnIds] = useState(new Set());
    const [jiraBaseUrl, setJiraBaseUrl] = useState(session?.jira_base_url || '');
    const [jiraUrlInput, setJiraUrlInput] = useState(session?.jira_base_url || '');
    const [showJiraUrlInput, setShowJiraUrlInput] = useState(false);
@@ -66,28 +69,45 @@ function TaskBoard({ user, onLogout }) {
     }, [session?.jira_base_url]);
 
     // Clear optimistic updates that are confirmed by the backend
-    // This ensures stale optimistic updates don't override the server state
+    // Only clear if backend state matches what we optimistically set
     useEffect(() => {
       setOptimisticTasks((prev) => {
         const updated = { ...prev };
         let hasChanges = false;
         
-        // For each optimistic task, check if it matches the backend state
         Object.keys(updated).forEach((taskId) => {
           const optimisticTask = updated[taskId];
           const backendTask = tasks.find((t) => String(t.id) === String(taskId));
           
-          // If the backend task matches the optimistic state, clear the optimistic update
-          if (backendTask && backendTask.column_id === optimisticTask.column_id) {
+          // Only clear if backend matches ALL optimistic changes (column_id and color_tag)
+          if (backendTask && 
+              backendTask.column_id === optimisticTask.column_id &&
+              backendTask.color_tag === optimisticTask.color_tag) {
             delete updated[taskId];
             hasChanges = true;
           }
         });
         
-        // Only update state if something changed to avoid unnecessary renders
         return hasChanges ? updated : prev;
       });
     }, [tasks]);
+
+    // Clear optimistic columns that are confirmed by the backend
+    useEffect(() => {
+      if (columns && columns.length > 0) {
+        setOptimisticColumns((prev) => {
+          const backendColumnIds = new Set(columns.map(c => c.id));
+          const remaining = prev.filter(c => !backendColumnIds.has(c.id));
+          return remaining.length !== prev.length ? remaining : prev;
+        });
+        // Clear deleted column ids that no longer exist
+        setDeletedColumnIds((prev) => {
+          const backendColumnIds = new Set(columns.map(c => c.id));
+          const remaining = new Set([...prev].filter(id => backendColumnIds.has(id)));
+          return remaining.size !== prev.size ? remaining : prev;
+        });
+      }
+    }, [columns]);
 
    const sensors = useSensors(
     useSensor(PointerSensor),
@@ -114,87 +134,83 @@ function TaskBoard({ user, onLogout }) {
      if (draggedTask.column_id === targetColumnId) return;
 
      // If dragging to "create new column" zone
-     let createColumnPromise = null;
+     let newColumnData = null;
      if (targetColumnId === 'new-column' || targetColumnId === 'new-column-left' || String(targetColumnId).startsWith('new-column-between')) {
        let newColumnOrder;
        const isLeftZone = targetColumnId === 'new-column-left';
 
        // Calculate order: left columns get negative order, right columns get positive
+       const allColumns = [...(columns || []), ...optimisticColumns];
        if (isLeftZone) {
          // Insert to the left - get the minimum order and go lower
-         const minOrder = columns?.length > 0
-           ? Math.min(...columns.map(c => c.column_order || 0))
+         const minOrder = allColumns.length > 0
+           ? Math.min(...allColumns.map(c => c.column_order || 0))
            : 0;
          newColumnOrder = minOrder - 1;
        } else {
          // Insert to the right or between - get the maximum order and go higher
-         const maxOrder = columns?.length > 0
-           ? Math.max(...columns.map(c => c.column_order || 0))
+         const maxOrder = allColumns.length > 0
+           ? Math.max(...allColumns.map(c => c.column_order || 0))
            : 0;
          newColumnOrder = maxOrder + 1;
        }
 
        targetColumnId = `column-${Date.now()}`;
+       newColumnData = {
+         id: targetColumnId,
+         name: 'New Column',
+         column_order: newColumnOrder,
+       };
 
-       // Create the column in the background (don't wait)
-       createColumnPromise = APIService.createColumn(roomCode, targetColumnId, 'New Column', newColumnOrder)
-         .catch(err => {
-           console.error('Error creating column:', err);
-         });
+       // Add optimistic column immediately
+       setOptimisticColumns((prev) => [...prev, newColumnData]);
      }
 
-     // Optimistic update - update UI immediately (don't wait for column creation)
-     setOptimisticTasks((prev) => ({
-       ...prev,
-       [taskId]: { ...draggedTask, column_id: targetColumnId },
-     }));
+     // Optimistic update - update UI immediately, preserve existing optimistic state (like color_tag)
+     setOptimisticTasks((prev) => {
+       const existingOptimistic = prev[taskId] || {};
+       return {
+         ...prev,
+         [taskId]: { ...draggedTask, ...existingOptimistic, column_id: targetColumnId },
+       };
+     });
 
-     // Move task in the background (don't wait for it before updating UI)
-     try {
-       // If we're creating a new column, wait for it before moving
-       if (createColumnPromise) {
-         await createColumnPromise;
-       }
-       
-       const sourceColumnId = draggedTask.column_id;
-       
-       await APIService.moveTask(roomCode, taskId, targetColumnId, user?.id);
-
-       // Clear the optimistic update after backend confirms
-       // This ensures we use the canonical state from the server
-       setOptimisticTasks((prev) => {
-         const updated = { ...prev };
-         delete updated[taskId];
-         return updated;
-       });
-
-       // Check if the source column is now empty and delete it
-       if (sourceColumnId && sourceColumnId !== 'unsorted') {
-         // Check remaining tasks in the source column (excluding the moved task)
-         const tasksInSourceColumn = displayTasks.filter(
-           (t) => t.column_id === sourceColumnId && String(t.id) !== taskId
-         );
-
-         // If source column is now empty, delete it
-         if (tasksInSourceColumn.length === 0) {
-           try {
-             await APIService.deleteColumn(roomCode, sourceColumnId);
-           } catch (deleteErr) {
-             console.error('Error deleting empty column:', deleteErr);
-             // Don't fail the whole operation if column deletion fails
+     // Perform backend operations in the background (don't block UI)
+     const sourceColumnId = draggedTask.column_id;
+     
+     // Use an async IIFE to handle the sequential operations without blocking
+     (async () => {
+       try {
+         // Create column first if needed (must exist before moving task to it)
+         if (newColumnData) {
+           await APIService.createColumn(roomCode, newColumnData.id, newColumnData.name, newColumnData.column_order);
+         }
+         
+         // Then move the task
+         await APIService.moveTask(roomCode, taskId, targetColumnId, user?.id);
+         
+         // Clean up empty source column
+         if (sourceColumnId && sourceColumnId !== 'unsorted') {
+           const tasksInSourceColumn = tasks.filter(
+             (t) => t.column_id === sourceColumnId && String(t.id) !== taskId
+           );
+           if (tasksInSourceColumn.length === 0) {
+             APIService.deleteColumn(roomCode, sourceColumnId).catch(() => {});
            }
          }
+       } catch (err) {
+         console.error('Error moving task:', err);
+         // Revert optimistic updates on error
+         setOptimisticTasks((prev) => {
+           const updated = { ...prev };
+           delete updated[taskId];
+           return updated;
+         });
+         if (newColumnData) {
+           setOptimisticColumns((prev) => prev.filter((c) => c.id !== newColumnData.id));
+         }
        }
-       
-     } catch (err) {
-       console.error('Error moving task:', err);
-       // Revert optimistic update on error
-       setOptimisticTasks((prev) => {
-         const updated = { ...prev };
-         delete updated[taskId];
-         return updated;
-       });
-     }
+     })();
   };
 
    const handleCopyRoomCode = async () => {
@@ -220,19 +236,33 @@ function TaskBoard({ user, onLogout }) {
    };
 
    const handleDeleteColumn = async (columnId, task) => {
+    // Optimistic update - move task to unsorted and mark column as deleted immediately
+    setOptimisticTasks((prev) => ({
+      ...prev,
+      [String(task.id)]: { ...task, column_id: 'unsorted' },
+    }));
+    setDeletedColumnIds((prev) => new Set([...prev, columnId]));
+    // Also remove from optimistic columns if it was there
+    setOptimisticColumns((prev) => prev.filter((c) => c.id !== columnId));
+
     try {
       // Move task back to unsorted
       await APIService.moveTask(roomCode, String(task.id), 'unsorted', user?.id);
       // Delete the column from database
       await APIService.deleteColumn(roomCode, columnId);
-
-      // Update optimistic tasks
-      setOptimisticTasks((prev) => ({
-        ...prev,
-        [String(task.id)]: { ...task, column_id: 'unsorted' },
-      }));
     } catch (err) {
       console.error('Error deleting column:', err);
+      // Revert optimistic updates on error
+      setOptimisticTasks((prev) => {
+        const updated = { ...prev };
+        delete updated[String(task.id)];
+        return updated;
+      });
+      setDeletedColumnIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(columnId);
+        return updated;
+      });
     }
   };
 
@@ -284,6 +314,32 @@ function TaskBoard({ user, onLogout }) {
      }
    };
 
+   const handleUpdateTaskColor = (taskId, colorTag) => {
+     // Get the current task state (prefer optimistic, fall back to server)
+     const existingOptimistic = optimisticTasks[String(taskId)];
+     const serverTask = tasks.find((t) => String(t.id) === String(taskId));
+     const task = existingOptimistic || serverTask;
+     if (!task) return;
+
+     // Optimistic update - immediate UI feedback
+     setOptimisticTasks((prev) => ({
+       ...prev,
+       [String(taskId)]: { ...task, color_tag: colorTag },
+     }));
+
+     // Fire API call in background (don't await)
+     APIService.updateTaskColor(roomCode, taskId, colorTag)
+       .catch((err) => {
+         console.error('Error updating task color:', err);
+         // Revert optimistic update on error
+         setOptimisticTasks((prev) => {
+           const updated = { ...prev };
+           delete updated[String(taskId)];
+           return updated;
+         });
+       });
+   };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -309,6 +365,12 @@ function TaskBoard({ user, onLogout }) {
   }
 
   const isCreator = user?.id === session?.creator_id;
+
+  // Merge optimistic columns with actual columns, filtering out deleted ones
+  const displayColumns = [
+    ...(columns || []).filter((col) => !deletedColumnIds.has(col.id)),
+    ...optimisticColumns.filter((col) => !columns?.some((c) => c.id === col.id)),
+  ];
 
   // Merge optimistic updates with actual tasks, filtering out deleted ones
   const displayTasks = tasks
@@ -444,18 +506,18 @@ function TaskBoard({ user, onLogout }) {
             {displayTasks && displayTasks.length > 0 ? (
               <>
                 {/* If no columns exist yet, show only a single centered drop zone for the first task */}
-                {columns && columns.length === 0 && activeId ? (
+                {displayColumns.length === 0 && activeId ? (
                   <CreateColumnDropZone key="create-first" zoneId="new-column" isFirst={true} />
                 ) : (
                   <>
                     {/* Multiple columns exist - show left drop zone for creating simpler columns */}
-                    {columns && columns.length > 0 && activeId && (
+                    {displayColumns.length > 0 && activeId && (
                       <CreateColumnDropZone key="create-left" zoneId="new-column-left" />
                     )}
 
                     {/* Complexity columns that were created, sorted by order */}
-                    {columns && columns.length > 0 && (
-                      [...columns].sort((a, b) => (a.column_order || 0) - (b.column_order || 0)).map((column, index, sortedColumns) => {
+                    {displayColumns.length > 0 && (
+                      [...displayColumns].sort((a, b) => (a.column_order || 0) - (b.column_order || 0)).map((column, index, sortedColumns) => {
                         const columnTasks = displayTasks?.filter(
                           (task) => task.column_id === column.id
                         ) || [];
@@ -470,18 +532,19 @@ function TaskBoard({ user, onLogout }) {
                                 canDrag={true}
                                 onDelete={handleDeleteColumn}
                                 onDeleteTask={handleDeleteTask}
+                                onUpdateTaskColor={handleUpdateTaskColor}
                                 jiraBaseUrl={jiraBaseUrl}
                               />
                             </div>
                             {/* Create new column between existing columns - only show between columns, not after the last one */}
-                            {activeId && columns.length > 1 && !isLastColumn && <CreateColumnDropZone key={`create-${index}`} zoneId={`new-column-between-${column.id}`} />}
+                            {activeId && displayColumns.length > 1 && !isLastColumn && <CreateColumnDropZone key={`create-${index}`} zoneId={`new-column-between-${column.id}`} />}
                           </React.Fragment>
                         );
                       })
                     )}
 
                     {/* Right drop zone for creating more complex columns - only show when dragging and columns exist */}
-                    {columns && columns.length > 0 && activeId && (
+                    {displayColumns.length > 0 && activeId && (
                       <CreateColumnDropZone key="create-right" zoneId="new-column" />
                     )}
                   </>
@@ -506,6 +569,7 @@ function TaskBoard({ user, onLogout }) {
                  canDrag={true}
                  variant="tasks"
                  onDeleteTask={handleDeleteTask}
+                 onUpdateTaskColor={handleUpdateTaskColor}
                  jiraBaseUrl={jiraBaseUrl}
                />
              </div>

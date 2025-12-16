@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   assigned_at DATETIME,
   task_order INTEGER,
   metadata TEXT,
+  color_tag TEXT,
   FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS columns (

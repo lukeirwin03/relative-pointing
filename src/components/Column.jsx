@@ -1,10 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
 import TaskInfoModal from './TaskInfoModal';
 import { buildJiraUrl, detectJiraBaseUrl } from '../utils/jiraUrlBuilder';
 
-function Column({ columnId, title, tasks = [], canDrag = false, variant = 'default', onDelete = null, onDeleteTask = null, jiraBaseUrl = null }) {
+// Available color options for task tags
+const COLOR_OPTIONS = [
+  { id: null, name: 'None', bg: 'bg-white dark:bg-gray-700', border: 'border-gray-300 dark:border-gray-500' },
+  { id: 'red', name: 'Red', bg: 'bg-red-100 dark:bg-red-900/30', border: 'border-red-400', dot: 'bg-red-500' },
+  { id: 'orange', name: 'Orange', bg: 'bg-orange-100 dark:bg-orange-900/30', border: 'border-orange-400', dot: 'bg-orange-500' },
+  { id: 'yellow', name: 'Yellow', bg: 'bg-yellow-100 dark:bg-yellow-900/30', border: 'border-yellow-400', dot: 'bg-yellow-500' },
+  { id: 'green', name: 'Green', bg: 'bg-green-100 dark:bg-green-900/30', border: 'border-green-400', dot: 'bg-green-500' },
+  { id: 'blue', name: 'Blue', bg: 'bg-blue-100 dark:bg-blue-900/30', border: 'border-blue-400', dot: 'bg-blue-500' },
+  { id: 'purple', name: 'Purple', bg: 'bg-purple-100 dark:bg-purple-900/30', border: 'border-purple-400', dot: 'bg-purple-500' },
+  { id: 'pink', name: 'Pink', bg: 'bg-pink-100 dark:bg-pink-900/30', border: 'border-pink-400', dot: 'bg-pink-500' },
+];
+
+function getColorClasses(colorTag) {
+  const color = COLOR_OPTIONS.find(c => c.id === colorTag);
+  return color || COLOR_OPTIONS[0];
+}
+
+function Column({ columnId, title, tasks = [], canDrag = false, variant = 'default', onDelete = null, onDeleteTask = null, onUpdateTaskColor = null, jiraBaseUrl = null }) {
   const [selectedTask, setSelectedTask] = useState(null);
   const { setNodeRef, isOver } = useDroppable({
     id: columnId,
@@ -42,7 +59,7 @@ function Column({ columnId, title, tasks = [], canDrag = false, variant = 'defau
             tasks
               .filter(task => task && task.id) // Filter out invalid tasks
               .map(task => (
-                <TaskItem key={task.id} task={task} onDeleteTask={onDeleteTask} onShowInfo={setSelectedTask} jiraBaseUrl={jiraBaseUrl} />
+                <TaskItem key={task.id} task={task} onDeleteTask={onDeleteTask} onUpdateColor={onUpdateTaskColor} onShowInfo={setSelectedTask} jiraBaseUrl={jiraBaseUrl} />
               ))
           )}
         </div>
@@ -59,7 +76,50 @@ function Column({ columnId, title, tasks = [], canDrag = false, variant = 'defau
   );
 }
 
-function TaskItem({ task, onDeleteTask = null, onShowInfo = null, jiraBaseUrl = null }) {
+function ColorPicker({ currentColor, onSelectColor, onClose }) {
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+        onClose();
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  return (
+    <div 
+      ref={popoverRef}
+      className="absolute bottom-full left-0 mb-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 p-2 z-50"
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div className="flex gap-1">
+        {COLOR_OPTIONS.map((color) => (
+          <button
+            key={color.id || 'none'}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onSelectColor(color.id);
+              onClose();
+            }}
+            className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+              color.dot || 'bg-gray-200 dark:bg-gray-600'
+            } ${currentColor === color.id ? 'ring-2 ring-offset-1 ring-gray-400' : ''} ${
+              color.id === null ? 'border-gray-400 dark:border-gray-500' : 'border-transparent'
+            }`}
+            title={color.name}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TaskItem({ task, onDeleteTask = null, onUpdateColor = null, onShowInfo = null, jiraBaseUrl = null }) {
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const {
     attributes,
     listeners,
@@ -89,14 +149,22 @@ function TaskItem({ task, onDeleteTask = null, onShowInfo = null, jiraBaseUrl = 
     }
   };
 
+  const handleColorSelect = (colorId) => {
+    if (onUpdateColor) {
+      onUpdateColor(task.id, colorId);
+    }
+  };
+
+  const colorClasses = getColorClasses(task.color_tag);
+
    return (
      <div
        ref={setNodeRef}
        style={style}
        {...attributes}
-       className={`bg-white dark:bg-gray-700 p-3 rounded shadow-sm cursor-grab active:cursor-grabbing transition-opacity group relative ${
+       className={`${colorClasses.bg} p-3 rounded shadow-sm cursor-grab active:cursor-grabbing transition-opacity group relative ${
          isDragging ? 'opacity-30 shadow-lg' : 'hover:shadow-md'
-       }`}
+       } ${task.color_tag ? `border-l-4 ${colorClasses.border}` : ''}`}
        {...listeners}
      >
         <div className="flex items-start justify-between gap-2">
@@ -153,23 +221,52 @@ function TaskItem({ task, onDeleteTask = null, onShowInfo = null, jiraBaseUrl = 
           </button>
         </div>
       )}
-      {onShowInfo && (
-        <button
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onShowInfo(task);
-          }}
-          className="mt-2 text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-          title="View task details"
-        >
-          details
-        </button>
-      )}
+      <div className="flex items-center gap-2 mt-2">
+        {onUpdateColor && (
+          <div className="relative">
+            <button
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowColorPicker(!showColorPicker);
+              }}
+              className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center gap-1"
+              title="Set color tag"
+            >
+              <span className={`w-3 h-3 rounded-full ${colorClasses.dot || 'bg-gray-300 dark:bg-gray-500'}`}></span>
+              color
+            </button>
+            {showColorPicker && (
+              <ColorPicker 
+                currentColor={task.color_tag} 
+                onSelectColor={handleColorSelect}
+                onClose={() => setShowColorPicker(false)}
+              />
+            )}
+          </div>
+        )}
+        {onShowInfo && (
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onShowInfo(task);
+            }}
+            className="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            title="View task details"
+          >
+            details
+          </button>
+        )}
+      </div>
     </div>
   );
 }
