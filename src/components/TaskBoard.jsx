@@ -20,6 +20,7 @@ import ParticipantList from './ParticipantList';
 import CreateTaskModal from './CreateTaskModal';
 import DropZoneOverlay from './DropZoneOverlay';
 import Version from './Version';
+import Snowflakes from './Snowflakes';
 import { useTheme } from '../hooks/useTheme';
 
 function CreateColumnDropZone({ zoneId = 'new-column', isFirst = false }) {
@@ -46,7 +47,7 @@ function TaskBoard({ user, onLogout }) {
   const navigate = useNavigate();
   const { session, participants, tasks, columns, loading } = useSession(roomCode);
 
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, isChristmas, toggleChristmas } = useTheme();
 
    const [showCreateTask, setShowCreateTask] = useState(false);
    const [copied, setCopied] = useState(false);
@@ -381,6 +382,9 @@ function TaskBoard({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
+      {/* Christmas Snowflakes */}
+      {isChristmas && <Snowflakes count={50} />}
+      
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -452,6 +456,13 @@ function TaskBoard({ user, onLogout }) {
             </div>
 
             <div className="flex items-center gap-4">
+              <button
+                onClick={toggleChristmas}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                title={isChristmas ? 'Disable snow' : 'Let it snow!'}
+              >
+                {isChristmas ? '🎄' : '❄️'}
+              </button>
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

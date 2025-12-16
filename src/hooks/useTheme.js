@@ -16,6 +16,16 @@ export function ThemeProvider({ children }) {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
+  const [isChristmas, setIsChristmas] = useState(() => {
+    // Check localStorage, default to true during December
+    const saved = localStorage.getItem('christmasMode');
+    if (saved !== null) {
+      return saved === 'true';
+    }
+    // Default to enabled in December
+    return new Date().getMonth() === 11;
+  });
+
   useEffect(() => {
     // Update DOM and localStorage
     if (isDark) {
@@ -27,12 +37,20 @@ export function ThemeProvider({ children }) {
     }
   }, [isDark]);
 
+  useEffect(() => {
+    localStorage.setItem('christmasMode', isChristmas.toString());
+  }, [isChristmas]);
+
   const toggleTheme = () => {
     setIsDark(!isDark);
   };
 
+  const toggleChristmas = () => {
+    setIsChristmas(!isChristmas);
+  };
+
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDark, toggleTheme, isChristmas, toggleChristmas }}>
       {children}
     </ThemeContext.Provider>
   );
