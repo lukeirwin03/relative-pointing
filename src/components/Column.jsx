@@ -137,41 +137,38 @@ function TaskItem({ task, onDeleteTask = null, onShowInfo = null, jiraBaseUrl = 
             )}
           </div>
         </div>
-      {(onDeleteTask || onShowInfo) && (
-        <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {onShowInfo && (
-            <button
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onShowInfo(task);
-              }}
-              className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
-              title="View task details"
-              aria-label="View task details"
-            >
-              ℹ
-            </button>
-          )}
-          {onDeleteTask && (
-            <button
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={handleDelete}
-              className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-              title="Delete task"
-              aria-label="Delete task"
-            >
-              ✕
-            </button>
-          )}
+      {onDeleteTask && (
+        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={handleDelete}
+            className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+            title="Delete task"
+            aria-label="Delete task"
+          >
+            ✕
+          </button>
         </div>
+      )}
+      {onShowInfo && (
+        <button
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onShowInfo(task);
+          }}
+          className="mt-2 text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          title="View task details"
+        >
+          details
+        </button>
       )}
     </div>
   );
