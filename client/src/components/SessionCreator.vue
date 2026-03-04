@@ -1,12 +1,13 @@
 <script setup>
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { v4 as uuidv4 } from 'uuid';
 import { useUserStore } from '../stores/user';
 import APIService from '../services/api';
 import Version from './Version.vue';
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 
 const userName = ref('');
@@ -14,6 +15,12 @@ const roomCode = ref('');
 const mode = ref('create');
 const loading = ref(false);
 const error = ref(null);
+
+// Pre-fill join form if redirected from a shared link
+if (route.query.join) {
+  roomCode.value = route.query.join;
+  mode.value = 'join';
+}
 
 async function handleCreateSession() {
   if (!userName.value.trim()) {
@@ -25,7 +32,7 @@ async function handleCreateSession() {
   error.value = null;
 
   try {
-    const userId = uuidv4();
+    const userId = userStore.userId || uuidv4();
     const result = await APIService.createSession(
       userId,
       userName.value.trim()
@@ -55,7 +62,7 @@ async function handleJoinSession() {
   error.value = null;
 
   try {
-    const userId = uuidv4();
+    const userId = userStore.userId || uuidv4();
     const code = roomCode.value.toLowerCase();
 
     await APIService.joinSession(code, userId, userName.value.trim());

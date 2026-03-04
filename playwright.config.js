@@ -23,7 +23,7 @@ module.exports = defineConfig({
   ],
   webServer: [
     {
-      command: `PORT=${BACKEND_PORT} node server/server.js`,
+      command: `NODE_ENV=test PORT=${BACKEND_PORT} node server/server.js`,
       url: `http://localhost:${BACKEND_PORT}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 30000,

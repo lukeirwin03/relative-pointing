@@ -50,8 +50,8 @@ const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.path === '/api/health';
+    // Skip rate limiting for health checks and in test environment
+    return req.path === '/api/health' || process.env.NODE_ENV === 'test';
   },
 });
 

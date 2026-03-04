@@ -16,7 +16,7 @@ const routes = [
       const userId = localStorage.getItem('userId');
       const userName = localStorage.getItem('userName');
       if (!userId || !userName) {
-        next('/');
+        next({ path: '/', query: { join: to.params.roomCode } });
       } else {
         next();
       }

@@ -43,8 +43,17 @@ watch(
   }
 );
 
-// Start/stop polling
-onMounted(() => {
+// Ensure current user is a participant, then start polling
+onMounted(async () => {
+  try {
+    await APIService.joinSession(
+      roomCode.value,
+      userStore.userId,
+      userStore.userName
+    );
+  } catch {
+    // Already a participant or other non-fatal error
+  }
   sessionStore.startPolling(roomCode.value);
 });
 

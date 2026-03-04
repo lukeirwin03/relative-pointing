@@ -33,9 +33,11 @@ const showColorPicker = ref(false);
 
 const colorClasses = computed(() => getColorClasses(props.task.color_tag));
 
+const displayId = computed(() => props.task.display_id || props.task.id);
+
 const jiraUrl = computed(() => {
-  const baseUrl = props.jiraBaseUrl || detectJiraBaseUrl(props.task.id);
-  return buildJiraUrl(baseUrl, props.task.id);
+  const baseUrl = props.jiraBaseUrl || detectJiraBaseUrl(displayId.value);
+  return buildJiraUrl(baseUrl, displayId.value);
 });
 
 function handleDelete() {
@@ -70,20 +72,20 @@ function openJira(e) {
           v-if="jiraUrl"
           :href="jiraUrl"
           class="no-drag text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline break-words"
-          :title="`Open ${task.id} in Jira`"
+          :title="`Open ${displayId} in Jira`"
           target="_blank"
           rel="noopener noreferrer"
           @click="openJira"
           @pointerdown.stop
           @mousedown.stop
         >
-          {{ task.id }}
+          {{ displayId }}
         </a>
         <p
           v-else
           class="text-sm font-medium text-gray-800 dark:text-gray-100 break-words"
         >
-          {{ task.id }}
+          {{ displayId }}
         </p>
         <p
           v-if="task.title"

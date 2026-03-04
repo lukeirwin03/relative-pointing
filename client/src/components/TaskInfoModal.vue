@@ -61,8 +61,14 @@ function priorityColor(priority) {
           <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">
             {{ task.title || 'Untitled Task' }}
           </h3>
-          <p v-if="task.id" class="text-sm text-gray-500 dark:text-gray-400">
-            ID: <span class="font-mono">{{ String(task.id) }}</span>
+          <p
+            v-if="task.display_id || task.id"
+            class="text-sm text-gray-500 dark:text-gray-400"
+          >
+            ID:
+            <span class="font-mono">{{
+              String(task.display_id || task.id)
+            }}</span>
           </p>
         </div>
 

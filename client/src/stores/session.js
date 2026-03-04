@@ -143,18 +143,39 @@ export const useSessionStore = defineStore('session', () => {
     ) {
       let newColumnOrder;
       const isLeftZone = targetColumnId === 'new-column-left';
+      const isBetweenZone =
+        String(targetColumnId).startsWith('new-column-between');
       const allColumns = [...(columns.value || []), ...optimisticColumns.value];
+      const sortedCols = [...allColumns].sort(
+        (a, b) => (a.column_order || 0) - (b.column_order || 0)
+      );
 
       if (isLeftZone) {
         const minOrder =
-          allColumns.length > 0
-            ? Math.min(...allColumns.map((c) => c.column_order || 0))
+          sortedCols.length > 0
+            ? Math.min(...sortedCols.map((c) => c.column_order || 0))
             : 0;
         newColumnOrder = minOrder - 1;
+      } else if (isBetweenZone) {
+        // Extract the left column ID from "new-column-between-<columnId>"
+        const leftColumnId = targetColumnId.replace('new-column-between-', '');
+        const leftIndex = sortedCols.findIndex((c) => c.id === leftColumnId);
+        if (leftIndex !== -1 && leftIndex < sortedCols.length - 1) {
+          const leftOrder = sortedCols[leftIndex].column_order || 0;
+          const rightOrder = sortedCols[leftIndex + 1].column_order || 0;
+          newColumnOrder = (leftOrder + rightOrder) / 2;
+        } else {
+          // Fallback: place at end
+          const maxOrder =
+            sortedCols.length > 0
+              ? Math.max(...sortedCols.map((c) => c.column_order || 0))
+              : 0;
+          newColumnOrder = maxOrder + 1;
+        }
       } else {
         const maxOrder =
-          allColumns.length > 0
-            ? Math.max(...allColumns.map((c) => c.column_order || 0))
+          sortedCols.length > 0
+            ? Math.max(...sortedCols.map((c) => c.column_order || 0))
             : 0;
         newColumnOrder = maxOrder + 1;
       }
