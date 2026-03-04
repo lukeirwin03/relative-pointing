@@ -23,13 +23,13 @@ module.exports = defineConfig({
   ],
   webServer: [
     {
-      command: `PORT=${BACKEND_PORT} npm run start:backend`,
+      command: `PORT=${BACKEND_PORT} node server/server.js`,
       url: `http://localhost:${BACKEND_PORT}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
     },
     {
-      command: `REACT_APP_API_URL=http://localhost:${BACKEND_PORT}/api npm start`,
+      command: `npm run dev:client`,
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
