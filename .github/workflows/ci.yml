@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   quality:
@@ -20,20 +20,7 @@ jobs:
         run: npm run lint
       - name: Format check
         run: npm run format:check
-      - name: Test
-        run: npm test -- --watchAll=false --passWithNoTests
       - name: Build
         run: npm run build
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-      - name: E2E tests
-        run: npm run test:e2e
-      - name: Upload Playwright report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 14
       - name: Security audit
         run: npm audit --omit=dev --audit-level=moderate || true

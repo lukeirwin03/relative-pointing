@@ -119,7 +119,8 @@ router.post('/create', async (req, res) => {
     res.json({
       success: true,
       task: {
-        id: issueKey.trim(),
+        id: taskId,
+        display_id: issueKey.trim(),
         title: title.trim(),
         description: description?.trim() || '',
         column_id: 'unsorted',
@@ -318,7 +319,8 @@ router.post('/create-task', async (req, res) => {
     res.json({
       success: true,
       task: {
-        id: issueKey.trim(),
+        id: taskId,
+        display_id: issueKey.trim(),
         title: title.trim(),
         description: description?.trim() || '',
         column_id: 'unsorted',

@@ -41,15 +41,33 @@ router.post('/', async (req, res) => {
     }
 
     const sessionId = uuidv4();
-    const roomCode = generateRoomCode();
 
-    console.log(`[CREATE] Creating session with room code: ${roomCode}`);
-
-    // Create session
-    await dbPromise.run(
-      `INSERT INTO sessions (id, room_code, creator_id, creator_name, last_activity_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [sessionId, roomCode, creatorId, creatorName]
-    );
+    // Retry with new room codes on collision (small namespace ~2500 combinations)
+    let roomCode;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      roomCode = generateRoomCode();
+      console.log(`[CREATE] Creating session with room code: ${roomCode}`);
+      try {
+        await dbPromise.run(
+          `INSERT INTO sessions (id, room_code, creator_id, creator_name, last_activity_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+          [sessionId, roomCode, creatorId, creatorName]
+        );
+        break;
+      } catch (err) {
+        if (
+          err.message.includes(
+            'UNIQUE constraint failed: sessions.room_code'
+          ) &&
+          attempt < 4
+        ) {
+          console.log(
+            `[CREATE] Room code collision on "${roomCode}", retrying...`
+          );
+          continue;
+        }
+        throw err;
+      }
+    }
 
     // Add creator as first participant
     const participantId = uuidv4();
@@ -190,11 +208,10 @@ router.get('/:roomCode', async (req, res) => {
       [session.id]
     );
 
-    // Parse metadata and use jiraKey as display id if available
+    // Parse metadata; keep UUID as id, expose jira_key as display_id
     const processedTasks = tasks.map((task) => ({
       ...task,
-      // Use jiraKey as the display id if available, otherwise use the UUID id
-      id: task.jira_key || task.id,
+      display_id: task.jira_key || task.id,
       metadata: task.metadata ? JSON.parse(task.metadata) : {},
     }));
 
