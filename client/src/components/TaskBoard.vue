@@ -10,6 +10,7 @@ import CreateColumnDropZone from './CreateColumnDropZone.vue';
 import ParticipantList from './ParticipantList.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
 import DropZoneOverlay from './DropZoneOverlay.vue';
+import TaskActionModal from './TaskActionModal.vue';
 import Version from './Version.vue';
 import Snowflakes from './Snowflakes.vue';
 
@@ -22,12 +23,15 @@ const themeStore = useThemeStore();
 const roomCode = computed(() => route.params.roomCode);
 
 const showCreateTask = ref(false);
+const actionModalTask = ref(null);
+const actionModalTab = ref('tags');
 const copied = ref(false);
 const isDragging = ref(false);
 const jiraBaseUrl = ref('');
 const jiraUrlInput = ref('');
 const showJiraUrlInput = ref(false);
 const sidebarCollapsed = ref(false);
+const boardAreaRef = ref(null);
 
 // Sand timer turn history tracking
 const turnHistory = ref([]);
@@ -152,6 +156,66 @@ function tasksForColumn(columnId) {
   return sessionStore.displayTasks.filter((t) => t.column_id === columnId);
 }
 
+// Complexity header scroll navigation
+function getColumnElements() {
+  if (!boardAreaRef.value) return [];
+  return Array.from(boardAreaRef.value.querySelectorAll('[data-column-index]'));
+}
+
+function scrollToColumnIndex(index) {
+  const cols = getColumnElements();
+  if (index < 0 || index >= cols.length || !boardAreaRef.value) return;
+  const col = cols[index];
+  const container = boardAreaRef.value;
+  const colRect = col.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  const scrollLeft =
+    container.scrollLeft +
+    (colRect.left - containerRect.left) -
+    (containerRect.width / 2 - colRect.width / 2);
+  container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+}
+
+function getCurrentColumnIndex() {
+  const cols = getColumnElements();
+  if (!cols.length || !boardAreaRef.value) return 0;
+  const containerCenter =
+    boardAreaRef.value.getBoundingClientRect().left +
+    boardAreaRef.value.clientWidth / 2;
+  let closest = 0;
+  let minDist = Infinity;
+  for (let i = 0; i < cols.length; i++) {
+    const rect = cols[i].getBoundingClientRect();
+    const colCenter = rect.left + rect.width / 2;
+    const dist = Math.abs(colCenter - containerCenter);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = i;
+    }
+  }
+  return closest;
+}
+
+function scrollColumnLeft() {
+  const idx = getCurrentColumnIndex();
+  scrollToColumnIndex(idx - 1);
+}
+
+function scrollColumnRight() {
+  const idx = getCurrentColumnIndex();
+  scrollToColumnIndex(idx + 1);
+}
+
+function handleComplexityBarClick(e) {
+  const bar = e.currentTarget;
+  const rect = bar.getBoundingClientRect();
+  const fraction = (e.clientX - rect.left) / rect.width;
+  const cols = getColumnElements();
+  if (!cols.length) return;
+  const targetIndex = Math.round(fraction * (cols.length - 1));
+  scrollToColumnIndex(targetIndex);
+}
+
 async function handleCopyRoomCode() {
   try {
     await navigator.clipboard.writeText(roomCode.value);
@@ -185,8 +249,13 @@ function handleDeleteTask(taskId) {
   sessionStore.deleteTask(taskId);
 }
 
-function handleUpdateTaskColor(taskId, colorTag) {
-  sessionStore.updateTaskColor(taskId, colorTag);
+function handleUpdateTaskTag(taskId, tagId) {
+  sessionStore.updateTaskTag(taskId, tagId);
+}
+
+function handleOpenActionModal({ task, tab }) {
+  actionModalTask.value = task;
+  actionModalTab.value = tab || 'tags';
 }
 
 function handleDeleteColumn(columnId, task) {
@@ -256,7 +325,7 @@ onUnmounted(() => {
   <!-- Main board -->
   <div
     v-else
-    class="min-h-screen bg-gray-50 dark:bg-neon-bg-900 flex transition-colors neon-grid-bg"
+    class="h-screen bg-gray-50 dark:bg-neon-bg-900 flex transition-colors neon-grid-bg"
   >
     <!-- Christmas Snowflakes -->
     <Snowflakes v-if="themeStore.isChristmas" :count="50" />
@@ -407,7 +476,7 @@ onUnmounted(() => {
       <div
         v-if="sessionStore.currentTurnParticipant"
         :class="[
-          'px-4 py-3 flex items-center justify-between border-b',
+          'px-4 py-3 flex items-center justify-between border-b h-[52px]',
           sessionStore.isMyTurn
             ? 'bg-green-100 dark:bg-transparent border-green-200 dark:border-white/10 dark:turn-glow-active'
             : 'bg-yellow-100 dark:bg-transparent border-yellow-200 dark:border-white/10 dark:turn-glow-waiting',
@@ -446,17 +515,29 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Complexity Header -->
+      <!-- Complexity Header (interactive scroll nav) -->
       <div
         class="bg-white dark:bg-neon-bg-800/60 border-b border-gray-200 dark:border-white/10 py-4"
       >
-        <div class="flex items-center justify-center gap-2 px-4">
-          <div class="text-3xl text-gray-500 dark:text-neon-cyan/40">◀</div>
-          <div class="flex-1 flex items-center gap-3">
+        <div
+          class="flex items-center justify-center gap-2 px-4 pr-[calc(1rem+20rem)]"
+        >
+          <button
+            class="text-3xl text-gray-500 dark:text-neon-cyan/40 hover:text-gray-800 dark:hover:text-neon-cyan transition-colors cursor-pointer select-none"
+            title="Scroll left one column"
+            @click="scrollColumnLeft"
+          >
+            ◀
+          </button>
+          <div
+            class="flex-1 flex items-center gap-3 cursor-pointer"
+            title="Click to scroll to relative position"
+            @click="handleComplexityBarClick"
+          >
             <div
-              class="flex-1 h-0.5 bg-gradient-to-r from-gray-400 to-gray-300 dark:from-neon-cyan/30 dark:to-transparent rounded"
+              class="flex-1 h-1 bg-gradient-to-r from-gray-400 to-gray-300 dark:from-neon-cyan/30 dark:to-transparent rounded hover:h-1.5 transition-all"
             ></div>
-            <div class="text-center whitespace-nowrap">
+            <div class="text-center whitespace-nowrap pointer-events-none">
               <div
                 class="text-gray-600 dark:text-gray-300 font-semibold text-sm"
               >
@@ -464,10 +545,16 @@ onUnmounted(() => {
               </div>
             </div>
             <div
-              class="flex-1 h-0.5 bg-gradient-to-r from-gray-300 to-gray-400 dark:from-transparent dark:to-neon-cyan/30 rounded"
+              class="flex-1 h-1 bg-gradient-to-r from-gray-300 to-gray-400 dark:from-transparent dark:to-neon-cyan/30 rounded hover:h-1.5 transition-all"
             ></div>
           </div>
-          <div class="text-3xl text-gray-500 dark:text-neon-cyan/40">▶</div>
+          <button
+            class="text-3xl text-gray-500 dark:text-neon-cyan/40 hover:text-gray-800 dark:hover:text-neon-cyan transition-colors cursor-pointer select-none"
+            title="Scroll right one column"
+            @click="scrollColumnRight"
+          >
+            ▶
+          </button>
         </div>
       </div>
 
@@ -475,9 +562,12 @@ onUnmounted(() => {
       <div class="flex-1 flex overflow-hidden">
         <!-- Task Board Area -->
         <div
-          class="flex-1 overflow-x-hidden overflow-y-auto p-4 flex justify-center"
+          ref="boardAreaRef"
+          class="flex-1 overflow-x-auto overflow-y-auto p-4 relative z-10"
         >
-          <div class="flex gap-4 min-h-full transition-all duration-200">
+          <div
+            class="flex gap-4 min-h-full transition-all duration-200 px-4 mx-auto w-fit"
+          >
             <template
               v-if="
                 sessionStore.displayTasks &&
@@ -516,15 +606,18 @@ onUnmounted(() => {
                   v-for="(column, index) in sortedColumns"
                   :key="`col-${column.id}`"
                 >
-                  <div class="transition-all duration-200">
+                  <div
+                    class="transition-all duration-200"
+                    :data-column-index="index"
+                  >
                     <Column
                       :column-id="column.id"
                       :title="column.name"
                       :tasks="tasksForColumn(column.id)"
+                      :tags="sessionStore.tags"
                       :jira-base-url="jiraBaseUrl"
                       :drag-disabled="dragDisabled"
-                      @delete-task="handleDeleteTask"
-                      @update-task-color="handleUpdateTaskColor"
+                      @open-action-modal="handleOpenActionModal"
                       @task-moved="handleTaskMoved"
                     />
                   </div>
@@ -568,7 +661,7 @@ onUnmounted(() => {
 
         <!-- Tasks Queue Panel - Right Sidebar -->
         <div
-          class="w-80 bg-white dark:bg-neon-bg-800/60 border-l border-gray-200 dark:border-white/10 flex flex-col overflow-hidden"
+          class="w-80 bg-white dark:bg-neon-bg-800/60 border-l border-gray-200 dark:border-white/10 flex flex-col overflow-hidden relative z-20"
         >
           <div
             class="p-4 border-b border-gray-200 dark:border-white/10 flex-1 overflow-y-auto"
@@ -577,13 +670,13 @@ onUnmounted(() => {
               column-id="unsorted"
               title="Tasks"
               :tasks="unsortedTasks"
+              :tags="sessionStore.tags"
               variant="tasks"
               :jira-base-url="jiraBaseUrl"
               :drag-disabled="dragDisabled"
               :stack-mode="sessionStore.stackMode"
               :top-task-id="topTaskId"
-              @delete-task="handleDeleteTask"
-              @update-task-color="handleUpdateTaskColor"
+              @open-action-modal="handleOpenActionModal"
               @task-moved="handleTaskMoved"
             />
           </div>
@@ -636,6 +729,17 @@ onUnmounted(() => {
       :room-code="roomCode"
       @task-created="handleTaskCreated"
       @close="showCreateTask = false"
+    />
+
+    <!-- Task Action Modal (Tags & Comments) -->
+    <TaskActionModal
+      v-if="actionModalTask"
+      :task="actionModalTask"
+      :tags="sessionStore.tags"
+      :initial-tab="actionModalTab"
+      @update-tag="handleUpdateTaskTag"
+      @delete-task="handleDeleteTask"
+      @close="actionModalTask = null"
     />
 
     <!-- Drop Zone Overlay for CSV import -->

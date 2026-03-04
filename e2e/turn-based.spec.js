@@ -180,27 +180,17 @@ test.describe('Turn-Based Features', () => {
       'Creator'
     );
 
-    // Verify stack mode checkbox exists and is unchecked
+    // Verify stack mode checkbox exists and is checked by default
     const stackCheckbox = creator.page.getByLabel(
       'Stack mode (one task at a time)'
     );
     await expect(stackCheckbox).toBeVisible(POLL_TIMEOUT);
-    await expect(stackCheckbox).not.toBeChecked();
+    await expect(stackCheckbox).toBeChecked();
 
-    // No tasks should be dimmed initially
-    await expect(creator.page.locator('.opacity-40')).toHaveCount(0);
-
-    // Enable stack mode
-    await stackCheckbox.click();
-
-    // Wait for stack mode to take effect — dimmed tasks should appear
-    await expect(creator.page.locator('.opacity-40').first()).toBeVisible(
+    // Stack mode is on by default — top task should be highlighted with ring
+    await expect(creator.page.locator('.ring-2').first()).toBeVisible(
       POLL_TIMEOUT
     );
-
-    // Count: there should be exactly 5 dimmed tasks (6 total - 1 top)
-    const dimmedCount = await creator.page.locator('.opacity-40').count();
-    expect(dimmedCount).toBe(5);
 
     // "Skip Task" button should be visible (stack mode + my turn)
     await expect(
@@ -228,8 +218,10 @@ test.describe('Turn-Based Features', () => {
     // Disable stack mode
     await stackCheckbox.click();
 
-    // All tasks should be interactive again (no dimmed)
-    await expect(creator.page.locator('.opacity-40')).toHaveCount(0, {
+    // No highlighted task should remain
+    await expect(
+      creator.page.locator('.ring-2.ring-blue-400\\/60')
+    ).toHaveCount(0, {
       timeout: 10000,
     });
 
@@ -379,19 +371,19 @@ test.describe('Turn-Based Features', () => {
       POLL_TIMEOUT
     );
 
-    // --- Step 2: Creator enables stack mode ---
+    // --- Step 2: Stack mode is on by default — verify highlight ---
     const stackCheckbox = creator.page.getByLabel(
       'Stack mode (one task at a time)'
     );
-    await stackCheckbox.click();
+    await expect(stackCheckbox).toBeChecked(POLL_TIMEOUT);
 
-    // Dimmed tasks appear on creator's view
-    await expect(creator.page.locator('.opacity-40').first()).toBeVisible(
+    // Top task should be highlighted on creator's view
+    await expect(creator.page.locator('.ring-2').first()).toBeVisible(
       POLL_TIMEOUT
     );
 
-    // Alice also sees dimmed tasks after poll
-    await expect(alicePage.page.locator('.opacity-40').first()).toBeVisible(
+    // Alice also sees highlighted top task after poll
+    await expect(alicePage.page.locator('.ring-2').first()).toBeVisible(
       POLL_TIMEOUT
     );
 
@@ -429,8 +421,10 @@ test.describe('Turn-Based Features', () => {
     // --- Step 6: Creator disables stack mode ---
     await stackCheckbox.click();
 
-    // No more dimmed tasks
-    await expect(creator.page.locator('.opacity-40')).toHaveCount(0, {
+    // No more highlighted tasks
+    await expect(
+      creator.page.locator('.ring-2.ring-blue-400\\/60')
+    ).toHaveCount(0, {
       timeout: 10000,
     });
 

@@ -32,14 +32,21 @@ router.post('/', async (req, res) => {
       );
     }
 
+    // Look up default tag ("Ready for Dev")
+    const defaultTag = await dbPromise.get(
+      `SELECT id FROM tags WHERE session_id = ? AND name = 'Ready for Dev' AND is_builtin = 1`,
+      [session.id]
+    );
+    const defaultTagId = defaultTag ? defaultTag.id : null;
+
     // Insert tasks
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
       const taskId = uuidv4();
 
       await dbPromise.run(
-        `INSERT INTO tasks (id, session_id, jira_key, title, description, issue_type, status, priority, column_id, task_order, metadata)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (id, session_id, jira_key, title, description, issue_type, status, priority, column_id, task_order, metadata, tag_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           taskId,
           session.id,
@@ -52,6 +59,7 @@ router.post('/', async (req, res) => {
           'unsorted',
           i,
           JSON.stringify(task.metadata || {}),
+          defaultTagId,
         ]
       );
     }
@@ -80,7 +88,6 @@ router.post('/create', async (req, res) => {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    // Get session
     const session = await dbPromise.get(
       `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
       [roomCode.toLowerCase()]
@@ -90,7 +97,11 @@ router.post('/create', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Get the max task_order to add new task at the end
+    const defaultTag = await dbPromise.get(
+      `SELECT id FROM tags WHERE session_id = ? AND name = 'Ready for Dev' AND is_builtin = 1`,
+      [session.id]
+    );
+
     const maxOrder = await dbPromise.get(
       `SELECT MAX(task_order) as max_order FROM tasks WHERE session_id = ?`,
       [session.id]
@@ -100,8 +111,8 @@ router.post('/create', async (req, res) => {
     const newOrder = (maxOrder?.max_order || 0) + 1;
 
     await dbPromise.run(
-      `INSERT INTO tasks (id, session_id, jira_key, title, description, column_id, task_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, session_id, jira_key, title, description, column_id, task_order, tag_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         taskId,
         session.id,
@@ -110,10 +121,10 @@ router.post('/create', async (req, res) => {
         description?.trim() || '',
         'unsorted',
         newOrder,
+        defaultTag ? defaultTag.id : null,
       ]
     );
 
-    // Update session activity
     await touchSessionByRoomCode(roomCode.toLowerCase());
 
     res.json({
@@ -125,6 +136,7 @@ router.post('/create', async (req, res) => {
         description: description?.trim() || '',
         column_id: 'unsorted',
         task_order: newOrder,
+        tag_id: defaultTag ? defaultTag.id : null,
       },
     });
   } catch (err) {
@@ -173,13 +185,12 @@ router.delete('/:taskId', async (req, res) => {
   }
 });
 
-// Update task color tag
+// Update task color tag (legacy)
 router.patch('/:taskId/color', async (req, res) => {
   try {
     const { roomCode, taskId } = req.params;
     const { colorTag } = req.body;
 
-    // Get session (case-insensitive for room code)
     const session = await dbPromise.get(
       `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
       [roomCode.toLowerCase()]
@@ -189,7 +200,6 @@ router.patch('/:taskId/color', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Find task by either database id or jira_key
     const task = await dbPromise.get(
       `SELECT id FROM tasks WHERE session_id = ? AND (id = ? OR jira_key = ?)`,
       [session.id, taskId, taskId]
@@ -199,19 +209,55 @@ router.patch('/:taskId/color', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    // Update color tag (null to clear)
     await dbPromise.run(`UPDATE tasks SET color_tag = ? WHERE id = ?`, [
       colorTag || null,
       task.id,
     ]);
 
-    // Update session activity
     await touchSessionByRoomCode(roomCode.toLowerCase());
 
     res.json({ success: true, colorTag: colorTag || null });
   } catch (err) {
     console.error('Error updating task color:', err);
     res.status(500).json({ error: 'Failed to update task color' });
+  }
+});
+
+// Update task tag
+router.patch('/:taskId/tag', async (req, res) => {
+  try {
+    const { roomCode, taskId } = req.params;
+    const { tagId } = req.body;
+
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const task = await dbPromise.get(
+      `SELECT id FROM tasks WHERE session_id = ? AND (id = ? OR jira_key = ?)`,
+      [session.id, taskId, taskId]
+    );
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    await dbPromise.run(`UPDATE tasks SET tag_id = ? WHERE id = ?`, [
+      tagId || null,
+      task.id,
+    ]);
+
+    await touchSessionByRoomCode(roomCode.toLowerCase());
+
+    res.json({ success: true, tagId: tagId || null });
+  } catch (err) {
+    console.error('Error updating task tag:', err);
+    res.status(500).json({ error: 'Failed to update task tag' });
   }
 });
 
@@ -292,7 +338,7 @@ router.put('/:taskId', async (req, res) => {
   }
 });
 
-// Create a new task
+// Create a new task (alternate endpoint)
 router.post('/create-task', async (req, res) => {
   try {
     const { roomCode } = req.params;
@@ -306,7 +352,6 @@ router.post('/create-task', async (req, res) => {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    // Get session
     const session = await dbPromise.get(
       `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
       [roomCode.toLowerCase()]
@@ -316,7 +361,11 @@ router.post('/create-task', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Get the max task_order to add new task at the end
+    const defaultTag = await dbPromise.get(
+      `SELECT id FROM tags WHERE session_id = ? AND name = 'Ready for Dev' AND is_builtin = 1`,
+      [session.id]
+    );
+
     const maxOrder = await dbPromise.get(
       `SELECT MAX(task_order) as max_order FROM tasks WHERE session_id = ?`,
       [session.id]
@@ -326,8 +375,8 @@ router.post('/create-task', async (req, res) => {
     const newOrder = (maxOrder?.max_order || 0) + 1;
 
     await dbPromise.run(
-      `INSERT INTO tasks (id, session_id, jira_key, title, description, column_id, task_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, session_id, jira_key, title, description, column_id, task_order, tag_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         taskId,
         session.id,
@@ -336,10 +385,10 @@ router.post('/create-task', async (req, res) => {
         description?.trim() || '',
         'unsorted',
         newOrder,
+        defaultTag ? defaultTag.id : null,
       ]
     );
 
-    // Update session activity
     await touchSessionByRoomCode(roomCode.toLowerCase());
 
     res.json({
@@ -351,6 +400,7 @@ router.post('/create-task', async (req, res) => {
         description: description?.trim() || '',
         column_id: 'unsorted',
         task_order: newOrder,
+        tag_id: defaultTag ? defaultTag.id : null,
       },
     });
   } catch (err) {

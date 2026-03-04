@@ -30,22 +30,36 @@ test.describe('Task Management', () => {
     await expect(page.getByText('My new test task')).toBeVisible();
   });
 
-  test('delete a task', async ({ page }) => {
+  test('delete a task via action modal', async ({ page }) => {
     // The session comes with sample tasks — use PROJ-123 (first/visible task)
     const taskText = page.getByText('PROJ-123').first();
     await expect(taskText).toBeVisible();
 
-    // The delete button is inside the same task card container
-    // Each task card is a div.group containing the delete button
-    // Find the task card that contains PROJ-123, then its delete button
+    // Find the task card and click the gear icon to open settings tab
     const taskCard = page
       .locator('div.group')
       .filter({ hasText: 'PROJ-123' })
       .first();
-    const deleteButton = taskCard.getByRole('button', { name: 'Delete task' });
+    const gearButton = taskCard.locator('button[title="Task settings"]');
 
     // force: true because the button is opacity-0 until CSS hover
-    await deleteButton.click({ force: true });
+    await gearButton.click({ force: true });
+
+    // Settings tab should be open with delete button
+    await expect(page.getByText('Danger Zone')).toBeVisible();
+    const deleteButton = page.getByRole('button', { name: 'Delete Task' });
+    await expect(deleteButton).toBeVisible();
+
+    // First click arms the confirmation
+    await deleteButton.click();
+    await expect(
+      page.getByRole('button', { name: 'Click again to confirm delete' })
+    ).toBeVisible();
+
+    // Second click confirms the delete
+    await page
+      .getByRole('button', { name: 'Click again to confirm delete' })
+      .click();
 
     // Task should be removed
     await expect(page.getByText('PROJ-123').first()).not.toBeVisible({

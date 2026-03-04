@@ -269,7 +269,9 @@ test.describe('Manual Ownership Transfer', () => {
     );
 
     // The owner star character (★) should be visible in the sidebar
-    await expect(creator.page.locator('text=★')).toBeVisible(POLL_TIMEOUT);
+    await expect(creator.page.getByTitle('Session owner')).toBeVisible(
+      POLL_TIMEOUT
+    );
 
     await creator.context.close();
   });

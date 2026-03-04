@@ -54,7 +54,7 @@ router.post('/', async (req, res) => {
       console.log(`[CREATE] Creating session with room code: ${roomCode}`);
       try {
         await dbPromise.run(
-          `INSERT INTO sessions (id, room_code, creator_id, creator_name, current_turn_user_id, turn_started_at, last_activity_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          `INSERT INTO sessions (id, room_code, creator_id, creator_name, current_turn_user_id, turn_started_at, last_activity_at, stack_mode) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)`,
           [sessionId, roomCode, creatorId, creatorName, creatorId]
         );
         break;
@@ -86,6 +86,25 @@ router.post('/', async (req, res) => {
     );
 
     console.log(`[CREATE] Session created successfully`);
+
+    // Seed built-in tags
+    const builtinTags = [
+      { name: 'Needs Updates', color: 'yellow' },
+      { name: 'Ready for Dev', color: 'green' },
+      { name: 'Blocked', color: 'red' },
+    ];
+
+    let defaultTagId = null;
+    for (const tag of builtinTags) {
+      const tagId = uuidv4();
+      await dbPromise.run(
+        `INSERT INTO tags (id, session_id, name, color, is_builtin, created_by) VALUES (?, ?, ?, ?, 1, ?)`,
+        [tagId, sessionId, tag.name, tag.color, creatorId]
+      );
+      if (tag.name === 'Ready for Dev') {
+        defaultTagId = tagId;
+      }
+    }
 
     // Note: Columns are created dynamically when tasks are dragged to new locations
     // No default columns are created - start with blank work area
@@ -147,8 +166,8 @@ router.post('/', async (req, res) => {
       const taskId = uuidv4();
 
       await dbPromise.run(
-        `INSERT INTO tasks (id, session_id, jira_key, title, description, issue_type, status, priority, column_id, task_order, metadata)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (id, session_id, jira_key, title, description, issue_type, status, priority, column_id, task_order, metadata, tag_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           taskId,
           sessionId,
@@ -164,6 +183,7 @@ router.post('/', async (req, res) => {
             priority: task.priority,
             issueType: task.issueType,
           }),
+          defaultTagId,
         ]
       );
     }
@@ -213,9 +233,19 @@ router.get('/:roomCode', async (req, res) => {
       [session.id]
     );
 
-    // Get tasks
+    // Get tasks with comment counts
     const tasks = await dbPromise.all(
-      `SELECT * FROM tasks WHERE session_id = ? ORDER BY task_order ASC`,
+      `SELECT t.*, COALESCE(c.cnt, 0) as comment_count
+       FROM tasks t
+       LEFT JOIN (SELECT task_id, COUNT(*) as cnt FROM comments GROUP BY task_id) c ON c.task_id = t.id
+       WHERE t.session_id = ?
+       ORDER BY t.task_order ASC`,
+      [session.id]
+    );
+
+    // Get tags
+    const tags = await dbPromise.all(
+      `SELECT * FROM tags WHERE session_id = ? ORDER BY is_builtin DESC, created_at ASC`,
       [session.id]
     );
 
@@ -243,6 +273,7 @@ router.get('/:roomCode', async (req, res) => {
       participants,
       columns,
       tasks: processedTasks,
+      tags,
       config: {
         offlineThresholdSeconds: OFFLINE_THRESHOLD_S,
       },

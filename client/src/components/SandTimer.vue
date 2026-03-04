@@ -18,8 +18,8 @@ const GRAVITY = 0.01;
 const HORIZONTAL_DRIFT = 0.3;
 const BASE_SPAWN_RATE = 0.1; // 1 particle every 4 seconds
 
-let particles = [];
-let grid = []; // 2D occupancy grid: grid[row][col] = particle ref or null
+let particles = []; // only in-flight (unsettled) particles
+let grid = []; // 2D occupancy grid: grid[row][col] = color string or null
 let gridRows = 0;
 let gridCols = 0;
 let animFrameId = null;
@@ -28,6 +28,37 @@ let running = false;
 let canvasWidth = 0; // logical (CSS) width
 let dpr = 1;
 let containerObserver = null;
+
+// Offscreen canvas for settled particles — drawn once, composited each frame
+let staticCanvas = null;
+let staticCtx = null;
+let settledCount = 0;
+
+function initStaticCanvas(width, height) {
+  staticCanvas = document.createElement('canvas');
+  staticCanvas.width = width;
+  staticCanvas.height = height;
+  staticCtx = staticCanvas.getContext('2d');
+  staticCtx.globalAlpha = 0.6;
+  settledCount = 0;
+}
+
+function drawSettledPixel(gx, gy, color) {
+  if (!staticCtx) return;
+  staticCtx.fillStyle = color;
+  staticCtx.fillRect(
+    gx * PARTICLE_SIZE,
+    gy * PARTICLE_SIZE,
+    PARTICLE_SIZE,
+    PARTICLE_SIZE
+  );
+}
+
+function clearStaticCanvas() {
+  if (!staticCtx) return;
+  staticCtx.clearRect(0, 0, staticCanvas.width, staticCanvas.height);
+  settledCount = 0;
+}
 
 // Grid helpers
 function toGridX(px) {
@@ -43,11 +74,9 @@ function isOccupied(gx, gy) {
   return grid[gy][gx] !== null;
 }
 
-function occupy(gx, gy, p) {
+function occupy(gx, gy, color) {
   if (gx >= 0 && gx < gridCols && gy >= 0 && gy < gridRows) {
-    grid[gy][gx] = p;
-    p.gx = gx;
-    p.gy = gy;
+    grid[gy][gx] = color;
   }
 }
 
@@ -84,18 +113,9 @@ function loadAccumulatedSand() {
       }
       if (gy < 0) continue;
 
-      const p = {
-        x: gx * PARTICLE_SIZE,
-        y: gy * PARTICLE_SIZE,
-        vy: 0,
-        vx: 0,
-        settled: true,
-        color,
-        gx,
-        gy,
-      };
-      occupy(gx, gy, p);
-      particles.push(p);
+      occupy(gx, gy, color);
+      drawSettledPixel(gx, gy, color);
+      settledCount++;
     }
   }
 }
@@ -108,7 +128,6 @@ function spawnParticle(color) {
     y: 0,
     vy: 0,
     vx: (Math.random() - 0.5) * HORIZONTAL_DRIFT * 2,
-    settled: false,
     color,
     gx: toGridX(x),
     gy: 0,
@@ -136,16 +155,30 @@ function update() {
     }
   }
 
+  // If draining, convert settled grid cells back into moving particles
+  if (props.draining && settledCount > 0) {
+    clearStaticCanvas();
+    for (let gy = 0; gy < gridRows; gy++) {
+      for (let gx = 0; gx < gridCols; gx++) {
+        const color = grid[gy][gx];
+        if (color !== null) {
+          particles.push({
+            x: gx * PARTICLE_SIZE,
+            y: gy * PARTICLE_SIZE,
+            vy: 2 + Math.random() * 3,
+            vx: (Math.random() - 0.5) * 1,
+            color,
+            gx,
+            gy,
+          });
+          grid[gy][gx] = null;
+        }
+      }
+    }
+  }
+
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    if (p.settled && !props.draining) continue;
-
-    if (props.draining && p.settled) {
-      vacate(p.gx, p.gy);
-      p.settled = false;
-      p.vy = 2 + Math.random() * 3;
-      p.vx = (Math.random() - 0.5) * 1;
-    }
 
     p.vy += GRAVITY;
     p.x += p.vx;
@@ -206,12 +239,11 @@ function update() {
             }
           }
 
-          p.x = newGx * PARTICLE_SIZE;
-          p.y = settleGy * PARTICLE_SIZE;
-          p.vy = 0;
-          p.vx = 0;
-          p.settled = true;
-          occupy(newGx, settleGy, p);
+          // Settle: paint to static buffer, store in grid, remove from active array
+          occupy(newGx, settleGy, p.color);
+          drawSettledPixel(newGx, settleGy, p.color);
+          settledCount++;
+          particles.splice(i, 1);
         }
       }
     }
@@ -224,7 +256,13 @@ function draw(ctx) {
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, canvasWidth, height);
 
-  // Draw particles
+  // Draw settled particles from static buffer
+  if (staticCanvas && settledCount > 0) {
+    ctx.globalAlpha = 1; // static canvas already has alpha baked in
+    ctx.drawImage(staticCanvas, 0, 0);
+  }
+
+  // Draw in-flight particles
   ctx.globalAlpha = 0.6;
   for (const p of particles) {
     ctx.fillStyle = p.color;
@@ -265,7 +303,10 @@ function stopLoop() {
 
 function resetJar() {
   particles = [];
-  if (canvasWidth > 0) initGrid(canvasWidth, props.canvasHeight);
+  if (canvasWidth > 0) {
+    initGrid(canvasWidth, props.canvasHeight);
+    initStaticCanvas(canvasWidth, props.canvasHeight);
+  }
 }
 
 function sizeCanvas() {
@@ -290,18 +331,39 @@ function sizeCanvas() {
   return width;
 }
 
+function redrawStaticFromGrid() {
+  if (!staticCtx) return;
+  clearStaticCanvas();
+  for (let gy = 0; gy < gridRows; gy++) {
+    for (let gx = 0; gx < gridCols; gx++) {
+      const color = grid[gy][gx];
+      if (color !== null) {
+        drawSettledPixel(gx, gy, color);
+        settledCount++;
+      }
+    }
+  }
+}
+
 function rebuildGrid(newWidth, newHeight) {
-  // Preserve settled particles, remap to new grid dimensions
-  const oldSettled = particles.filter((p) => p.settled);
-  const unsettled = particles.filter((p) => !p.settled);
+  // Collect settled data from old grid
+  const oldSettled = [];
+  for (let gy = 0; gy < gridRows; gy++) {
+    for (let gx = 0; gx < gridCols; gx++) {
+      if (grid[gy][gx] !== null) {
+        oldSettled.push({ gx, gy, color: grid[gy][gx] });
+      }
+    }
+  }
+  const unsettled = [...particles];
   particles = [];
 
   initGrid(newWidth, newHeight);
+  initStaticCanvas(newWidth, newHeight);
 
-  // Re-place settled particles: keep their x/y but clamp to new bounds
-  for (const p of oldSettled) {
-    const gx = Math.max(0, Math.min(toGridX(p.x), gridCols - 1));
-    // Find lowest empty cell in this column
+  // Re-place settled particles: keep x column, find lowest empty cell
+  for (const s of oldSettled) {
+    const gx = Math.max(0, Math.min(s.gx, gridCols - 1));
     let gy = -1;
     for (let r = gridRows - 1; r >= 0; r--) {
       if (!grid[r][gx]) {
@@ -311,15 +373,12 @@ function rebuildGrid(newWidth, newHeight) {
     }
     if (gy < 0) continue;
 
-    p.x = gx * PARTICLE_SIZE;
-    p.y = gy * PARTICLE_SIZE;
-    p.gx = gx;
-    p.gy = gy;
-    occupy(gx, gy, p);
-    particles.push(p);
+    occupy(gx, gy, s.color);
+    drawSettledPixel(gx, gy, s.color);
+    settledCount++;
   }
 
-  // Load accumulated sand on top
+  // Load accumulated sand on top (only if no prior settled data)
   if (props.accumulatedSand.length > 0 && oldSettled.length === 0) {
     loadAccumulatedSand();
   }
@@ -351,6 +410,7 @@ function initCanvas() {
   if (width <= 0) return;
 
   initGrid(width, props.canvasHeight);
+  initStaticCanvas(width, props.canvasHeight);
 
   if (props.accumulatedSand.length > 0) {
     loadAccumulatedSand();
@@ -370,7 +430,7 @@ watch(
   (draining) => {
     if (draining) {
       const checkDrain = setInterval(() => {
-        if (particles.length === 0) {
+        if (particles.length === 0 && settledCount === 0) {
           clearInterval(checkDrain);
           resetJar();
         }
@@ -417,6 +477,8 @@ onUnmounted(() => {
     containerObserver.disconnect();
     containerObserver = null;
   }
+  staticCanvas = null;
+  staticCtx = null;
 });
 </script>
 

@@ -183,7 +183,7 @@ class APIService {
   }
 
   /**
-   * Update task color tag
+   * Update task color tag (legacy)
    */
   static async updateTaskColor(roomCode, taskId, colorTag) {
     try {
@@ -203,6 +203,143 @@ class APIService {
       return await response.json();
     } catch (error) {
       console.error('Error updating task color:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update task tag
+   */
+  static async updateTaskTag(roomCode, taskId, tagId) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/tasks/${taskId}/tag`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tagId }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to update task tag');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating task tag:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get tags for a session
+   */
+  static async getSessionTags(roomCode) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/tags`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch tags');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a custom tag
+   */
+  static async createTag(roomCode, name, color) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/tags`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, color }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to create tag');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a custom tag
+   */
+  static async deleteTag(roomCode, tagId) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/tags/${tagId}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete tag');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting tag:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get comments for a task
+   */
+  static async getTaskComments(roomCode, taskId) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/tasks/${taskId}/comments`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch comments');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a comment to a task
+   */
+  static async addTaskComment(roomCode, taskId, userId, userName, content) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/tasks/${taskId}/comments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, userName, content }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to add comment');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error adding comment:', error);
       throw error;
     }
   }

@@ -8,6 +8,8 @@ require('./db'); // Initialize database
 
 const sessionsRouter = require('./routes/sessions');
 const tasksRouter = require('./routes/tasks');
+const tagsRouter = require('./routes/tags');
+const commentsRouter = require('./routes/comments');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -61,6 +63,8 @@ app.use('/api/', generalLimiter);
 // Standard routes (rate limiters applied as middleware within the route chain)
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/sessions/:roomCode/tasks', tasksRouter);
+app.use('/api/sessions/:roomCode/tags', tagsRouter);
+app.use('/api/sessions/:roomCode/tasks/:taskId/comments', commentsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

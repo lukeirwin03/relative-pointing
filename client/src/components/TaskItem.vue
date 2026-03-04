@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { buildJiraUrl, detectJiraBaseUrl } from '../utils/jiraUrlBuilder';
-import { getColorClasses, COLOR_OPTIONS } from './taskColors';
+import { getTagColorClasses, getTagForTask } from './taskTags';
 
 const props = defineProps({
   task: {
@@ -12,42 +12,43 @@ const props = defineProps({
     type: String,
     default: null,
   },
-  showDelete: {
-    type: Boolean,
-    default: false,
-  },
-  showColor: {
-    type: Boolean,
-    default: false,
+  tags: {
+    type: Array,
+    default: () => [],
   },
   showInfo: {
     type: Boolean,
     default: false,
   },
-  dimmed: {
+  highlighted: {
+    type: Boolean,
+    default: false,
+  },
+  dragDisabled: {
     type: Boolean,
     default: false,
   },
 });
 
-const emit = defineEmits(['deleteTask', 'updateColor', 'showInfo']);
+const emit = defineEmits(['openActionModal', 'showInfo']);
 
-const colorClasses = computed(() => getColorClasses(props.task.color_tag));
+const taskTag = computed(() => getTagForTask(props.task, props.tags));
+const tagColors = computed(() =>
+  taskTag.value ? getTagColorClasses(taskTag.value.color) : null
+);
 
 const displayId = computed(() => props.task.display_id || props.task.id);
+
+const truncatedTagName = computed(() => {
+  if (!taskTag.value) return '';
+  const name = taskTag.value.name;
+  return name.length > 10 ? name.slice(0, 9) + '…' : name;
+});
 
 const jiraUrl = computed(() => {
   const baseUrl = props.jiraBaseUrl || detectJiraBaseUrl(displayId.value);
   return buildJiraUrl(baseUrl, displayId.value);
 });
-
-function handleDelete() {
-  emit('deleteTask', props.task.id);
-}
-
-function handleColorSelect(colorId) {
-  emit('updateColor', props.task.id, colorId);
-}
 
 function openJira(e) {
   e.preventDefault();
@@ -63,15 +64,78 @@ function openJira(e) {
     :class="[
       'p-3 rounded-lg shadow-sm transition-all group relative',
       'bg-white dark:glass-card',
-      dimmed
-        ? 'opacity-40 pointer-events-none'
-        : 'cursor-grab active:cursor-grabbing hover:shadow-md dark:hover:shadow-card-hover',
-      task.color_tag
-        ? `border-l-4 ${colorClasses.border}`
+      dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
+      !dragDisabled && 'hover:shadow-md dark:hover:shadow-card-hover',
+      highlighted &&
+        'ring-2 ring-blue-400/60 dark:ring-neon-cyan/50 shadow-[0_0_12px_rgba(59,130,246,0.3)] dark:shadow-[0_0_16px_rgba(0,240,255,0.25)]',
+      taskTag
+        ? `border-l-4 ${tagColors.border}`
         : 'border-l-4 border-transparent',
     ]"
   >
-    <div class="flex items-start justify-between gap-2">
+    <!-- Icons (top-right, hover-visible) -->
+    <div
+      class="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+    >
+      <!-- Add tag button (shown when no tag) -->
+      <button
+        v-if="!taskTag"
+        class="no-drag text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-neon-cyan transition-colors relative -left-0.5"
+        title="Add tag"
+        @pointerdown.stop
+        @click.prevent.stop="emit('openActionModal', { task, tab: 'tags' })"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+          />
+        </svg>
+      </button>
+      <!-- Comment icon (opens comments tab) -->
+      <button
+        class="no-drag text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-neon-cyan transition-colors flex items-center gap-0.5"
+        title="Comments"
+        @pointerdown.stop
+        @click.prevent.stop="emit('openActionModal', { task, tab: 'comments' })"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
+        </svg>
+        <span v-if="task.comment_count > 0" class="text-[11px]">{{
+          task.comment_count
+        }}</span>
+      </button>
+      <!-- Gear icon (opens modal settings/delete) -->
+      <button
+        class="no-drag text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-neon-cyan transition-colors"
+        title="Task settings"
+        @pointerdown.stop
+        @click.prevent.stop="emit('openActionModal', { task, tab: 'settings' })"
+      >
+        <span class="text-2xl leading-none relative -top-0.5">⚙</span>
+      </button>
+    </div>
+
+    <!-- ID row -->
+    <div class="flex items-start gap-2 pr-6">
       <div class="flex-1 min-w-0">
         <a
           v-if="jiraUrl"
@@ -92,51 +156,45 @@ function openJira(e) {
         >
           {{ displayId }}
         </p>
-        <p
-          v-if="task.title"
-          class="text-xs text-gray-600 dark:text-gray-400 mt-1 break-words line-clamp-2"
-        >
-          {{ task.title }}
-        </p>
       </div>
     </div>
-    <div
-      v-if="showDelete"
-      class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+    <!-- Title -->
+    <p
+      v-if="task.title"
+      class="text-xs text-gray-600 dark:text-gray-400 mt-1 break-words line-clamp-2"
     >
-      <button
-        class="no-drag flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-        title="Delete task"
-        aria-label="Delete task"
-        @pointerdown.stop
-        @click.stop="handleDelete"
-      >
-        ✕
-      </button>
-    </div>
-    <!-- Inline color pills + details -->
-    <div class="flex items-center gap-2 mt-2 flex-wrap">
-      <template v-if="showColor">
-        <button
-          v-for="color in COLOR_OPTIONS"
-          :key="color.id || 'none'"
-          class="no-drag px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer hover:scale-105"
-          :class="task.color_tag === color.id ? color.pillActive : color.pill"
-          :title="color.name"
-          @pointerdown.stop
-          @click.prevent.stop="handleColorSelect(color.id)"
-        >
-          {{ color.name }}
-        </button>
-      </template>
+      {{ task.title }}
+    </p>
+    <!-- Bottom row: details (left) | tag badge (right) -->
+    <div class="flex items-center gap-2 mt-2">
+      <!-- Details link (bottom-left) -->
       <button
         v-if="showInfo"
-        class="no-drag text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-neon-cyan transition-colors ml-auto"
+        class="no-drag text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-neon-cyan transition-colors"
         title="View task details"
         @pointerdown.stop
         @click.prevent.stop="emit('showInfo', task)"
       >
         details
+      </button>
+      <!-- Tag badge (bottom-right, clickable, truncated) -->
+      <button
+        v-if="taskTag"
+        class="no-drag ml-auto"
+        :class="[
+          'px-2 py-0.5 rounded-full text-[10px] font-semibold inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity max-w-[90px] truncate',
+          tagColors.pill,
+          'dark:' + tagColors.glow,
+        ]"
+        :title="taskTag.name"
+        @pointerdown.stop
+        @click.prevent.stop="emit('openActionModal', { task, tab: 'tags' })"
+      >
+        <span
+          class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+          :class="tagColors.dot"
+        ></span>
+        {{ truncatedTagName }}
       </button>
     </div>
   </div>

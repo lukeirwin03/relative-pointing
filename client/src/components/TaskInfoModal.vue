@@ -1,17 +1,33 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useSessionStore } from '../stores/session';
+import APIService from '../services/api';
+import { getTagColorClasses, getTagForTask } from './taskTags';
 
 const props = defineProps({
   task: {
     type: Object,
     required: true,
   },
+  tags: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const emit = defineEmits(['close']);
 
+const sessionStore = useSessionStore();
+const comments = ref([]);
+const loadingComments = ref(false);
+
 const metadata = computed(() => props.task?.metadata);
 const originalRow = computed(() => metadata.value?.originalRow);
+
+const taskTag = computed(() => getTagForTask(props.task, props.tags));
+const tagColors = computed(() =>
+  taskTag.value ? getTagColorClasses(taskTag.value.color) : null
+);
 
 const fields = computed(() => {
   if (!originalRow.value) return [];
@@ -28,6 +44,28 @@ function priorityColor(priority) {
   if (p.includes('high')) return 'bg-red-500 dark:bg-neon-red';
   if (p.includes('medium')) return 'bg-yellow-500 dark:bg-neon-yellow';
   return 'bg-green-500 dark:bg-neon-green';
+}
+
+onMounted(async () => {
+  if (sessionStore.roomCode) {
+    loadingComments.value = true;
+    try {
+      comments.value = await APIService.getTaskComments(
+        sessionStore.roomCode,
+        props.task.id
+      );
+    } catch (err) {
+      console.error('Error loading comments:', err);
+    } finally {
+      loadingComments.value = false;
+    }
+  }
+});
+
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 </script>
 
@@ -56,11 +94,26 @@ function priorityColor(priority) {
 
       <!-- Content -->
       <div class="p-6 space-y-6">
-        <!-- Title -->
+        <!-- Title + Tag -->
         <div>
-          <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-            {{ task.title || 'Untitled Task' }}
-          </h3>
+          <div class="flex items-center gap-2 mb-2">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
+              {{ task.title || 'Untitled Task' }}
+            </h3>
+            <span
+              v-if="taskTag"
+              :class="[
+                'px-2 py-0.5 rounded-full text-xs font-semibold inline-flex items-center gap-1',
+                tagColors.pill,
+              ]"
+            >
+              <span
+                class="w-1.5 h-1.5 rounded-full"
+                :class="tagColors.dot"
+              ></span>
+              {{ taskTag.name }}
+            </span>
+          </div>
           <p
             v-if="task.display_id || task.id"
             class="text-sm text-gray-500 dark:text-gray-400"
@@ -171,6 +224,46 @@ function priorityColor(priority) {
           <p class="text-sm text-gray-500 dark:text-gray-400">
             No additional metadata available for this task
           </p>
+        </div>
+
+        <!-- Comments Section -->
+        <div>
+          <h4
+            class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3"
+          >
+            Comments
+          </h4>
+          <div v-if="loadingComments" class="text-center py-2">
+            <p class="text-sm text-gray-400 dark:text-gray-500">
+              Loading comments...
+            </p>
+          </div>
+          <div v-else-if="comments.length === 0" class="text-center py-2">
+            <p class="text-sm text-gray-400 dark:text-gray-500">
+              No comments yet
+            </p>
+          </div>
+          <div v-else class="space-y-2">
+            <div
+              v-for="comment in comments"
+              :key="comment.id"
+              class="bg-gray-50 dark:bg-neon-bg-700/50 rounded-lg px-3 py-2"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <span
+                  class="text-xs font-medium text-gray-700 dark:text-gray-300"
+                >
+                  {{ comment.user_name }}
+                </span>
+                <span class="text-xs text-gray-400 dark:text-gray-500">
+                  {{ formatTime(comment.created_at) }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                {{ comment.content }}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

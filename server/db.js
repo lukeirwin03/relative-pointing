@@ -132,7 +132,7 @@ function runMigrations(callback) {
 
                   // Migration 6: Add stack_mode column
                   db.run(
-                    `ALTER TABLE sessions ADD COLUMN stack_mode INTEGER DEFAULT 0`,
+                    `ALTER TABLE sessions ADD COLUMN stack_mode INTEGER DEFAULT 1`,
                     (err6) => {
                       if (err6 && err6.message.includes('duplicate column')) {
                         console.log(
@@ -169,7 +169,26 @@ function runMigrations(callback) {
                             );
                           }
 
-                          if (callback) callback();
+                          // Migration 8: Add tag_id column to tasks
+                          db.run(
+                            `ALTER TABLE tasks ADD COLUMN tag_id TEXT`,
+                            (err8) => {
+                              if (
+                                err8 &&
+                                err8.message.includes('duplicate column')
+                              ) {
+                                console.log(
+                                  'Migration: tag_id column already exists'
+                                );
+                              } else if (!err8) {
+                                console.log(
+                                  'Migration: Added tag_id column to tasks'
+                                );
+                              }
+
+                              if (callback) callback();
+                            }
+                          );
                         }
                       );
                     }

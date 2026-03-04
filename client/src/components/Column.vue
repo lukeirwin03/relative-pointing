@@ -17,6 +17,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  tags: {
+    type: Array,
+    default: () => [],
+  },
   variant: {
     type: String,
     default: 'default',
@@ -39,12 +43,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits([
-  'deleteTask',
-  'updateTaskColor',
-  'deleteColumn',
-  'taskMoved',
-]);
+const emit = defineEmits(['openActionModal', 'deleteColumn', 'taskMoved']);
 
 const selectedTask = ref(null);
 
@@ -84,10 +83,10 @@ function onDragChange(evt) {
   <div>
     <div
       :class="[
-        'rounded-lg p-4 w-[300px] flex-shrink-0 transition-colors flex flex-col',
+        'rounded-lg p-3 w-[220px] flex-shrink-0 transition-colors flex flex-col',
         variantClasses,
       ]"
-      style="min-height: 500px"
+      style="min-height: 400px"
     >
       <div
         v-if="variant === 'tasks'"
@@ -110,19 +109,22 @@ function onDragChange(evt) {
           <TaskItem
             :task="element"
             :jira-base-url="jiraBaseUrl"
-            :show-delete="true"
-            :show-color="true"
+            :tags="tags"
             :show-info="true"
-            :dimmed="
+            :highlighted="
               stackMode &&
               variant === 'tasks' &&
               topTaskId &&
-              String(element.id) !== String(topTaskId)
+              String(element.id) === String(topTaskId)
             "
-            @delete-task="emit('deleteTask', $event)"
-            @update-color="
-              (taskId, color) => emit('updateTaskColor', taskId, color)
+            :drag-disabled="
+              dragDisabled ||
+              (stackMode &&
+                variant === 'tasks' &&
+                topTaskId &&
+                String(element.id) !== String(topTaskId))
             "
+            @open-action-modal="emit('openActionModal', $event)"
             @show-info="selectedTask = $event"
           />
         </template>
@@ -141,6 +143,7 @@ function onDragChange(evt) {
     <TaskInfoModal
       v-if="selectedTask"
       :task="selectedTask"
+      :tags="tags"
       @close="selectedTask = null"
     />
   </div>
