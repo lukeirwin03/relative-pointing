@@ -14,6 +14,7 @@
     "start": "NODE_ENV=production node server/server.js",
     "start:backend": "node server/server.js",
     "prepare": "husky",
+    "test": "npm run build && npm run test:e2e",
     "lint": "prettier --check 'client/src/**/*.{vue,js,json,css}' 'server/**/*.js'",
     "format": "prettier --write 'client/src/**/*.{vue,js,json,css}' 'server/**/*.js'",
     "format:check": "prettier --check 'client/src/**/*.{vue,js,json,css}' 'server/**/*.js'",
