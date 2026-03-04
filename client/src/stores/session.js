@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import APIService from '../services/api';
+import { useUserStore } from './user';
 
 export const useSessionStore = defineStore('session', () => {
   // Core state from backend
@@ -125,8 +126,67 @@ export const useSessionStore = defineStore('session', () => {
     deletedColumnIds.value = new Set();
   }
 
+  // Turn-based computed properties
+  const currentTurnUserId = computed(
+    () => session.value?.current_turn_user_id || null
+  );
+
+  const turnStartedAt = computed(() => session.value?.turn_started_at || null);
+
+  const stackMode = computed(() => !!session.value?.stack_mode);
+
+  const currentTurnParticipant = computed(() => {
+    if (!currentTurnUserId.value) return null;
+    return participants.value.find(
+      (p) => p.user_id === currentTurnUserId.value
+    );
+  });
+
+  const topUnsortedTask = computed(() => {
+    const unsorted = displayTasks.value
+      .filter((t) => t.column_id === 'unsorted')
+      .sort((a, b) => (a.task_order || 0) - (b.task_order || 0));
+    return unsorted.length > 0 ? unsorted[0] : null;
+  });
+
+  const isMyTurn = computed(() => {
+    const userStore = useUserStore();
+    return currentTurnUserId.value === userStore.userId;
+  });
+
+  // Turn-based actions
+  async function endTurn() {
+    if (!roomCode.value) return;
+    const userStore = useUserStore();
+    try {
+      await APIService.endTurn(roomCode.value, userStore.userId);
+    } catch (err) {
+      console.error('Error ending turn:', err);
+    }
+  }
+
+  async function toggleStackMode() {
+    if (!roomCode.value) return;
+    try {
+      await APIService.updateStackMode(roomCode.value, !stackMode.value);
+    } catch (err) {
+      console.error('Error toggling stack mode:', err);
+    }
+  }
+
+  async function skipTopTask() {
+    if (!roomCode.value) return;
+    try {
+      await APIService.skipTopTask(roomCode.value);
+    } catch (err) {
+      console.error('Error skipping top task:', err);
+    }
+  }
+
   // Actions
   async function moveTaskToColumn(taskId, targetColumnId, userId) {
+    if (!isMyTurn.value) return;
+
     const taskIdStr = String(taskId);
     const draggedTask = tasks.value.find((t) => String(t.id) === taskIdStr);
     if (!draggedTask) return;
@@ -340,6 +400,12 @@ export const useSessionStore = defineStore('session', () => {
     // Computed
     displayColumns,
     displayTasks,
+    currentTurnUserId,
+    turnStartedAt,
+    stackMode,
+    currentTurnParticipant,
+    topUnsortedTask,
+    isMyTurn,
     // Actions
     startPolling,
     stopPolling,
@@ -348,5 +414,8 @@ export const useSessionStore = defineStore('session', () => {
     deleteTask,
     deleteColumn,
     updateTaskColor,
+    endTurn,
+    toggleStackMode,
+    skipTopTask,
   };
 });

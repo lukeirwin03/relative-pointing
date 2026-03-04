@@ -4,7 +4,7 @@ const BACKEND_PORT = process.env.PORT || 5001;
 
 module.exports = defineConfig({
   testDir: './e2e',
-  timeout: 30000,
+  timeout: 60000,
   expect: { timeout: 5000 },
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
@@ -14,11 +14,15 @@ module.exports = defineConfig({
     baseURL: 'http://localhost:3000',
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
+    video: 'on',
   },
   projects: [
     {
       name: 'chromium',
-      use: { browserName: 'chromium' },
+      use: {
+        browserName: 'chromium',
+        launchOptions: { slowMo: 250 },
+      },
     },
   ],
   webServer: [

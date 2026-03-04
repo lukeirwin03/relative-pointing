@@ -23,6 +23,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  currentTurnUserId: {
+    type: String,
+    default: null,
+  },
 });
 
 const COLORS = [
@@ -78,10 +82,15 @@ function toggleParticipant(participantId) {
             @mouseleave="hoveredId = null"
           >
             <div
-              class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ring-2 ring-white dark:ring-gray-800 cursor-pointer hover:scale-110 transition-transform"
-              :class="{
-                'opacity-40': disabledParticipants.has(participant.user_id),
-              }"
+              class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold cursor-pointer hover:scale-110 transition-transform"
+              :class="[
+                participant.user_id === currentTurnUserId
+                  ? 'ring-4 ring-green-400'
+                  : 'ring-2 ring-white dark:ring-gray-800',
+                {
+                  'opacity-40': disabledParticipants.has(participant.user_id),
+                },
+              ]"
               :style="{ backgroundColor: getColorForParticipant(index) }"
             >
               {{ participant.user_name?.[0]?.toUpperCase() || '?' }}
@@ -183,6 +192,11 @@ function toggleParticipant(participantId) {
             {{ participant.user_name }}
             <template v-if="participant.user_id === currentUser?.id">
               (you)
+            </template>
+            <template v-if="participant.user_id === currentTurnUserId">
+              <span class="text-green-600 dark:text-green-400"
+                >(current turn)</span
+              >
             </template>
           </span>
         </li>

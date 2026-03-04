@@ -95,7 +95,55 @@ function runMigrations(callback) {
             );
           }
 
-          if (callback) callback();
+          // Migration 4: Add current_turn_user_id column
+          db.run(
+            `ALTER TABLE sessions ADD COLUMN current_turn_user_id TEXT`,
+            (err4) => {
+              if (err4 && err4.message.includes('duplicate column')) {
+                console.log(
+                  'Migration: current_turn_user_id column already exists'
+                );
+              } else if (!err4) {
+                console.log(
+                  'Migration: Added current_turn_user_id column to sessions'
+                );
+              }
+
+              // Migration 5: Add turn_started_at column
+              db.run(
+                `ALTER TABLE sessions ADD COLUMN turn_started_at DATETIME`,
+                (err5) => {
+                  if (err5 && err5.message.includes('duplicate column')) {
+                    console.log(
+                      'Migration: turn_started_at column already exists'
+                    );
+                  } else if (!err5) {
+                    console.log(
+                      'Migration: Added turn_started_at column to sessions'
+                    );
+                  }
+
+                  // Migration 6: Add stack_mode column
+                  db.run(
+                    `ALTER TABLE sessions ADD COLUMN stack_mode INTEGER DEFAULT 0`,
+                    (err6) => {
+                      if (err6 && err6.message.includes('duplicate column')) {
+                        console.log(
+                          'Migration: stack_mode column already exists'
+                        );
+                      } else if (!err6) {
+                        console.log(
+                          'Migration: Added stack_mode column to sessions'
+                        );
+                      }
+
+                      if (callback) callback();
+                    }
+                  );
+                }
+              );
+            }
+          );
         }
       );
     });

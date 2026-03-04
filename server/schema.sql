@@ -5,6 +5,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   creator_name TEXT NOT NULL,
   jira_base_url TEXT,
   skipped_participants TEXT,
+  current_turn_user_id TEXT,
+  turn_started_at DATETIME,
+  stack_mode INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

@@ -1,7 +1,7 @@
 const API_URL = `http://localhost:${process.env.PORT || 5001}/api`;
 
 /** Timeout for assertions that depend on the 2-second poll cycle */
-const POLL_TIMEOUT = { timeout: 5000 };
+const POLL_TIMEOUT = { timeout: 10000 };
 
 /** Standard headers for JSON API requests */
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
@@ -147,6 +147,63 @@ async function createAuthenticatedUserInSession(
   return { context, page, userId };
 }
 
+/**
+ * Create a browser context as the session creator (uses the actual creatorId).
+ * Returns { context, page, userId }.
+ */
+async function createCreatorContext(browser, roomCode, creatorId, creatorName) {
+  return openBrowserAsUser(browser, roomCode, creatorId, creatorName);
+}
+
+/**
+ * Open a browser context with a specific userId (already joined via API).
+ * Returns { context, page, userId }.
+ */
+async function openBrowserAsUser(browser, roomCode, userId, userName) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await page.addInitScript(
+    ({ uid, uname }) => {
+      localStorage.setItem('userId', uid);
+      localStorage.setItem('userName', uname);
+    },
+    { uid: userId, uname: userName }
+  );
+
+  await page.goto(`/session/${roomCode}`);
+  await page.waitForSelector('text=Room Code:', { timeout: 10000 });
+
+  return { context, page, userId };
+}
+
+/** POST /api/sessions/:roomCode/end-turn */
+async function endTurnViaAPI(request, roomCode, userId) {
+  const response = await request.post(
+    `${API_URL}/sessions/${roomCode}/end-turn`,
+    { headers: JSON_HEADERS, data: { userId } }
+  );
+  return response.json();
+}
+
+/** PATCH /api/sessions/:roomCode */
+async function updateSessionViaAPI(request, roomCode, updates) {
+  const response = await request.patch(`${API_URL}/sessions/${roomCode}`, {
+    headers: JSON_HEADERS,
+    data: updates,
+  });
+  return response.json();
+}
+
+/** POST /api/sessions/:roomCode/tasks/skip-top */
+async function skipTopTaskViaAPI(request, roomCode) {
+  const response = await request.post(
+    `${API_URL}/sessions/${roomCode}/tasks/skip-top`,
+    { headers: JSON_HEADERS }
+  );
+  return response.json();
+}
+
 module.exports = {
   API_URL,
   POLL_TIMEOUT,
@@ -161,4 +218,9 @@ module.exports = {
   updateTaskColorViaAPI,
   createUserContext,
   createAuthenticatedUserInSession,
+  endTurnViaAPI,
+  updateSessionViaAPI,
+  skipTopTaskViaAPI,
+  createCreatorContext,
+  openBrowserAsUser,
 };

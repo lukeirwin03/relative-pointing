@@ -25,6 +25,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  dimmed: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['deleteTask', 'updateColor', 'showInfo']);
@@ -61,8 +65,10 @@ function openJira(e) {
   <div
     :class="[
       colorClasses.bg,
-      'p-3 rounded shadow-sm cursor-grab active:cursor-grabbing transition-opacity group relative',
-      'hover:shadow-md',
+      'p-3 rounded shadow-sm transition-opacity group relative',
+      dimmed
+        ? 'opacity-40 pointer-events-none'
+        : 'cursor-grab active:cursor-grabbing hover:shadow-md',
       task.color_tag ? `border-l-4 ${colorClasses.border}` : '',
     ]"
   >

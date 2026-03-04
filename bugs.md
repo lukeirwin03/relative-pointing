@@ -5,3 +5,5 @@
 [x] putting a card between two columns appends it to the end column (furthest right) - always creates a new column - sometimes cards just disappear ???? - appears to be resolved with the migration to vite frontend - between-column ordering now correctly calculates midpoint
 
 [x] Cards need to have a unique id so that there aren't duplicates - if duplicate id the cards will move together when you drag it
+
+[ ] unique id's not working, should be issue key - can have several issues with the same key
