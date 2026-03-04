@@ -25,15 +25,16 @@ function SessionComplete({ roomCode, sessionData, onClose }) {
 
         <div className="mb-6">
           <p className="text-gray-600 mb-4">
-            Great job! Your tasks have been organized. You can now open Jira tabs to assign points.
+            Great job! Your tasks have been organized. You can now open Jira
+            tabs to assign points.
           </p>
 
           {sessionData?.columns && sessionData.columns.length > 0 ? (
             <div className="space-y-2">
               {sessionData.columns.map((column) => {
-                const columnTasks = sessionData.tasks?.filter(
-                  (t) => t.column_id === column.id
-                ) || [];
+                const columnTasks =
+                  sessionData.tasks?.filter((t) => t.column_id === column.id) ||
+                  [];
 
                 return (
                   <div key={column.id} className="p-3 bg-gray-50 rounded">
@@ -46,7 +47,8 @@ function SessionComplete({ roomCode, sessionData, onClose }) {
                         disabled={columnTasks.length === 0}
                         className="text-blue-600 hover:underline text-sm disabled:text-gray-400 disabled:cursor-not-allowed"
                       >
-                        Open {columnTasks.length} tab{columnTasks.length !== 1 ? 's' : ''}
+                        Open {columnTasks.length} tab
+                        {columnTasks.length !== 1 ? 's' : ''}
                       </button>
                     </div>
                   </div>
@@ -54,7 +56,9 @@ function SessionComplete({ roomCode, sessionData, onClose }) {
               })}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-4">No columns or tasks data available</p>
+            <p className="text-gray-500 text-center py-4">
+              No columns or tasks data available
+            </p>
           )}
         </div>
 

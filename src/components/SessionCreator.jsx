@@ -40,7 +40,7 @@ function SessionCreator({ onSessionCreated }) {
       if (onSessionCreated) {
         onSessionCreated({
           id: userId,
-          name: userName.trim()
+          name: userName.trim(),
         });
       }
 
@@ -73,7 +73,11 @@ function SessionCreator({ onSessionCreated }) {
       const userId = uuidv4();
 
       // Join session via API
-      await APIService.joinSession(roomCode.toLowerCase(), userId, userName.trim());
+      await APIService.joinSession(
+        roomCode.toLowerCase(),
+        userId,
+        userName.trim()
+      );
 
       // Store user info in localStorage
       localStorage.setItem('userId', userId);
@@ -83,7 +87,7 @@ function SessionCreator({ onSessionCreated }) {
       if (onSessionCreated) {
         onSessionCreated({
           id: userId,
-          name: userName.trim()
+          name: userName.trim(),
         });
       }
 
@@ -138,8 +142,8 @@ function SessionCreator({ onSessionCreated }) {
         {mode === 'create' ? (
           <form onSubmit={handleCreateSession}>
             <div className="mb-4">
-              <label 
-                htmlFor="userName" 
+              <label
+                htmlFor="userName"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Your Name
@@ -174,8 +178,8 @@ function SessionCreator({ onSessionCreated }) {
         ) : (
           <form onSubmit={handleJoinSession}>
             <div className="mb-4">
-              <label 
-                htmlFor="userName-join" 
+              <label
+                htmlFor="userName-join"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Your Name
@@ -194,8 +198,8 @@ function SessionCreator({ onSessionCreated }) {
             </div>
 
             <div className="mb-4">
-              <label 
-                htmlFor="roomCode" 
+              <label
+                htmlFor="roomCode"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Room Code

@@ -8,6 +8,7 @@ node_modules/
 
 # Production
 /build
+client/dist/
 
 # Environment variables
 .env.local
@@ -57,3 +58,7 @@ firestore-debug.log
 # SQLite database
 server/app.db
 *.db
+
+# Playwright
+playwright-report/
+test-results/

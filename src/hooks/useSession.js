@@ -26,30 +26,34 @@ export function useSession(roomCode) {
     let mounted = true;
     let pollInterval = null;
 
-     const fetchSession = async () => {
-       try {
-         const data = await APIService.getSession(roomCode);
-         console.log(`[useSession] Fetched session ${roomCode}: ${data.participants?.length || 0} participants`);
+    const fetchSession = async () => {
+      try {
+        const data = await APIService.getSession(roomCode);
+        console.log(
+          `[useSession] Fetched session ${roomCode}: ${data.participants?.length || 0} participants`
+        );
 
-         if (mounted) {
-           console.log(`[useSession] Fetched session ${roomCode}: ${data.participants?.length || 0} participants`);
-           setSession(data.session);
-           setParticipants(data.participants || []);
-           setTasks(data.tasks || []);
-           setColumns(data.columns || []);
-           setError(null);
-         }
-       } catch (err) {
-         console.error('Session fetch error:', err);
-         if (mounted) {
-           setError(err.message || 'Session not found');
-         }
-       } finally {
-         if (mounted) {
-           setLoading(false);
-         }
-       }
-     };
+        if (mounted) {
+          console.log(
+            `[useSession] Fetched session ${roomCode}: ${data.participants?.length || 0} participants`
+          );
+          setSession(data.session);
+          setParticipants(data.participants || []);
+          setTasks(data.tasks || []);
+          setColumns(data.columns || []);
+          setError(null);
+        }
+      } catch (err) {
+        console.error('Session fetch error:', err);
+        if (mounted) {
+          setError(err.message || 'Session not found');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
 
     // Fetch immediately
     fetchSession();
@@ -87,7 +91,9 @@ export function useSession(roomCode) {
 
     // Refresh session data
     const data = await APIService.getSession(roomCode);
-         console.log(`[useSession] Fetched session ${roomCode}: ${data.participants?.length || 0} participants`);
+    console.log(
+      `[useSession] Fetched session ${roomCode}: ${data.participants?.length || 0} participants`
+    );
     setSession(data.session);
     setParticipants(data.participants || []);
   };

@@ -12,7 +12,9 @@ router.post('/', async (req, res) => {
 
     // Validate input
     if (!creatorId || !creatorName) {
-      return res.status(400).json({ error: 'creatorId and creatorName required' });
+      return res
+        .status(400)
+        .json({ error: 'creatorId and creatorName required' });
     }
 
     if (typeof creatorId !== 'string' || typeof creatorName !== 'string') {
@@ -20,30 +22,58 @@ router.post('/', async (req, res) => {
     }
 
     // Validate UUID format
-    if (!creatorId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      console.warn(`[SECURITY] Invalid creatorId format attempted: ${creatorId}`);
+    if (
+      !creatorId.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      )
+    ) {
+      console.warn(
+        `[SECURITY] Invalid creatorId format attempted: ${creatorId}`
+      );
       return res.status(400).json({ error: 'Invalid creator ID format' });
     }
 
     // Validate name length
     if (creatorName.trim().length < 1 || creatorName.trim().length > 100) {
-      return res.status(400).json({ error: 'Name must be between 1 and 100 characters' });
+      return res
+        .status(400)
+        .json({ error: 'Name must be between 1 and 100 characters' });
     }
 
     const sessionId = uuidv4();
-    const roomCode = generateRoomCode();
 
-    console.log(`[CREATE] Creating session with room code: ${roomCode}`);
-
-     // Create session
-     await dbPromise.run(
-       `INSERT INTO sessions (id, room_code, creator_id, creator_name, last_activity_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-       [sessionId, roomCode, creatorId, creatorName]
-     );
+    // Retry with new room codes on collision (small namespace ~2500 combinations)
+    let roomCode;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      roomCode = generateRoomCode();
+      console.log(`[CREATE] Creating session with room code: ${roomCode}`);
+      try {
+        await dbPromise.run(
+          `INSERT INTO sessions (id, room_code, creator_id, creator_name, last_activity_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+          [sessionId, roomCode, creatorId, creatorName]
+        );
+        break;
+      } catch (err) {
+        if (
+          err.message.includes(
+            'UNIQUE constraint failed: sessions.room_code'
+          ) &&
+          attempt < 4
+        ) {
+          console.log(
+            `[CREATE] Room code collision on "${roomCode}", retrying...`
+          );
+          continue;
+        }
+        throw err;
+      }
+    }
 
     // Add creator as first participant
     const participantId = uuidv4();
-    console.log(`[CREATE] Adding creator as participant: ${creatorId} (${creatorName})`);
+    console.log(
+      `[CREATE] Adding creator as participant: ${creatorId} (${creatorName})`
+    );
 
     await dbPromise.run(
       `INSERT INTO participants (id, session_id, user_id, user_name) VALUES (?, ?, ?, ?)`,
@@ -63,7 +93,7 @@ router.post('/', async (req, res) => {
         description: 'Add login and signup functionality with OAuth support',
         issueType: 'Story',
         status: 'To Do',
-        priority: 'High'
+        priority: 'High',
       },
       {
         jiraKey: 'PROJ-124',
@@ -71,7 +101,7 @@ router.post('/', async (req, res) => {
         description: 'Create visual design for landing page with modern UI',
         issueType: 'Story',
         status: 'To Do',
-        priority: 'Medium'
+        priority: 'Medium',
       },
       {
         jiraKey: 'PROJ-125',
@@ -79,7 +109,7 @@ router.post('/', async (req, res) => {
         description: 'Configure automated deployment with GitHub Actions',
         issueType: 'Task',
         status: 'To Do',
-        priority: 'High'
+        priority: 'High',
       },
       {
         jiraKey: 'PROJ-126',
@@ -87,7 +117,7 @@ router.post('/', async (req, res) => {
         description: 'Document all REST endpoints with examples',
         issueType: 'Task',
         status: 'To Do',
-        priority: 'Low'
+        priority: 'Low',
       },
       {
         jiraKey: 'PROJ-127',
@@ -95,7 +125,7 @@ router.post('/', async (req, res) => {
         description: 'Implement error tracking system with Sentry',
         issueType: 'Story',
         status: 'To Do',
-        priority: 'Medium'
+        priority: 'Medium',
       },
       {
         jiraKey: 'PROJ-128',
@@ -103,8 +133,8 @@ router.post('/', async (req, res) => {
         description: 'Improve query performance for user dashboard',
         issueType: 'Task',
         status: 'In Progress',
-        priority: 'High'
-      }
+        priority: 'High',
+      },
     ];
 
     for (let i = 0; i < sampleTasks.length; i++) {
@@ -125,7 +155,10 @@ router.post('/', async (req, res) => {
           task.priority,
           'unsorted',
           i,
-          JSON.stringify({ priority: task.priority, issueType: task.issueType })
+          JSON.stringify({
+            priority: task.priority,
+            issueType: task.issueType,
+          }),
         ]
       );
     }
@@ -134,7 +167,7 @@ router.post('/', async (req, res) => {
       sessionId,
       roomCode,
       creatorId,
-      creatorName
+      creatorName,
     });
   } catch (err) {
     console.error('Error creating session:', err);
@@ -175,31 +208,30 @@ router.get('/:roomCode', async (req, res) => {
       [session.id]
     );
 
-     // Parse metadata and use jiraKey as display id if available
-     const processedTasks = tasks.map(task => ({
-       ...task,
-       // Use jiraKey as the display id if available, otherwise use the UUID id
-       id: task.jira_key || task.id,
-       metadata: task.metadata ? JSON.parse(task.metadata) : {}
-     }));
+    // Parse metadata; keep UUID as id, expose jira_key as display_id
+    const processedTasks = tasks.map((task) => ({
+      ...task,
+      display_id: task.jira_key || task.id,
+      metadata: task.metadata ? JSON.parse(task.metadata) : {},
+    }));
 
-     // Parse skipped_participants JSON
-     const processedSession = {
-       ...session,
-       skipped_participants: session.skipped_participants 
-         ? JSON.parse(session.skipped_participants) 
-         : []
-     };
+    // Parse skipped_participants JSON
+    const processedSession = {
+      ...session,
+      skipped_participants: session.skipped_participants
+        ? JSON.parse(session.skipped_participants)
+        : [],
+    };
 
-     // Update session activity (viewing the session counts as activity)
-     await touchSessionByRoomCode(normalizedCode);
+    // Update session activity (viewing the session counts as activity)
+    await touchSessionByRoomCode(normalizedCode);
 
-     res.json({
-       session: processedSession,
-       participants,
-       columns,
-       tasks: processedTasks
-     });
+    res.json({
+      session: processedSession,
+      participants,
+      columns,
+      tasks: processedTasks,
+    });
   } catch (err) {
     console.error('Error fetching session:', err);
     res.status(500).json({ error: 'Failed to fetch session' });
@@ -223,23 +255,37 @@ router.post('/:roomCode/join', async (req, res) => {
     }
 
     // Validate room code format (should be 2-3 words separated by dashes)
-    if (!roomCode || typeof roomCode !== 'string' || !roomCode.match(/^[a-z0-9]+-[a-z0-9]+(-[a-z0-9]+)?$/i)) {
-      console.warn(`[SECURITY] Invalid room code format attempted: ${roomCode}`);
+    if (
+      !roomCode ||
+      typeof roomCode !== 'string' ||
+      !roomCode.match(/^[a-z0-9]+-[a-z0-9]+(-[a-z0-9]+)?$/i)
+    ) {
+      console.warn(
+        `[SECURITY] Invalid room code format attempted: ${roomCode}`
+      );
       return res.status(400).json({ error: 'Invalid room code format' });
     }
 
     // Validate userName length
     if (userName.trim().length < 1 || userName.trim().length > 100) {
-      return res.status(400).json({ error: 'Username must be between 1 and 100 characters' });
+      return res
+        .status(400)
+        .json({ error: 'Username must be between 1 and 100 characters' });
     }
 
     // Validate userId format (should be UUID)
-    if (!userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    if (
+      !userId.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      )
+    ) {
       console.warn(`[SECURITY] Invalid userId format attempted: ${userId}`);
       return res.status(400).json({ error: 'Invalid user ID format' });
     }
 
-    console.log(`[JOIN] Attempting to join session: ${roomCode} (normalized: ${normalizedCode}) as user: ${userName} (${userId})`);
+    console.log(
+      `[JOIN] Attempting to join session: ${roomCode} (normalized: ${normalizedCode}) as user: ${userName} (${userId})`
+    );
 
     const session = await dbPromise.get(
       `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
@@ -270,26 +316,30 @@ router.post('/:roomCode/join', async (req, res) => {
       [session.id, userName]
     );
 
-     if (usernameTaken) {
-       console.log(`[JOIN] Username already taken: ${userName}`);
-       return res.status(400).json({ error: 'That username is already taken in this session' });
-     }
+    if (usernameTaken) {
+      console.log(`[JOIN] Username already taken: ${userName}`);
+      return res
+        .status(400)
+        .json({ error: 'That username is already taken in this session' });
+    }
 
-     // Add participant
-     const participantId = uuidv4();
-     console.log(`[JOIN] Adding participant: ${participantId} to session ${session.id}`);
+    // Add participant
+    const participantId = uuidv4();
+    console.log(
+      `[JOIN] Adding participant: ${participantId} to session ${session.id}`
+    );
 
-     await dbPromise.run(
-       `INSERT INTO participants (id, session_id, user_id, user_name) VALUES (?, ?, ?, ?)`,
-       [participantId, session.id, userId, userName]
-     );
+    await dbPromise.run(
+      `INSERT INTO participants (id, session_id, user_id, user_name) VALUES (?, ?, ?, ?)`,
+      [participantId, session.id, userId, userName]
+    );
 
-     // Update session activity
-     await touchSessionByRoomCode(normalizedCode);
+    // Update session activity
+    await touchSessionByRoomCode(normalizedCode);
 
-     console.log(`[JOIN] Successfully added participant`);
+    console.log(`[JOIN] Successfully added participant`);
 
-     res.json({ success: true, sessionId: session.id });
+    res.json({ success: true, sessionId: session.id });
   } catch (err) {
     console.error('Error joining session:', err);
     res.status(500).json({ error: 'Failed to join session' });
@@ -412,14 +462,14 @@ router.delete('/:roomCode/columns/:columnId', async (req, res) => {
     }
 
     // Delete the column
-    await dbPromise.run(
-      `DELETE FROM columns WHERE id = ? AND session_id = ?`,
-      [columnId, session.id]
-    );
+    await dbPromise.run(`DELETE FROM columns WHERE id = ? AND session_id = ?`, [
+      columnId,
+      session.id,
+    ]);
 
     res.json({
       success: true,
-      message: 'Column deleted successfully'
+      message: 'Column deleted successfully',
     });
   } catch (err) {
     console.error('Error deleting column:', err);

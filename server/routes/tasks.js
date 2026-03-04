@@ -7,22 +7,22 @@ const router = express.Router({ mergeParams: true });
 // Upload tasks to session
 router.post('/', async (req, res) => {
   try {
-     const { roomCode } = req.params;
-     const { tasks, jiraBaseUrl } = req.body;
+    const { roomCode } = req.params;
+    const { tasks, jiraBaseUrl } = req.body;
 
-     if (!Array.isArray(tasks)) {
-       return res.status(400).json({ error: 'tasks must be an array' });
-     }
+    if (!Array.isArray(tasks)) {
+      return res.status(400).json({ error: 'tasks must be an array' });
+    }
 
-     // Get session (case-insensitive for room code)
-     const session = await dbPromise.get(
-       `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
-       [roomCode.toLowerCase()]
-     );
+    // Get session (case-insensitive for room code)
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
+    );
 
-     if (!session) {
-       return res.status(404).json({ error: 'Session not found' });
-     }
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
 
     // Update jira_base_url if provided
     if (jiraBaseUrl) {
@@ -51,7 +51,7 @@ router.post('/', async (req, res) => {
           task.priority || '',
           'unsorted',
           i,
-          JSON.stringify(task.metadata || {})
+          JSON.stringify(task.metadata || {}),
         ]
       );
     }
@@ -109,7 +109,7 @@ router.post('/create', async (req, res) => {
         title.trim(),
         description?.trim() || '',
         'unsorted',
-        newOrder
+        newOrder,
       ]
     );
 
@@ -119,12 +119,13 @@ router.post('/create', async (req, res) => {
     res.json({
       success: true,
       task: {
-        id: issueKey.trim(),
+        id: taskId,
+        display_id: issueKey.trim(),
         title: title.trim(),
         description: description?.trim() || '',
         column_id: 'unsorted',
-        task_order: newOrder
-      }
+        task_order: newOrder,
+      },
     });
   } catch (err) {
     console.error('Error creating task:', err);
@@ -158,10 +159,10 @@ router.delete('/:taskId', async (req, res) => {
     }
 
     // Delete task using actual database id
-    await dbPromise.run(
-      `DELETE FROM tasks WHERE id = ? AND session_id = ?`,
-      [task.id, session.id]
-    );
+    await dbPromise.run(`DELETE FROM tasks WHERE id = ? AND session_id = ?`, [
+      task.id,
+      session.id,
+    ]);
 
     console.log(`[DELETE] Task ${taskId} deleted`);
 
@@ -199,10 +200,10 @@ router.patch('/:taskId/color', async (req, res) => {
     }
 
     // Update color tag (null to clear)
-    await dbPromise.run(
-      `UPDATE tasks SET color_tag = ? WHERE id = ?`,
-      [colorTag || null, task.id]
-    );
+    await dbPromise.run(`UPDATE tasks SET color_tag = ? WHERE id = ?`, [
+      colorTag || null,
+      task.id,
+    ]);
 
     // Update session activity
     await touchSessionByRoomCode(roomCode.toLowerCase());
@@ -250,8 +251,10 @@ router.put('/:taskId', async (req, res) => {
         `UPDATE tasks SET column_id = ?, assigned_by = ?, assigned_at = CURRENT_TIMESTAMP WHERE id = ? AND session_id = ?`,
         [columnId, assignedBy, task.id, session.id]
       );
-      console.log(`[MOVE] Task ${taskId} moved from ${task.column_id} to ${columnId}`);
-      
+      console.log(
+        `[MOVE] Task ${taskId} moved from ${task.column_id} to ${columnId}`
+      );
+
       // Update session activity
       await touchSessionByRoomCode(roomCode.toLowerCase());
     }
@@ -306,7 +309,7 @@ router.post('/create-task', async (req, res) => {
         title.trim(),
         description?.trim() || '',
         'unsorted',
-        newOrder
+        newOrder,
       ]
     );
 
@@ -316,12 +319,13 @@ router.post('/create-task', async (req, res) => {
     res.json({
       success: true,
       task: {
-        id: issueKey.trim(),
+        id: taskId,
+        display_id: issueKey.trim(),
         title: title.trim(),
         description: description?.trim() || '',
         column_id: 'unsorted',
-        task_order: newOrder
-      }
+        task_order: newOrder,
+      },
     });
   } catch (err) {
     console.error('Error creating task:', err);
@@ -348,9 +352,9 @@ router.get('/', async (req, res) => {
       [session.id]
     );
 
-    const processed = tasks.map(task => ({
+    const processed = tasks.map((task) => ({
       ...task,
-      metadata: task.metadata ? JSON.parse(task.metadata) : {}
+      metadata: task.metadata ? JSON.parse(task.metadata) : {},
     }));
 
     res.json(processed);

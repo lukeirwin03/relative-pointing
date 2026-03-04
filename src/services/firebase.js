@@ -6,7 +6,9 @@
 // If you see imports from this file, update them to use:
 // import APIService from './api';
 
-console.warn('Warning: firebase.js is deprecated. Use APIService from ./api.js instead');
+console.warn(
+  'Warning: firebase.js is deprecated. Use APIService from ./api.js instead'
+);
 
 export const database = null;
 export default null;

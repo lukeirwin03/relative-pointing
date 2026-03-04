@@ -2,7 +2,12 @@
 // Main application component with routing
 
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom';
 import SessionCreator from './components/SessionCreator';
 import TaskBoard from './components/TaskBoard';
 import { ThemeProvider } from './hooks/useTheme';
@@ -11,7 +16,7 @@ import { ThemeProvider } from './hooks/useTheme';
 function getStoredUser() {
   const storedUserId = localStorage.getItem('userId');
   const storedUserName = localStorage.getItem('userName');
-  
+
   if (storedUserId && storedUserName) {
     return {
       id: storedUserId,
@@ -33,11 +38,14 @@ function App() {
 
   return (
     <ThemeProvider>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
           <Routes>
             {/* Home page - create or join session */}
-            <Route path="/" element={<SessionCreator onSessionCreated={setCurrentUser} />} />
+            <Route
+              path="/"
+              element={<SessionCreator onSessionCreated={setCurrentUser} />}
+            />
 
             {/* Session room */}
             <Route
