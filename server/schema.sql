@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS participants (
   user_id TEXT NOT NULL,
   user_name TEXT NOT NULL,
   joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
   UNIQUE(session_id, user_id)
 );

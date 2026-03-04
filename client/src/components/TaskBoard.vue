@@ -33,7 +33,9 @@ const isCreator = computed(
   () => userStore.userId === sessionStore.session?.creator_id
 );
 
-const dragDisabled = computed(() => !sessionStore.isMyTurn);
+const dragDisabled = computed(
+  () => !sessionStore.isMyTurn || sessionStore.isCurrentUserDisabled
+);
 const topTaskId = computed(() =>
   sessionStore.topUnsortedTask ? String(sessionStore.topUnsortedTask.id) : null
 );
@@ -300,11 +302,26 @@ onUnmounted(() => {
               "
               :room-code="roomCode"
               :current-turn-user-id="sessionStore.currentTurnUserId"
+              :creator-id="sessionStore.session?.creator_id"
             />
           </div>
         </div>
       </div>
     </header>
+
+    <!-- All participants disabled banner -->
+    <div
+      v-if="
+        !sessionStore.currentTurnParticipant &&
+        sessionStore.participants.length > 0 &&
+        !sessionStore.loading
+      "
+      class="px-4 py-3 flex items-center justify-between border-b bg-red-100 dark:bg-red-900/40 border-red-200 dark:border-red-800"
+    >
+      <span class="font-semibold text-red-800 dark:text-red-200">
+        All participants are disabled. Enable a participant to continue.
+      </span>
+    </div>
 
     <!-- Turn Banner -->
     <div

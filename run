@@ -73,9 +73,28 @@ NPM_VERSION=$(npm -v)
 print_success "npm $NPM_VERSION found"
 
 # 2. Check/use Node Version Manager if available
-if [ -f ".nvmrc" ] && command -v nvm &> /dev/null; then
-    print_info "Using nvm to set Node version from .nvmrc..."
-    nvm use || print_warning "Could not switch to specified Node version. Using system Node."
+# nvm is a shell function, not a binary, so we need to source it first
+if [ -f ".nvmrc" ]; then
+    NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+        print_info "Loading nvm..."
+        . "$NVM_DIR/nvm.sh"
+        print_info "Using nvm to set Node version from .nvmrc..."
+        nvm use || nvm install
+        # Re-check node version after nvm switch
+        NODE_VERSION=$(node -v)
+        print_success "Now using Node.js $NODE_VERSION"
+    else
+        print_warning "nvm not found. Using system Node.js."
+    fi
+fi
+
+# 2b. Enforce minimum Node.js version (18+)
+NODE_MAJOR=$(node -v | sed 's/v\([0-9]*\).*/\1/')
+if [ "$NODE_MAJOR" -lt 18 ]; then
+    print_error "Node.js 18+ is required (found $(node -v)). Vite 5 does not support older versions."
+    echo "Please install Node.js 18+ or configure nvm with: nvm install 20"
+    exit 1
 fi
 
 # 3. Check if node_modules exists
