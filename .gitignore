@@ -57,3 +57,7 @@ firestore-debug.log
 # SQLite database
 server/app.db
 *.db
+
+# Playwright
+playwright-report/
+test-results/
