@@ -132,7 +132,8 @@ watch(
       sessionStore.stopPolling();
       router.push(`/session/${roomCode.value}/report`);
     }
-  }
+  },
+  { immediate: true }
 );
 
 // Ensure current user is a participant, then start polling
