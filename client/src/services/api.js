@@ -562,6 +562,102 @@ class APIService {
   }
 
   /**
+   * End a session (leader only)
+   */
+  static async endSession(roomCode, userId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to end session');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error ending session:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get session report
+   */
+  static async getReport(roomCode) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/report`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch report');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching report:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a column's point value
+   */
+  static async updateColumnPointValue(roomCode, columnId, userId, pointValue) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/columns/${columnId}/point-value`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, pointValue }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update point value');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating column point value:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Apply a scale preset to all columns
+   */
+  static async applyScale(roomCode, userId, scale) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/columns/apply-scale`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, scale }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to apply scale');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error applying scale:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Health check - verify backend is running
    */
   static async healthCheck() {

@@ -23,6 +23,7 @@ const themeStore = useThemeStore();
 const roomCode = computed(() => route.params.roomCode);
 
 const showCreateTask = ref(false);
+const showEndSessionConfirm = ref(false);
 const actionModalTask = ref(null);
 const actionModalTab = ref('tags');
 const copied = ref(false);
@@ -119,6 +120,17 @@ watch(
   (val) => {
     if (sessionStore.currentTurnUserId) {
       previousTurnStartedAt = val;
+    }
+  }
+);
+
+// Watch for session ending → redirect all participants to report
+watch(
+  () => sessionStore.session?.ended_at,
+  (endedAt) => {
+    if (endedAt) {
+      sessionStore.stopPolling();
+      router.push(`/session/${roomCode.value}/report`);
     }
   }
 );
@@ -264,6 +276,16 @@ function handleDeleteColumn(columnId, task) {
 
 function handleTaskCreated() {
   showCreateTask.value = false;
+}
+
+async function handleEndSession() {
+  try {
+    await sessionStore.endSession();
+    showEndSessionConfirm.value = false;
+    router.push(`/session/${roomCode.value}/report`);
+  } catch (err) {
+    alert('Failed to end session: ' + err.message);
+  }
 }
 
 function handleLogout() {
@@ -426,6 +448,14 @@ onUnmounted(() => {
             </div>
 
             <div class="flex items-center gap-3">
+              <button
+                v-if="isCreator"
+                @click="showEndSessionConfirm = true"
+                class="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                title="End this session and generate a report"
+              >
+                End Session
+              </button>
               <button
                 @click="themeStore.toggleChristmas()"
                 class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
@@ -744,5 +774,40 @@ onUnmounted(() => {
 
     <!-- Drop Zone Overlay for CSV import -->
     <DropZoneOverlay :room-code="roomCode" :is-creator="isCreator" />
+
+    <!-- End Session Confirmation Modal -->
+    <Teleport to="body">
+      <div
+        v-if="showEndSessionConfirm"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        @click.self="showEndSessionConfirm = false"
+      >
+        <div
+          class="bg-white dark:bg-neon-bg-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-white/10"
+        >
+          <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-2">
+            End Session?
+          </h3>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">
+            This will end the pointing session for all participants and generate
+            a report. This action cannot be undone.
+          </p>
+          <div class="flex gap-3 justify-end">
+            <button
+              @click="showEndSessionConfirm = false"
+              class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              @click="handleEndSession"
+              class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              End Session
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

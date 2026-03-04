@@ -186,7 +186,47 @@ function runMigrations(callback) {
                                 );
                               }
 
-                              if (callback) callback();
+                              // Migration 9: Add ended_at column to sessions
+                              db.run(
+                                `ALTER TABLE sessions ADD COLUMN ended_at DATETIME`,
+                                (err9) => {
+                                  if (
+                                    err9 &&
+                                    err9.message.includes('duplicate column')
+                                  ) {
+                                    console.log(
+                                      'Migration: ended_at column already exists'
+                                    );
+                                  } else if (!err9) {
+                                    console.log(
+                                      'Migration: Added ended_at column to sessions'
+                                    );
+                                  }
+
+                                  // Migration 10: Add point_value column to columns
+                                  db.run(
+                                    `ALTER TABLE columns ADD COLUMN point_value REAL`,
+                                    (err10) => {
+                                      if (
+                                        err10 &&
+                                        err10.message.includes(
+                                          'duplicate column'
+                                        )
+                                      ) {
+                                        console.log(
+                                          'Migration: point_value column already exists'
+                                        );
+                                      } else if (!err10) {
+                                        console.log(
+                                          'Migration: Added point_value column to columns'
+                                        );
+                                      }
+
+                                      if (callback) callback();
+                                    }
+                                  );
+                                }
+                              );
                             }
                           );
                         }
@@ -213,7 +253,7 @@ function cleanupExpiredSessions() {
     .replace(/\.\d{3}Z$/, '');
 
   db.run(
-    `DELETE FROM sessions WHERE last_activity_at IS NOT NULL AND last_activity_at < ?`,
+    `DELETE FROM sessions WHERE last_activity_at IS NOT NULL AND last_activity_at < ? AND ended_at IS NULL`,
     [cutoffTime],
     function (err) {
       if (err) {

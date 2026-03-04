@@ -169,6 +169,8 @@ export const useSessionStore = defineStore('session', () => {
     return skipped.includes(userStore.userId);
   });
 
+  const isEnded = computed(() => !!session.value?.ended_at);
+
   // Turn-based actions
   async function endTurn() {
     if (!roomCode.value) return;
@@ -195,6 +197,18 @@ export const useSessionStore = defineStore('session', () => {
       await APIService.skipTopTask(roomCode.value);
     } catch (err) {
       console.error('Error skipping top task:', err);
+    }
+  }
+
+  async function endSession() {
+    if (!roomCode.value) return;
+    const userStore = useUserStore();
+    try {
+      await APIService.endSession(roomCode.value, userStore.userId);
+      await fetchSession();
+    } catch (err) {
+      console.error('Error ending session:', err);
+      throw err;
     }
   }
 
@@ -462,6 +476,7 @@ export const useSessionStore = defineStore('session', () => {
     topUnsortedTask,
     isMyTurn,
     isCurrentUserDisabled,
+    isEnded,
     // Actions
     startPolling,
     stopPolling,
@@ -473,6 +488,7 @@ export const useSessionStore = defineStore('session', () => {
     createTag,
     deleteTag,
     endTurn,
+    endSession,
     toggleStackMode,
     skipTopTask,
     transferOwnership,
