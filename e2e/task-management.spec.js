@@ -38,14 +38,19 @@ test.describe('Task Management', () => {
     // The delete button is inside the same task card container
     // Each task card is a div.group containing the delete button
     // Find the task card that contains PROJ-123, then its delete button
-    const taskCard = page.locator('div.group').filter({ hasText: 'PROJ-123' }).first();
+    const taskCard = page
+      .locator('div.group')
+      .filter({ hasText: 'PROJ-123' })
+      .first();
     const deleteButton = taskCard.getByRole('button', { name: 'Delete task' });
 
     // force: true because the button is opacity-0 until CSS hover
     await deleteButton.click({ force: true });
 
     // Task should be removed
-    await expect(page.getByText('PROJ-123').first()).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('PROJ-123').first()).not.toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('create task modal can be cancelled', async ({ page }) => {

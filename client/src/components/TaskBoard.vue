@@ -10,6 +10,7 @@ import CreateColumnDropZone from './CreateColumnDropZone.vue';
 import ParticipantList from './ParticipantList.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
 import DropZoneOverlay from './DropZoneOverlay.vue';
+import TurnTimer from './TurnTimer.vue';
 import Version from './Version.vue';
 import Snowflakes from './Snowflakes.vue';
 
@@ -30,6 +31,11 @@ const showJiraUrlInput = ref(false);
 
 const isCreator = computed(
   () => userStore.userId === sessionStore.session?.creator_id
+);
+
+const dragDisabled = computed(() => !sessionStore.isMyTurn);
+const topTaskId = computed(() =>
+  sessionStore.topUnsortedTask ? String(sessionStore.topUnsortedTask.id) : null
 );
 
 // Update Jira URL when session changes
@@ -293,11 +299,56 @@ onUnmounted(() => {
                 sessionStore.session?.skipped_participants || []
               "
               :room-code="roomCode"
+              :current-turn-user-id="sessionStore.currentTurnUserId"
             />
           </div>
         </div>
       </div>
     </header>
+
+    <!-- Turn Banner -->
+    <div
+      v-if="sessionStore.currentTurnParticipant"
+      :class="[
+        'px-4 py-3 flex items-center justify-between border-b',
+        sessionStore.isMyTurn
+          ? 'bg-green-100 dark:bg-green-900/40 border-green-200 dark:border-green-800'
+          : 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-800',
+      ]"
+    >
+      <div class="flex items-center gap-3">
+        <span
+          :class="[
+            'font-semibold',
+            sessionStore.isMyTurn
+              ? 'text-green-800 dark:text-green-200'
+              : 'text-yellow-800 dark:text-yellow-200',
+          ]"
+        >
+          <template v-if="sessionStore.isMyTurn"> It's your turn! </template>
+          <template v-else>
+            It's {{ sessionStore.currentTurnParticipant.user_name }}'s turn
+          </template>
+        </span>
+        <TurnTimer :turn-started-at="sessionStore.turnStartedAt" />
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="sessionStore.isMyTurn"
+          @click="sessionStore.endTurn()"
+          class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors font-medium"
+        >
+          End My Turn
+        </button>
+        <button
+          v-if="isCreator && !sessionStore.isMyTurn"
+          @click="sessionStore.endTurn()"
+          class="px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors font-medium"
+        >
+          Skip Turn
+        </button>
+      </div>
+    </div>
 
     <!-- Complexity Header -->
     <div
@@ -335,7 +386,13 @@ onUnmounted(() => {
             "
           >
             <!-- No columns yet, show single drop zone when dragging -->
-            <template v-if="sortedColumns.length === 0 && isDragging">
+            <template
+              v-if="
+                sortedColumns.length === 0 &&
+                isDragging &&
+                sessionStore.isMyTurn
+              "
+            >
               <CreateColumnDropZone
                 zone-id="new-column"
                 :is-first="true"
@@ -346,7 +403,11 @@ onUnmounted(() => {
             <template v-else>
               <!-- Left drop zone -->
               <CreateColumnDropZone
-                v-if="sortedColumns.length > 0 && isDragging"
+                v-if="
+                  sortedColumns.length > 0 &&
+                  isDragging &&
+                  sessionStore.isMyTurn
+                "
                 zone-id="new-column-left"
                 @task-dropped="handleDropZoneTask"
               />
@@ -362,6 +423,7 @@ onUnmounted(() => {
                     :title="column.name"
                     :tasks="tasksForColumn(column.id)"
                     :jira-base-url="jiraBaseUrl"
+                    :drag-disabled="dragDisabled"
                     @delete-task="handleDeleteTask"
                     @update-task-color="handleUpdateTaskColor"
                     @task-moved="handleTaskMoved"
@@ -371,6 +433,7 @@ onUnmounted(() => {
                 <CreateColumnDropZone
                   v-if="
                     isDragging &&
+                    sessionStore.isMyTurn &&
                     sortedColumns.length > 1 &&
                     index < sortedColumns.length - 1
                   "
@@ -381,7 +444,11 @@ onUnmounted(() => {
 
               <!-- Right drop zone -->
               <CreateColumnDropZone
-                v-if="sortedColumns.length > 0 && isDragging"
+                v-if="
+                  sortedColumns.length > 0 &&
+                  isDragging &&
+                  sessionStore.isMyTurn
+                "
                 zone-id="new-column"
                 @task-dropped="handleDropZoneTask"
               />
@@ -410,17 +477,46 @@ onUnmounted(() => {
             :tasks="unsortedTasks"
             variant="tasks"
             :jira-base-url="jiraBaseUrl"
+            :drag-disabled="dragDisabled"
+            :stack-mode="sessionStore.stackMode"
+            :top-task-id="topTaskId"
             @delete-task="handleDeleteTask"
             @update-task-color="handleUpdateTaskColor"
             @task-moved="handleTaskMoved"
           />
         </div>
-        <!-- Create Task Button -->
+        <!-- Sidebar Footer -->
         <div
-          v-if="isCreator"
-          class="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700"
+          class="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 space-y-2"
         >
+          <!-- Stack Mode Toggle (creator only) -->
+          <label
+            v-if="isCreator"
+            class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              :checked="sessionStore.stackMode"
+              @change="sessionStore.toggleStackMode()"
+              class="rounded border-gray-300 dark:border-gray-600"
+            />
+            Stack mode (one task at a time)
+          </label>
+          <!-- Skip Task Button -->
           <button
+            v-if="
+              sessionStore.stackMode &&
+              sessionStore.isMyTurn &&
+              sessionStore.topUnsortedTask
+            "
+            @click="sessionStore.skipTopTask()"
+            class="w-full px-3 py-2 bg-orange-500 dark:bg-orange-600 text-white rounded-lg hover:bg-orange-600 dark:hover:bg-orange-500 transition-colors font-medium text-sm"
+          >
+            Skip Task
+          </button>
+          <!-- Create Task Button -->
+          <button
+            v-if="isCreator"
             @click="showCreateTask = true"
             class="w-full px-3 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors font-medium text-sm"
             title="Add a new task manually"

@@ -49,8 +49,8 @@ router.post('/', async (req, res) => {
       console.log(`[CREATE] Creating session with room code: ${roomCode}`);
       try {
         await dbPromise.run(
-          `INSERT INTO sessions (id, room_code, creator_id, creator_name, last_activity_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-          [sessionId, roomCode, creatorId, creatorName]
+          `INSERT INTO sessions (id, room_code, creator_id, creator_name, current_turn_user_id, turn_started_at, last_activity_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          [sessionId, roomCode, creatorId, creatorName, creatorId]
         );
         break;
       } catch (err) {
@@ -215,12 +215,13 @@ router.get('/:roomCode', async (req, res) => {
       metadata: task.metadata ? JSON.parse(task.metadata) : {},
     }));
 
-    // Parse skipped_participants JSON
+    // Parse skipped_participants JSON and normalize turn fields
     const processedSession = {
       ...session,
       skipped_participants: session.skipped_participants
         ? JSON.parse(session.skipped_participants)
         : [],
+      stack_mode: !!session.stack_mode,
     };
 
     // Update session activity (viewing the session counts as activity)
@@ -350,7 +351,13 @@ router.post('/:roomCode/join', async (req, res) => {
 router.patch('/:roomCode', async (req, res) => {
   try {
     const { roomCode } = req.params;
-    const { jira_base_url, skipped_participants } = req.body;
+    const {
+      jira_base_url,
+      skipped_participants,
+      current_turn_user_id,
+      turn_started_at,
+      stack_mode,
+    } = req.body;
 
     // Get session
     const session = await dbPromise.get(
@@ -377,6 +384,21 @@ router.patch('/:roomCode', async (req, res) => {
       values.push(JSON.stringify(skipped_participants));
     }
 
+    if (current_turn_user_id !== undefined) {
+      updates.push('current_turn_user_id = ?');
+      values.push(current_turn_user_id);
+    }
+
+    if (turn_started_at !== undefined) {
+      updates.push('turn_started_at = ?');
+      values.push(turn_started_at);
+    }
+
+    if (stack_mode !== undefined) {
+      updates.push('stack_mode = ?');
+      values.push(stack_mode ? 1 : 0);
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
@@ -387,13 +409,121 @@ router.patch('/:roomCode', async (req, res) => {
       values
     );
 
+    // If skipped_participants changed, check if current turn user is now skipped
+    if (skipped_participants !== undefined) {
+      const updatedSession = await dbPromise.get(
+        `SELECT * FROM sessions WHERE id = ?`,
+        [session.id]
+      );
+      const skippedList = skipped_participants || [];
+      if (
+        updatedSession.current_turn_user_id &&
+        skippedList.includes(updatedSession.current_turn_user_id)
+      ) {
+        // Auto-advance turn
+        const participants = await dbPromise.all(
+          `SELECT * FROM participants WHERE session_id = ? ORDER BY joined_at ASC`,
+          [session.id]
+        );
+        const rotation = participants.filter(
+          (p) => !skippedList.includes(p.user_id)
+        );
+        if (rotation.length > 0) {
+          const currentIndex = rotation.findIndex(
+            (p) => p.user_id === updatedSession.current_turn_user_id
+          );
+          const nextIndex =
+            currentIndex === -1 ? 0 : (currentIndex + 1) % rotation.length;
+          await dbPromise.run(
+            `UPDATE sessions SET current_turn_user_id = ?, turn_started_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [rotation[nextIndex].user_id, session.id]
+          );
+        }
+      }
+    }
+
     // Update session activity
     await touchSessionByRoomCode(roomCode.toLowerCase());
 
-    res.json({ success: true, jira_base_url, skipped_participants });
+    res.json({ success: true });
   } catch (err) {
     console.error('Error updating session:', err);
     res.status(500).json({ error: 'Failed to update session' });
+  }
+});
+
+// End current turn and advance to next participant
+router.post('/:roomCode/end-turn', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE LOWER(room_code) = LOWER(?)`,
+      [roomCode]
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Auth: allow if userId is the current turn user or the creator
+    if (
+      userId !== session.current_turn_user_id &&
+      userId !== session.creator_id
+    ) {
+      return res.status(403).json({
+        error: 'Only the current turn user or session creator can end the turn',
+      });
+    }
+
+    // Get participants ordered by joined_at, filter out skipped
+    const participants = await dbPromise.all(
+      `SELECT * FROM participants WHERE session_id = ? ORDER BY joined_at ASC`,
+      [session.id]
+    );
+
+    const skippedList = session.skipped_participants
+      ? JSON.parse(session.skipped_participants)
+      : [];
+    const rotation = participants.filter(
+      (p) => !skippedList.includes(p.user_id)
+    );
+
+    if (rotation.length === 0) {
+      return res
+        .status(400)
+        .json({ error: 'No active participants in rotation' });
+    }
+
+    // Find current turn index and advance
+    const currentIndex = rotation.findIndex(
+      (p) => p.user_id === session.current_turn_user_id
+    );
+    const nextIndex =
+      currentIndex === -1 ? 0 : (currentIndex + 1) % rotation.length;
+    const nextUserId = rotation[nextIndex].user_id;
+
+    await dbPromise.run(
+      `UPDATE sessions SET current_turn_user_id = ?, turn_started_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [nextUserId, session.id]
+    );
+
+    // Update session activity
+    await touchSessionByRoomCode(roomCode.toLowerCase());
+
+    res.json({
+      success: true,
+      current_turn_user_id: nextUserId,
+      turn_started_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Error ending turn:', err);
+    res.status(500).json({ error: 'Failed to end turn' });
   }
 });
 

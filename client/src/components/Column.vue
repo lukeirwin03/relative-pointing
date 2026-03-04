@@ -25,6 +25,18 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  dragDisabled: {
+    type: Boolean,
+    default: false,
+  },
+  stackMode: {
+    type: Boolean,
+    default: false,
+  },
+  topTaskId: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits([
@@ -89,6 +101,7 @@ function onDragChange(evt) {
         item-key="id"
         :filter="'.no-drag'"
         :prevent-on-filter="false"
+        :disabled="dragDisabled"
         class="space-y-2 flex-1 overflow-y-auto"
         ghost-class="opacity-30"
         @change="onDragChange"
@@ -100,6 +113,12 @@ function onDragChange(evt) {
             :show-delete="true"
             :show-color="true"
             :show-info="true"
+            :dimmed="
+              stackMode &&
+              variant === 'tasks' &&
+              topTaskId &&
+              String(element.id) !== String(topTaskId)
+            "
             @delete-task="emit('deleteTask', $event)"
             @update-color="
               (taskId, color) => emit('updateTaskColor', taskId, color)

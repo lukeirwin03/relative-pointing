@@ -235,6 +235,19 @@ router.put('/:taskId', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
+    // Turn enforcement: only current turn user can move tasks
+    // Skip enforcement when assignedBy is not a valid participant UUID (e.g. 'system' or null)
+    if (
+      session.current_turn_user_id &&
+      assignedBy &&
+      assignedBy !== session.current_turn_user_id &&
+      assignedBy.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      )
+    ) {
+      return res.status(403).json({ error: 'It is not your turn' });
+    }
+
     // Find task by either database id or jira_key (since frontend sends display id)
     const task = await dbPromise.get(
       `SELECT id, column_id FROM tasks WHERE session_id = ? AND (id = ? OR jira_key = ?)`,
@@ -330,6 +343,53 @@ router.post('/create-task', async (req, res) => {
   } catch (err) {
     console.error('Error creating task:', err);
     res.status(500).json({ error: 'Failed to create task' });
+  }
+});
+
+// Skip top unsorted task (move to bottom of unsorted)
+router.post('/skip-top', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
+      [roomCode.toLowerCase()]
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Find the unsorted task with lowest task_order
+    const topTask = await dbPromise.get(
+      `SELECT * FROM tasks WHERE session_id = ? AND column_id = 'unsorted' ORDER BY task_order ASC LIMIT 1`,
+      [session.id]
+    );
+
+    if (!topTask) {
+      return res.status(400).json({ error: 'No unsorted tasks to skip' });
+    }
+
+    // Get the max task_order among unsorted tasks
+    const maxOrder = await dbPromise.get(
+      `SELECT MAX(task_order) as max_order FROM tasks WHERE session_id = ? AND column_id = 'unsorted'`,
+      [session.id]
+    );
+
+    const newOrder = (maxOrder?.max_order || 0) + 1;
+
+    await dbPromise.run(`UPDATE tasks SET task_order = ? WHERE id = ?`, [
+      newOrder,
+      topTask.id,
+    ]);
+
+    // Update session activity
+    await touchSessionByRoomCode(roomCode.toLowerCase());
+
+    res.json({ success: true, skippedTaskId: topTask.id });
+  } catch (err) {
+    console.error('Error skipping top task:', err);
+    res.status(500).json({ error: 'Failed to skip task' });
   }
 });
 

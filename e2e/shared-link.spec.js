@@ -53,12 +53,18 @@ test.describe('Shared Link Flow', () => {
     browser,
     request,
   }) => {
-    const { context, page, userId } = await createUserContext(browser, 'AuthUser');
+    const { context, page, userId } = await createUserContext(
+      browser,
+      'AuthUser'
+    );
 
     // Join via API so the user is a valid participant
     await request.post(
       `http://localhost:${process.env.PORT || 5001}/api/sessions/${roomCode}/join`,
-      { headers: { 'Content-Type': 'application/json' }, data: { userId, userName: 'AuthUser' } }
+      {
+        headers: { 'Content-Type': 'application/json' },
+        data: { userId, userName: 'AuthUser' },
+      }
     );
 
     await page.goto(`/session/${roomCode}`);

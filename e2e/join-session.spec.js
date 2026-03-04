@@ -27,7 +27,10 @@ test.describe('Join Session', () => {
     await page.getByPlaceholder('Enter room code').fill(roomCode);
 
     // Use the submit button inside the form (not the tab button)
-    await page.locator('form').getByRole('button', { name: 'Join Session' }).click();
+    await page
+      .locator('form')
+      .getByRole('button', { name: 'Join Session' })
+      .click();
 
     // Should navigate to the session page
     await expect(page).toHaveURL(`/session/${roomCode}`);
@@ -43,7 +46,10 @@ test.describe('Join Session', () => {
     await page.getByPlaceholder('Enter your name').fill('Joiner');
     await page.getByPlaceholder('Enter room code').fill('nonexistent-code');
 
-    await page.locator('form').getByRole('button', { name: 'Join Session' }).click();
+    await page
+      .locator('form')
+      .getByRole('button', { name: 'Join Session' })
+      .click();
 
     // Error message should appear
     await expect(page.locator('.text-red-600')).toBeVisible();

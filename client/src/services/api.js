@@ -321,6 +321,79 @@ class APIService {
   }
 
   /**
+   * End current turn and advance to next participant
+   */
+  static async endTurn(roomCode, userId) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/end-turn`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to end turn');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error ending turn:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update stack mode setting
+   */
+  static async updateStackMode(roomCode, stackMode) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stack_mode: stackMode }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update stack mode');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating stack mode:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Skip top unsorted task (move to bottom)
+   */
+  static async skipTopTask(roomCode) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/tasks/skip-top`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to skip task');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error skipping top task:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Health check - verify backend is running
    */
   static async healthCheck() {

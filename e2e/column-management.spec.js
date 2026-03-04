@@ -46,14 +46,29 @@ test.describe('Column Management', () => {
     );
 
     // Wait for all three tasks to be visible in their columns
-    await expect(user.page.getByText('PROJ-123').first()).toBeVisible(POLL_TIMEOUT);
-    await expect(user.page.getByText('PROJ-124').first()).toBeVisible(POLL_TIMEOUT);
-    await expect(user.page.getByText('PROJ-125').first()).toBeVisible(POLL_TIMEOUT);
+    await expect(user.page.getByText('PROJ-123').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+    await expect(user.page.getByText('PROJ-124').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+    await expect(user.page.getByText('PROJ-125').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
 
     // Verify left-to-right order by comparing x positions of the task cards
-    const proj123Box = await user.page.getByText('PROJ-123').first().boundingBox();
-    const proj124Box = await user.page.getByText('PROJ-124').first().boundingBox();
-    const proj125Box = await user.page.getByText('PROJ-125').first().boundingBox();
+    const proj123Box = await user.page
+      .getByText('PROJ-123')
+      .first()
+      .boundingBox();
+    const proj124Box = await user.page
+      .getByText('PROJ-124')
+      .first()
+      .boundingBox();
+    const proj125Box = await user.page
+      .getByText('PROJ-125')
+      .first()
+      .boundingBox();
 
     expect(proj123Box.x).toBeLessThan(proj124Box.x);
     expect(proj124Box.x).toBeLessThan(proj125Box.x);
@@ -73,7 +88,13 @@ test.describe('Column Management', () => {
 
     // Create a column between them
     const betweenOrder = (10 + 20) / 2; // 15
-    await createColumnViaAPI(request, roomCode, colBetween, 'Between', betweenOrder);
+    await createColumnViaAPI(
+      request,
+      roomCode,
+      colBetween,
+      'Between',
+      betweenOrder
+    );
 
     const data = await getSessionViaAPI(request, roomCode);
     const cols = data.columns.sort((a, b) => a.column_order - b.column_order);
@@ -92,8 +113,20 @@ test.describe('Column Management', () => {
     const colTemp = `col-temp-${generateUUID().slice(0, 8)}`;
     const colDest = `col-dest-${generateUUID().slice(0, 8)}`;
 
-    const c1 = await createColumnViaAPI(request, roomCode, colTemp, 'Temporary', 1);
-    const c2 = await createColumnViaAPI(request, roomCode, colDest, 'Destination', 2);
+    const c1 = await createColumnViaAPI(
+      request,
+      roomCode,
+      colTemp,
+      'Temporary',
+      1
+    );
+    const c2 = await createColumnViaAPI(
+      request,
+      roomCode,
+      colDest,
+      'Destination',
+      2
+    );
     expect(c1.success).toBe(true);
     expect(c2.success).toBe(true);
 
@@ -113,15 +146,21 @@ test.describe('Column Management', () => {
     );
 
     // Both tasks visible in their columns
-    await expect(user.page.getByText('PROJ-123').first()).toBeVisible(POLL_TIMEOUT);
-    await expect(user.page.getByText('PROJ-124').first()).toBeVisible(POLL_TIMEOUT);
+    await expect(user.page.getByText('PROJ-123').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+    await expect(user.page.getByText('PROJ-124').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
 
     // Move task out of temp column, then delete the empty column
     await moveTaskViaAPI(request, roomCode, task0.id, 'unsorted', 'system');
     await request.delete(`${API_URL}/sessions/${roomCode}/columns/${colTemp}`);
 
     // After poll, PROJ-124 should still be visible
-    await expect(user.page.getByText('PROJ-124').first()).toBeVisible(POLL_TIMEOUT);
+    await expect(user.page.getByText('PROJ-124').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
 
     // Verify only one column remains via API
     const updatedData = await getSessionViaAPI(request, roomCode);

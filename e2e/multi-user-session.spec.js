@@ -32,12 +32,12 @@ test.describe('Multi-User Session Management', () => {
     );
 
     // Both should see "Participants (3):" — Creator + Alice + Bob
-    await expect(
-      alice.page.getByText('Participants (3):')
-    ).toBeVisible(POLL_TIMEOUT);
-    await expect(
-      bob.page.getByText('Participants (3):')
-    ).toBeVisible(POLL_TIMEOUT);
+    await expect(alice.page.getByText('Participants (3):')).toBeVisible(
+      POLL_TIMEOUT
+    );
+    await expect(bob.page.getByText('Participants (3):')).toBeVisible(
+      POLL_TIMEOUT
+    );
 
     await alice.context.close();
     await bob.context.close();
@@ -67,15 +67,15 @@ test.describe('Multi-User Session Management', () => {
     );
 
     // Creator + 3 joiners = 4
-    await expect(
-      alice.page.getByText('Participants (4):')
-    ).toBeVisible(POLL_TIMEOUT);
-    await expect(
-      bob.page.getByText('Participants (4):')
-    ).toBeVisible(POLL_TIMEOUT);
-    await expect(
-      charlie.page.getByText('Participants (4):')
-    ).toBeVisible(POLL_TIMEOUT);
+    await expect(alice.page.getByText('Participants (4):')).toBeVisible(
+      POLL_TIMEOUT
+    );
+    await expect(bob.page.getByText('Participants (4):')).toBeVisible(
+      POLL_TIMEOUT
+    );
+    await expect(charlie.page.getByText('Participants (4):')).toBeVisible(
+      POLL_TIMEOUT
+    );
 
     await alice.context.close();
     await bob.context.close();
@@ -95,9 +95,9 @@ test.describe('Multi-User Session Management', () => {
     );
 
     // Initially: Creator + Alice = 2
-    await expect(
-      alice.page.getByText('Participants (2):')
-    ).toBeVisible(POLL_TIMEOUT);
+    await expect(alice.page.getByText('Participants (2):')).toBeVisible(
+      POLL_TIMEOUT
+    );
 
     // Now Bob joins
     const bob = await createAuthenticatedUserInSession(
@@ -108,9 +108,9 @@ test.describe('Multi-User Session Management', () => {
     );
 
     // Alice should see the count update to 3 after poll
-    await expect(
-      alice.page.getByText('Participants (3):')
-    ).toBeVisible(POLL_TIMEOUT);
+    await expect(alice.page.getByText('Participants (3):')).toBeVisible(
+      POLL_TIMEOUT
+    );
 
     await alice.context.close();
     await bob.context.close();
