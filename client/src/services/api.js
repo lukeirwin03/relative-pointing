@@ -30,10 +30,15 @@ class APIService {
 
   /**
    * Get session details by room code
+   * @param {string} roomCode
+   * @param {string} [userId] - If provided, updates the caller's last_seen_at (heartbeat)
    */
-  static async getSession(roomCode) {
+  static async getSession(roomCode, userId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/sessions/${roomCode}`);
+      const url = userId
+        ? `${API_BASE_URL}/sessions/${roomCode}?userId=${encodeURIComponent(userId)}`
+        : `${API_BASE_URL}/sessions/${roomCode}`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -389,6 +394,32 @@ class APIService {
       return await response.json();
     } catch (error) {
       console.error('Error skipping top task:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Transfer session ownership to another participant
+   */
+  static async transferOwnership(roomCode, userId, newOwnerId) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/transfer-ownership`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, newOwnerId }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to transfer ownership');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error transferring ownership:', error);
       throw error;
     }
   }

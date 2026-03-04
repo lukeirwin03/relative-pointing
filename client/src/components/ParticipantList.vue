@@ -2,6 +2,9 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import APIService from '../services/api';
 import SandTimer from './SandTimer.vue';
+import { useSessionStore } from '../stores/session';
+
+const sessionStore = useSessionStore();
 
 const props = defineProps({
   participants: {
@@ -56,6 +59,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  creatorId: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['toggleCollapse']);
@@ -71,6 +78,8 @@ const COLORS = [
   '#85C1E2',
 ];
 
+const confirmTransferId = ref(null);
+
 function getColorForParticipant(index) {
   return COLORS[index % COLORS.length];
 }
@@ -80,6 +89,13 @@ const disabledParticipants = computed(() => new Set(props.skippedParticipants));
 const activeParticipants = computed(() =>
   props.participants.filter((p) => !disabledParticipants.value.has(p.user_id))
 );
+
+function isOnline(participant) {
+  if (!participant.last_seen_at) return false;
+  const lastSeen = new Date(participant.last_seen_at + 'Z').getTime();
+  const thresholdMs = sessionStore.serverConfig.offlineThresholdSeconds * 1000;
+  return Date.now() - lastSeen < thresholdMs;
+}
 
 function toggleParticipant(participantId) {
   const newSkipped = disabledParticipants.value.has(participantId)
@@ -116,6 +132,21 @@ onUnmounted(() => {
     resizeObserver = null;
   }
 });
+
+function handleTransferClick(participantUserId) {
+  if (confirmTransferId.value === participantUserId) {
+    sessionStore.transferOwnership(participantUserId).catch((err) => {
+      console.error('Failed to transfer ownership:', err);
+    });
+    confirmTransferId.value = null;
+  } else {
+    confirmTransferId.value = participantUserId;
+  }
+}
+
+function cancelTransfer() {
+  confirmTransferId.value = null;
+}
 </script>
 
 <template>
@@ -186,12 +217,19 @@ onUnmounted(() => {
                   participant.user_id === currentTurnUserId
                     ? 'ring-2 ring-neon-green shadow-glow-green-sm animate-glow-pulse'
                     : 'ring-2 ring-white/20',
+                  { grayscale: !isOnline(participant) },
                 ]"
                 :style="{ backgroundColor: getColorForParticipant(index) }"
                 :title="collapsed ? participant.user_name : undefined"
               >
                 {{ participant.user_name?.[0]?.toUpperCase() || '?' }}
               </div>
+              <!-- Offline dot -->
+              <div
+                v-if="!isOnline(participant)"
+                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-gray-400 border-2 border-white dark:border-neon-bg-800"
+                title="Offline"
+              />
             </div>
 
             <!-- Name & status (expanded only) -->
@@ -211,6 +249,17 @@ onUnmounted(() => {
                     class="text-xs text-gray-400 dark:text-gray-500"
                     >(you)</span
                   >
+                  <span
+                    v-if="participant.user_id === creatorId"
+                    class="text-amber-500 dark:text-amber-400"
+                    title="Session owner"
+                    >&#9733;</span
+                  >
+                  <span
+                    v-if="!isOnline(participant)"
+                    class="text-xs text-gray-400 dark:text-gray-500"
+                    >(offline)</span
+                  >
                 </div>
                 <div
                   v-if="participant.user_id === currentTurnUserId"
@@ -225,6 +274,47 @@ onUnmounted(() => {
                   Skipped
                 </div>
               </div>
+
+              <!-- Transfer ownership button (creator only, not for self, online only) -->
+              <button
+                v-if="
+                  isCreator &&
+                  participant.user_id !== creatorId &&
+                  isOnline(participant) &&
+                  !disabledParticipants.has(participant.user_id)
+                "
+                @click.prevent.stop="handleTransferClick(participant.user_id)"
+                class="text-xs px-1.5 py-0.5 rounded transition-colors flex-shrink-0"
+                :class="
+                  confirmTransferId === participant.user_id
+                    ? 'bg-amber-500 text-white hover:bg-amber-600'
+                    : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30'
+                "
+                :title="
+                  confirmTransferId === participant.user_id
+                    ? 'Click again to confirm'
+                    : 'Transfer ownership'
+                "
+              >
+                <template v-if="confirmTransferId === participant.user_id">
+                  confirm?
+                </template>
+                <template v-else>
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      :stroke-width="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </template>
+              </button>
 
               <!-- Skip toggle (creator only) -->
               <button
@@ -266,6 +356,15 @@ onUnmounted(() => {
         >
           {{ collapsed ? '—' : 'No participants' }}
         </p>
+      </div>
+
+      <!-- Cancel transfer confirmation -->
+      <div
+        v-if="confirmTransferId && !collapsed"
+        class="relative z-10 px-3 pb-2 text-xs text-amber-600 dark:text-amber-400 cursor-pointer hover:underline"
+        @click="cancelTransfer"
+      >
+        Cancel transfer
       </div>
 
       <!-- Footer -->

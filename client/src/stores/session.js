@@ -12,6 +12,7 @@ export const useSessionStore = defineStore('session', () => {
   const loading = ref(true);
   const error = ref(null);
   const roomCode = ref(null);
+  const serverConfig = ref({ offlineThresholdSeconds: 15 }); // default fallback
 
   // Optimistic state
   const optimisticTasks = ref({});
@@ -84,11 +85,16 @@ export const useSessionStore = defineStore('session', () => {
   async function fetchSession() {
     if (!roomCode.value) return;
     try {
-      const data = await APIService.getSession(roomCode.value);
+      const userStore = useUserStore();
+      const data = await APIService.getSession(
+        roomCode.value,
+        userStore.userId
+      );
       session.value = data.session;
       participants.value = data.participants || [];
       tasks.value = data.tasks || [];
       columns.value = data.columns || [];
+      if (data.config) serverConfig.value = data.config;
       error.value = null;
     } catch (err) {
       console.error('Session fetch error:', err);
@@ -154,6 +160,12 @@ export const useSessionStore = defineStore('session', () => {
     return currentTurnUserId.value === userStore.userId;
   });
 
+  const isCurrentUserDisabled = computed(() => {
+    const userStore = useUserStore();
+    const skipped = session.value?.skipped_participants || [];
+    return skipped.includes(userStore.userId);
+  });
+
   // Turn-based actions
   async function endTurn() {
     if (!roomCode.value) return;
@@ -183,9 +195,26 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  async function transferOwnership(newOwnerId) {
+    if (!roomCode.value) return;
+    const userStore = useUserStore();
+    try {
+      await APIService.transferOwnership(
+        roomCode.value,
+        userStore.userId,
+        newOwnerId
+      );
+      // Immediately fetch to reflect the change
+      await fetchSession();
+    } catch (err) {
+      console.error('Error transferring ownership:', err);
+      throw err;
+    }
+  }
+
   // Actions
   async function moveTaskToColumn(taskId, targetColumnId, userId) {
-    if (!isMyTurn.value) return;
+    if (!isMyTurn.value || isCurrentUserDisabled.value) return;
 
     const taskIdStr = String(taskId);
     const draggedTask = tasks.value.find((t) => String(t.id) === taskIdStr);
@@ -397,6 +426,7 @@ export const useSessionStore = defineStore('session', () => {
     loading,
     error,
     roomCode,
+    serverConfig,
     // Computed
     displayColumns,
     displayTasks,
@@ -406,6 +436,7 @@ export const useSessionStore = defineStore('session', () => {
     currentTurnParticipant,
     topUnsortedTask,
     isMyTurn,
+    isCurrentUserDisabled,
     // Actions
     startPolling,
     stopPolling,
@@ -417,5 +448,6 @@ export const useSessionStore = defineStore('session', () => {
     endTurn,
     toggleStackMode,
     skipTopTask,
+    transferOwnership,
   };
 });
