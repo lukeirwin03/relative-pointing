@@ -5,6 +5,11 @@ const fs = require('fs');
 // Session inactivity timeout (15 minutes)
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 
+// Presence thresholds
+const OFFLINE_THRESHOLD_S = 15; // seconds before a user is considered offline
+const AUTO_SKIP_TURN_S = 30; // seconds offline before auto-skipping their turn
+const AUTO_TRANSFER_OWNER_S = 60; // seconds offline before auto-transferring ownership
+
 const DB_PATH = path.join(__dirname, 'app.db');
 
 // Create database connection
@@ -34,8 +39,9 @@ function initializeDatabase() {
     const executeNextStatement = () => {
       if (index >= statements.length) {
         console.log('Database schema initialized');
-        // Start the cleanup job
+        // Start the cleanup job and presence check
         startSessionCleanup();
+        startPresenceCheck();
         return;
       }
 
@@ -137,7 +143,34 @@ function runMigrations(callback) {
                         );
                       }
 
-                      if (callback) callback();
+                      // Migration 7: Add last_seen_at column to participants
+                      db.run(
+                        `ALTER TABLE participants ADD COLUMN last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
+                        (err7) => {
+                          if (
+                            err7 &&
+                            err7.message.includes('duplicate column')
+                          ) {
+                            console.log(
+                              'Migration: last_seen_at column already exists'
+                            );
+                          } else if (!err7) {
+                            console.log(
+                              'Migration: Added last_seen_at column to participants'
+                            );
+                            db.run(
+                              `UPDATE participants SET last_seen_at = CURRENT_TIMESTAMP`,
+                              () => {
+                                console.log(
+                                  'Migration: Initialized last_seen_at for existing participants'
+                                );
+                              }
+                            );
+                          }
+
+                          if (callback) callback();
+                        }
+                      );
                     }
                   );
                 }
@@ -219,6 +252,168 @@ function touchSessionByRoomCode(roomCode) {
   });
 }
 
+// Update participant last_seen_at timestamp
+function touchParticipant(sessionId, userId) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE participants SET last_seen_at = CURRENT_TIMESTAMP WHERE session_id = ? AND user_id = ?`,
+      [sessionId, userId],
+      function (err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ changes: this.changes });
+        }
+      }
+    );
+  });
+}
+
+// Periodic presence check: auto-skip turns and auto-transfer ownership
+function startPresenceCheck() {
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      const skipCutoff = new Date(now.getTime() - AUTO_SKIP_TURN_S * 1000)
+        .toISOString()
+        .replace('T', ' ')
+        .replace(/\.\d{3}Z$/, '');
+      const transferCutoff = new Date(
+        now.getTime() - AUTO_TRANSFER_OWNER_S * 1000
+      )
+        .toISOString()
+        .replace('T', ' ')
+        .replace(/\.\d{3}Z$/, '');
+      const onlineCutoff = new Date(now.getTime() - OFFLINE_THRESHOLD_S * 1000)
+        .toISOString()
+        .replace('T', ' ')
+        .replace(/\.\d{3}Z$/, '');
+
+      // Get all active sessions
+      const sessions = await dbPromise.all(`SELECT * FROM sessions`);
+
+      for (const session of sessions) {
+        const participants = await dbPromise.all(
+          `SELECT * FROM participants WHERE session_id = ? ORDER BY joined_at ASC`,
+          [session.id]
+        );
+
+        if (participants.length === 0) continue;
+
+        const skippedList = session.skipped_participants
+          ? JSON.parse(session.skipped_participants)
+          : [];
+
+        // --- Auto-skip turn if turn holder is offline ---
+        if (session.current_turn_user_id) {
+          const turnHolder = participants.find(
+            (p) => p.user_id === session.current_turn_user_id
+          );
+          if (
+            turnHolder &&
+            turnHolder.last_seen_at &&
+            turnHolder.last_seen_at < skipCutoff
+          ) {
+            // Turn holder has been offline for > AUTO_SKIP_TURN_S
+            const rotation = participants.filter(
+              (p) =>
+                !skippedList.includes(p.user_id) &&
+                p.last_seen_at &&
+                p.last_seen_at >= onlineCutoff
+            );
+
+            if (rotation.length > 0) {
+              const currentIndex = rotation.findIndex(
+                (p) => p.user_id === session.current_turn_user_id
+              );
+              const nextIndex =
+                currentIndex === -1 ? 0 : (currentIndex + 1) % rotation.length;
+              await dbPromise.run(
+                `UPDATE sessions SET current_turn_user_id = ?, turn_started_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                [rotation[nextIndex].user_id, session.id]
+              );
+              console.log(
+                `[PRESENCE] Auto-skipped turn in session ${session.room_code}: ${turnHolder.user_name} -> ${rotation[nextIndex].user_name}`
+              );
+            } else {
+              // No online, non-skipped participants — clear the turn
+              await dbPromise.run(
+                `UPDATE sessions SET current_turn_user_id = NULL, turn_started_at = NULL WHERE id = ?`,
+                [session.id]
+              );
+              console.log(
+                `[PRESENCE] Cleared turn in session ${session.room_code} — no online active participants`
+              );
+            }
+          }
+        }
+
+        // Re-read session to get fresh state after potential turn changes above
+        const freshSession = await dbPromise.get(
+          `SELECT * FROM sessions WHERE id = ?`,
+          [session.id]
+        );
+
+        // If turn is null but there are online active participants, assign one
+        if (!freshSession.current_turn_user_id) {
+          const onlineActive = participants.filter(
+            (p) =>
+              !skippedList.includes(p.user_id) &&
+              p.last_seen_at &&
+              p.last_seen_at >= onlineCutoff
+          );
+          if (onlineActive.length > 0) {
+            await dbPromise.run(
+              `UPDATE sessions SET current_turn_user_id = ?, turn_started_at = CURRENT_TIMESTAMP WHERE id = ?`,
+              [onlineActive[0].user_id, session.id]
+            );
+            console.log(
+              `[PRESENCE] Assigned turn in session ${session.room_code} to ${onlineActive[0].user_name} (was null)`
+            );
+          }
+        }
+
+        // --- Auto-transfer ownership if creator is offline ---
+        const creator = participants.find(
+          (p) => p.user_id === freshSession.creator_id
+        );
+        if (
+          creator &&
+          creator.last_seen_at &&
+          creator.last_seen_at < transferCutoff
+        ) {
+          // Creator has been offline for > AUTO_TRANSFER_OWNER_S
+          // Find the next eligible owner: earliest-joined, online, non-skipped participant
+          const candidates = participants.filter(
+            (p) =>
+              p.user_id !== freshSession.creator_id &&
+              !skippedList.includes(p.user_id) &&
+              p.last_seen_at &&
+              p.last_seen_at >= onlineCutoff
+          );
+
+          if (candidates.length > 0) {
+            const newOwner = candidates[0]; // earliest joined due to ORDER BY joined_at ASC
+            await dbPromise.run(
+              `UPDATE sessions SET creator_id = ?, creator_name = ? WHERE id = ?`,
+              [newOwner.user_id, newOwner.user_name, session.id]
+            );
+            console.log(
+              `[PRESENCE] Auto-transferred ownership in session ${session.room_code}: ${creator.user_name} -> ${newOwner.user_name}`
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[PRESENCE] Error in presence check:', err);
+    }
+  }, 10 * 1000); // Run every 10 seconds
+
+  console.log(
+    `Presence check started (offline: ${OFFLINE_THRESHOLD_S}s, auto-skip: ${AUTO_SKIP_TURN_S}s, auto-transfer: ${AUTO_TRANSFER_OWNER_S}s)`
+  );
+}
+
 // Helper functions for common operations
 const dbPromise = {
   run: (sql, params = []) => {
@@ -263,5 +458,7 @@ module.exports = {
   dbPromise,
   touchSession,
   touchSessionByRoomCode,
+  touchParticipant,
   SESSION_TIMEOUT_MS,
+  OFFLINE_THRESHOLD_S,
 };

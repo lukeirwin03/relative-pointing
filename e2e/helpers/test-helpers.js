@@ -43,17 +43,22 @@ async function joinSessionViaAPI(request, roomCode, name) {
   return { ...data, userId, userName: name };
 }
 
-/** GET /api/sessions/:roomCode — full session payload (retries on transient failures) */
-async function getSessionViaAPI(request, roomCode) {
+/** GET /api/sessions/:roomCode — full session payload (retries on transient failures)
+ *  @param {string} [userId] — if provided, updates the caller's last_seen_at (heartbeat)
+ */
+async function getSessionViaAPI(request, roomCode, userId) {
+  const url = userId
+    ? `${API_URL}/sessions/${roomCode}?userId=${encodeURIComponent(userId)}`
+    : `${API_URL}/sessions/${roomCode}`;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const response = await request.get(`${API_URL}/sessions/${roomCode}`);
+    const response = await request.get(url);
     const data = await response.json();
     if (data.tasks) return data;
     // Transient failure (e.g. SQLITE_BUSY) — brief pause and retry
     await new Promise((r) => setTimeout(r, 200));
   }
   // Final attempt — return whatever we get
-  const response = await request.get(`${API_URL}/sessions/${roomCode}`);
+  const response = await request.get(url);
   return response.json();
 }
 
@@ -204,6 +209,41 @@ async function skipTopTaskViaAPI(request, roomCode) {
   return response.json();
 }
 
+/** POST /api/sessions/:roomCode/transfer-ownership */
+async function transferOwnershipViaAPI(request, roomCode, userId, newOwnerId) {
+  const response = await request.post(
+    `${API_URL}/sessions/${roomCode}/transfer-ownership`,
+    { headers: JSON_HEADERS, data: { userId, newOwnerId } }
+  );
+  return {
+    status: response.status(),
+    data: await response.json(),
+  };
+}
+
+/** PUT /api/sessions/:roomCode/tasks/:taskId — raw response version for status code assertions */
+async function moveTaskRawViaAPI(
+  request,
+  roomCode,
+  taskId,
+  columnId,
+  assignedBy
+) {
+  const response = await request.put(
+    `${API_URL}/sessions/${roomCode}/tasks/${taskId}`,
+    { headers: JSON_HEADERS, data: { columnId, assignedBy } }
+  );
+  return {
+    status: response.status(),
+    data: await response.json(),
+  };
+}
+
+/** Helper to sleep for a given number of milliseconds */
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 module.exports = {
   API_URL,
   POLL_TIMEOUT,
@@ -214,6 +254,7 @@ module.exports = {
   createTaskViaAPI,
   createColumnViaAPI,
   moveTaskViaAPI,
+  moveTaskRawViaAPI,
   deleteTaskViaAPI,
   updateTaskColorViaAPI,
   createUserContext,
@@ -221,6 +262,8 @@ module.exports = {
   endTurnViaAPI,
   updateSessionViaAPI,
   skipTopTaskViaAPI,
+  transferOwnershipViaAPI,
   createCreatorContext,
   openBrowserAsUser,
+  sleep,
 };

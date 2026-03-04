@@ -237,15 +237,28 @@ router.put('/:taskId', async (req, res) => {
 
     // Turn enforcement: only current turn user can move tasks
     // Skip enforcement when assignedBy is not a valid participant UUID (e.g. 'system' or null)
-    if (
-      session.current_turn_user_id &&
+    const isValidParticipantId =
       assignedBy &&
-      assignedBy !== session.current_turn_user_id &&
       assignedBy.match(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      )
+      );
+
+    if (
+      session.current_turn_user_id &&
+      isValidParticipantId &&
+      assignedBy !== session.current_turn_user_id
     ) {
       return res.status(403).json({ error: 'It is not your turn' });
+    }
+
+    // Reject moves from disabled/skipped participants
+    if (isValidParticipantId) {
+      const skippedList = JSON.parse(session.skipped_participants || '[]');
+      if (skippedList.includes(assignedBy)) {
+        return res
+          .status(403)
+          .json({ error: 'You are currently disabled and cannot move tasks' });
+      }
     }
 
     // Find task by either database id or jira_key (since frontend sends display id)

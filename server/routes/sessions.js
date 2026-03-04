@@ -1,5 +1,9 @@
 const express = require('express');
-const { dbPromise, touchSessionByRoomCode } = require('../db');
+const {
+  dbPromise,
+  touchSessionByRoomCode,
+  touchParticipant,
+} = require('../db');
 const { generateRoomCode } = require('../utils/roomCodeGenerator');
 const { v4: uuidv4 } = require('uuid');
 
@@ -179,6 +183,7 @@ router.post('/', async (req, res) => {
 router.get('/:roomCode', async (req, res) => {
   try {
     const { roomCode } = req.params;
+    const { userId } = req.query;
     const normalizedCode = roomCode.toLowerCase();
 
     const session = await dbPromise.get(
@@ -188,6 +193,11 @@ router.get('/:roomCode', async (req, res) => {
 
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Update participant presence if userId provided (heartbeat via polling)
+    if (userId) {
+      await touchParticipant(session.id, userId);
     }
 
     // Get participants
@@ -438,6 +448,34 @@ router.patch('/:roomCode', async (req, res) => {
             `UPDATE sessions SET current_turn_user_id = ?, turn_started_at = CURRENT_TIMESTAMP WHERE id = ?`,
             [rotation[nextIndex].user_id, session.id]
           );
+        } else {
+          // All participants are disabled — clear the turn so nobody can act
+          await dbPromise.run(
+            `UPDATE sessions SET current_turn_user_id = NULL, turn_started_at = NULL WHERE id = ?`,
+            [session.id]
+          );
+        }
+      }
+
+      // If turn is currently null (all were disabled) and we now have active participants,
+      // assign the turn to the first active participant
+      const currentSession = await dbPromise.get(
+        `SELECT current_turn_user_id FROM sessions WHERE id = ?`,
+        [session.id]
+      );
+      if (!currentSession.current_turn_user_id) {
+        const participants = await dbPromise.all(
+          `SELECT * FROM participants WHERE session_id = ? ORDER BY joined_at ASC`,
+          [session.id]
+        );
+        const activeRotation = participants.filter(
+          (p) => !skippedList.includes(p.user_id)
+        );
+        if (activeRotation.length > 0) {
+          await dbPromise.run(
+            `UPDATE sessions SET current_turn_user_id = ?, turn_started_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [activeRotation[0].user_id, session.id]
+          );
         }
       }
     }
@@ -524,6 +562,70 @@ router.post('/:roomCode/end-turn', async (req, res) => {
   } catch (err) {
     console.error('Error ending turn:', err);
     res.status(500).json({ error: 'Failed to end turn' });
+  }
+});
+
+// Transfer session ownership to another participant
+router.post('/:roomCode/transfer-ownership', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { userId, newOwnerId } = req.body;
+
+    if (!userId || !newOwnerId) {
+      return res.status(400).json({ error: 'userId and newOwnerId required' });
+    }
+
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE LOWER(room_code) = LOWER(?)`,
+      [roomCode]
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Only the current owner can transfer ownership
+    if (userId !== session.creator_id) {
+      return res
+        .status(403)
+        .json({ error: 'Only the session owner can transfer ownership' });
+    }
+
+    // Validate new owner is a participant
+    const newOwner = await dbPromise.get(
+      `SELECT * FROM participants WHERE session_id = ? AND user_id = ?`,
+      [session.id, newOwnerId]
+    );
+
+    if (!newOwner) {
+      return res
+        .status(400)
+        .json({ error: 'New owner must be a participant in the session' });
+    }
+
+    // Cannot transfer to yourself
+    if (newOwnerId === session.creator_id) {
+      return res
+        .status(400)
+        .json({ error: 'You are already the session owner' });
+    }
+
+    await dbPromise.run(
+      `UPDATE sessions SET creator_id = ?, creator_name = ? WHERE id = ?`,
+      [newOwnerId, newOwner.user_name, session.id]
+    );
+
+    // Update session activity
+    await touchSessionByRoomCode(roomCode.toLowerCase());
+
+    console.log(
+      `[TRANSFER] Ownership transferred in session ${roomCode}: ${session.creator_name} -> ${newOwner.user_name}`
+    );
+
+    res.json({ success: true, newOwnerId, newOwnerName: newOwner.user_name });
+  } catch (err) {
+    console.error('Error transferring ownership:', err);
+    res.status(500).json({ error: 'Failed to transfer ownership' });
   }
 });
 
