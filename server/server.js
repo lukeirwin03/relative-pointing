@@ -17,8 +17,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: '*',
-    methods: ['GET', 'POST']
-  }
+    methods: ['GET', 'POST'],
+  },
 });
 
 // Trust proxy (needed for rate limiting behind nginx)
@@ -46,7 +46,7 @@ const generalLimiter = rateLimit({
   skip: (req) => {
     // Skip rate limiting for health checks
     return req.path === '/api/health';
-  }
+  },
 });
 
 // Stricter rate limiting for session join attempts
@@ -62,11 +62,14 @@ const joinSessionLimiter = rateLimit({
   },
   handler: (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    console.warn(`[SECURITY] Rate limit exceeded for IP: ${ip} - Path: ${req.path}`);
+    console.warn(
+      `[SECURITY] Rate limit exceeded for IP: ${ip} - Path: ${req.path}`
+    );
     res.status(429).json({
-      error: 'Too many session join attempts. Please try again in a few minutes.'
+      error:
+        'Too many session join attempts. Please try again in a few minutes.',
     });
-  }
+  },
 });
 
 // Rate limiting for session creation
@@ -80,9 +83,9 @@ const createSessionLimiter = rateLimit({
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     console.warn(`[SECURITY] Create session rate limit exceeded for IP: ${ip}`);
     res.status(429).json({
-      error: 'Too many sessions created from this IP. Please try again later.'
+      error: 'Too many sessions created from this IP. Please try again later.',
     });
-  }
+  },
 });
 
 // Apply general rate limiting to all API routes
@@ -95,7 +98,6 @@ app.post('/api/sessions/:roomCode/join', joinSessionLimiter);
 // Standard routes
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/sessions/:roomCode/tasks', tasksRouter);
-
 
 // Health check
 app.get('/api/health', (req, res) => {

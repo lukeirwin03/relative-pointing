@@ -18,7 +18,9 @@ export function TaskCard({ task, isDragging = false, jiraBaseUrl = null }) {
   };
 
   return (
-    <div className={`bg-white p-2 rounded shadow-sm ${isDragging ? 'opacity-50' : ''}`}>
+    <div
+      className={`bg-white p-2 rounded shadow-sm ${isDragging ? 'opacity-50' : ''}`}
+    >
       {jiraUrl ? (
         <a
           href={jiraUrl}

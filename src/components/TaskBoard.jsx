@@ -45,72 +45,79 @@ function CreateColumnDropZone({ zoneId = 'new-column', isFirst = false }) {
 function TaskBoard({ user, onLogout }) {
   const { roomCode } = useParams();
   const navigate = useNavigate();
-  const { session, participants, tasks, columns, loading } = useSession(roomCode);
+  const { session, participants, tasks, columns, loading } =
+    useSession(roomCode);
 
   const { isDark, toggleTheme, isChristmas, toggleChristmas } = useTheme();
 
-   const [showCreateTask, setShowCreateTask] = useState(false);
-   const [copied, setCopied] = useState(false);
-   const [activeId, setActiveId] = useState(null);
-   // Optimistic state: { taskId: { ...taskData, _optimisticAt: timestamp } }
-   const [optimisticTasks, setOptimisticTasks] = useState({});
-   const [optimisticColumns, setOptimisticColumns] = useState([]);
-   const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
-   const [deletedColumnIds, setDeletedColumnIds] = useState(new Set());
-   const [jiraBaseUrl, setJiraBaseUrl] = useState(session?.jira_base_url || '');
-   const [jiraUrlInput, setJiraUrlInput] = useState(session?.jira_base_url || '');
-   const [showJiraUrlInput, setShowJiraUrlInput] = useState(false);
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [activeId, setActiveId] = useState(null);
+  // Optimistic state: { taskId: { ...taskData, _optimisticAt: timestamp } }
+  const [optimisticTasks, setOptimisticTasks] = useState({});
+  const [optimisticColumns, setOptimisticColumns] = useState([]);
+  const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
+  const [deletedColumnIds, setDeletedColumnIds] = useState(new Set());
+  const [jiraBaseUrl, setJiraBaseUrl] = useState(session?.jira_base_url || '');
+  const [jiraUrlInput, setJiraUrlInput] = useState(
+    session?.jira_base_url || ''
+  );
+  const [showJiraUrlInput, setShowJiraUrlInput] = useState(false);
 
-    // Update Jira URL when session changes
-    useEffect(() => {
-      if (session?.jira_base_url) {
-        setJiraBaseUrl(session.jira_base_url);
-        setJiraUrlInput(session.jira_base_url);
-      }
-    }, [session?.jira_base_url]);
+  // Update Jira URL when session changes
+  useEffect(() => {
+    if (session?.jira_base_url) {
+      setJiraBaseUrl(session.jira_base_url);
+      setJiraUrlInput(session.jira_base_url);
+    }
+  }, [session?.jira_base_url]);
 
-    // Clear optimistic updates that are confirmed by the backend
-    // Only clear if backend state matches what we optimistically set
-    useEffect(() => {
-      setOptimisticTasks((prev) => {
-        const updated = { ...prev };
-        let hasChanges = false;
-        
-        Object.keys(updated).forEach((taskId) => {
-          const optimisticTask = updated[taskId];
-          const backendTask = tasks.find((t) => String(t.id) === String(taskId));
-          
-          // Only clear if backend matches ALL optimistic changes (column_id and color_tag)
-          if (backendTask && 
-              backendTask.column_id === optimisticTask.column_id &&
-              backendTask.color_tag === optimisticTask.color_tag) {
-            delete updated[taskId];
-            hasChanges = true;
-          }
-        });
-        
-        return hasChanges ? updated : prev;
+  // Clear optimistic updates that are confirmed by the backend
+  // Only clear if backend state matches what we optimistically set
+  useEffect(() => {
+    setOptimisticTasks((prev) => {
+      const updated = { ...prev };
+      let hasChanges = false;
+
+      Object.keys(updated).forEach((taskId) => {
+        const optimisticTask = updated[taskId];
+        const backendTask = tasks.find((t) => String(t.id) === String(taskId));
+
+        // Only clear if backend matches ALL optimistic changes (column_id and color_tag)
+        if (
+          backendTask &&
+          backendTask.column_id === optimisticTask.column_id &&
+          backendTask.color_tag === optimisticTask.color_tag
+        ) {
+          delete updated[taskId];
+          hasChanges = true;
+        }
       });
-    }, [tasks]);
 
-    // Clear optimistic columns that are confirmed by the backend
-    useEffect(() => {
-      if (columns && columns.length > 0) {
-        setOptimisticColumns((prev) => {
-          const backendColumnIds = new Set(columns.map(c => c.id));
-          const remaining = prev.filter(c => !backendColumnIds.has(c.id));
-          return remaining.length !== prev.length ? remaining : prev;
-        });
-        // Clear deleted column ids that no longer exist
-        setDeletedColumnIds((prev) => {
-          const backendColumnIds = new Set(columns.map(c => c.id));
-          const remaining = new Set([...prev].filter(id => backendColumnIds.has(id)));
-          return remaining.size !== prev.size ? remaining : prev;
-        });
-      }
-    }, [columns]);
+      return hasChanges ? updated : prev;
+    });
+  }, [tasks]);
 
-   const sensors = useSensors(
+  // Clear optimistic columns that are confirmed by the backend
+  useEffect(() => {
+    if (columns && columns.length > 0) {
+      setOptimisticColumns((prev) => {
+        const backendColumnIds = new Set(columns.map((c) => c.id));
+        const remaining = prev.filter((c) => !backendColumnIds.has(c.id));
+        return remaining.length !== prev.length ? remaining : prev;
+      });
+      // Clear deleted column ids that no longer exist
+      setDeletedColumnIds((prev) => {
+        const backendColumnIds = new Set(columns.map((c) => c.id));
+        const remaining = new Set(
+          [...prev].filter((id) => backendColumnIds.has(id))
+        );
+        return remaining.size !== prev.size ? remaining : prev;
+      });
+    }
+  }, [columns]);
+
+  const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor)
   );
@@ -119,124 +126,141 @@ function TaskBoard({ user, onLogout }) {
     setActiveId(event.active.id);
   };
 
-   const handleDragEnd = async (event) => {
-     const { active, over } = event;
-     setActiveId(null);
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    setActiveId(null);
 
-     if (!over) return;
+    if (!over) return;
 
-     const taskId = String(active.id);
-     let targetColumnId = over.id;
-     const draggedTask = tasks.find((t) => String(t.id) === taskId);
+    const taskId = String(active.id);
+    let targetColumnId = over.id;
+    const draggedTask = tasks.find((t) => String(t.id) === taskId);
 
-     if (!draggedTask) return;
+    if (!draggedTask) return;
 
-     // Prevent dragging to the same column
-     if (draggedTask.column_id === targetColumnId) return;
+    // Prevent dragging to the same column
+    if (draggedTask.column_id === targetColumnId) return;
 
-     // If dragging to "create new column" zone
-     let newColumnData = null;
-     if (targetColumnId === 'new-column' || targetColumnId === 'new-column-left' || String(targetColumnId).startsWith('new-column-between')) {
-       let newColumnOrder;
-       const isLeftZone = targetColumnId === 'new-column-left';
+    // If dragging to "create new column" zone
+    let newColumnData = null;
+    if (
+      targetColumnId === 'new-column' ||
+      targetColumnId === 'new-column-left' ||
+      String(targetColumnId).startsWith('new-column-between')
+    ) {
+      let newColumnOrder;
+      const isLeftZone = targetColumnId === 'new-column-left';
 
-       // Calculate order: left columns get negative order, right columns get positive
-       const allColumns = [...(columns || []), ...optimisticColumns];
-       if (isLeftZone) {
-         // Insert to the left - get the minimum order and go lower
-         const minOrder = allColumns.length > 0
-           ? Math.min(...allColumns.map(c => c.column_order || 0))
-           : 0;
-         newColumnOrder = minOrder - 1;
-       } else {
-         // Insert to the right or between - get the maximum order and go higher
-         const maxOrder = allColumns.length > 0
-           ? Math.max(...allColumns.map(c => c.column_order || 0))
-           : 0;
-         newColumnOrder = maxOrder + 1;
-       }
+      // Calculate order: left columns get negative order, right columns get positive
+      const allColumns = [...(columns || []), ...optimisticColumns];
+      if (isLeftZone) {
+        // Insert to the left - get the minimum order and go lower
+        const minOrder =
+          allColumns.length > 0
+            ? Math.min(...allColumns.map((c) => c.column_order || 0))
+            : 0;
+        newColumnOrder = minOrder - 1;
+      } else {
+        // Insert to the right or between - get the maximum order and go higher
+        const maxOrder =
+          allColumns.length > 0
+            ? Math.max(...allColumns.map((c) => c.column_order || 0))
+            : 0;
+        newColumnOrder = maxOrder + 1;
+      }
 
-       targetColumnId = `column-${Date.now()}`;
-       newColumnData = {
-         id: targetColumnId,
-         name: 'New Column',
-         column_order: newColumnOrder,
-       };
+      targetColumnId = `column-${Date.now()}`;
+      newColumnData = {
+        id: targetColumnId,
+        name: 'New Column',
+        column_order: newColumnOrder,
+      };
 
-       // Add optimistic column immediately
-       setOptimisticColumns((prev) => [...prev, newColumnData]);
-     }
+      // Add optimistic column immediately
+      setOptimisticColumns((prev) => [...prev, newColumnData]);
+    }
 
-     // Optimistic update - update UI immediately, preserve existing optimistic state (like color_tag)
-     setOptimisticTasks((prev) => {
-       const existingOptimistic = prev[taskId] || {};
-       return {
-         ...prev,
-         [taskId]: { ...draggedTask, ...existingOptimistic, column_id: targetColumnId },
-       };
-     });
+    // Optimistic update - update UI immediately, preserve existing optimistic state (like color_tag)
+    setOptimisticTasks((prev) => {
+      const existingOptimistic = prev[taskId] || {};
+      return {
+        ...prev,
+        [taskId]: {
+          ...draggedTask,
+          ...existingOptimistic,
+          column_id: targetColumnId,
+        },
+      };
+    });
 
-     // Perform backend operations in the background (don't block UI)
-     const sourceColumnId = draggedTask.column_id;
-     
-     // Use an async IIFE to handle the sequential operations without blocking
-     (async () => {
-       try {
-         // Create column first if needed (must exist before moving task to it)
-         if (newColumnData) {
-           await APIService.createColumn(roomCode, newColumnData.id, newColumnData.name, newColumnData.column_order);
-         }
-         
-         // Then move the task
-         await APIService.moveTask(roomCode, taskId, targetColumnId, user?.id);
-         
-         // Clean up empty source column
-         if (sourceColumnId && sourceColumnId !== 'unsorted') {
-           const tasksInSourceColumn = tasks.filter(
-             (t) => t.column_id === sourceColumnId && String(t.id) !== taskId
-           );
-           if (tasksInSourceColumn.length === 0) {
-             APIService.deleteColumn(roomCode, sourceColumnId).catch(() => {});
-           }
-         }
-       } catch (err) {
-         console.error('Error moving task:', err);
-         // Revert optimistic updates on error
-         setOptimisticTasks((prev) => {
-           const updated = { ...prev };
-           delete updated[taskId];
-           return updated;
-         });
-         if (newColumnData) {
-           setOptimisticColumns((prev) => prev.filter((c) => c.id !== newColumnData.id));
-         }
-       }
-     })();
+    // Perform backend operations in the background (don't block UI)
+    const sourceColumnId = draggedTask.column_id;
+
+    // Use an async IIFE to handle the sequential operations without blocking
+    (async () => {
+      try {
+        // Create column first if needed (must exist before moving task to it)
+        if (newColumnData) {
+          await APIService.createColumn(
+            roomCode,
+            newColumnData.id,
+            newColumnData.name,
+            newColumnData.column_order
+          );
+        }
+
+        // Then move the task
+        await APIService.moveTask(roomCode, taskId, targetColumnId, user?.id);
+
+        // Clean up empty source column
+        if (sourceColumnId && sourceColumnId !== 'unsorted') {
+          const tasksInSourceColumn = tasks.filter(
+            (t) => t.column_id === sourceColumnId && String(t.id) !== taskId
+          );
+          if (tasksInSourceColumn.length === 0) {
+            APIService.deleteColumn(roomCode, sourceColumnId).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error('Error moving task:', err);
+        // Revert optimistic updates on error
+        setOptimisticTasks((prev) => {
+          const updated = { ...prev };
+          delete updated[taskId];
+          return updated;
+        });
+        if (newColumnData) {
+          setOptimisticColumns((prev) =>
+            prev.filter((c) => c.id !== newColumnData.id)
+          );
+        }
+      }
+    })();
   };
 
-   const handleCopyRoomCode = async () => {
-     try {
-       await navigator.clipboard.writeText(roomCode);
-       setCopied(true);
-       // Reset copied message after 2 seconds
-       setTimeout(() => setCopied(false), 2000);
-     } catch (err) {
-       console.error('Failed to copy room code:', err);
-     }
-   };
+  const handleCopyRoomCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopied(true);
+      // Reset copied message after 2 seconds
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy room code:', err);
+    }
+  };
 
-   const handleSaveJiraUrl = async () => {
-     try {
-       await APIService.updateSessionJiraUrl(roomCode, jiraUrlInput);
-       setJiraBaseUrl(jiraUrlInput);
-       setShowJiraUrlInput(false);
-     } catch (err) {
-       console.error('Error saving Jira URL:', err);
-       alert('Failed to save Jira URL: ' + err.message);
-     }
-   };
+  const handleSaveJiraUrl = async () => {
+    try {
+      await APIService.updateSessionJiraUrl(roomCode, jiraUrlInput);
+      setJiraBaseUrl(jiraUrlInput);
+      setShowJiraUrlInput(false);
+    } catch (err) {
+      console.error('Error saving Jira URL:', err);
+      alert('Failed to save Jira URL: ' + err.message);
+    }
+  };
 
-   const handleDeleteColumn = async (columnId, task) => {
+  const handleDeleteColumn = async (columnId, task) => {
     // Optimistic update - move task to unsorted and mark column as deleted immediately
     setOptimisticTasks((prev) => ({
       ...prev,
@@ -248,7 +272,12 @@ function TaskBoard({ user, onLogout }) {
 
     try {
       // Move task back to unsorted
-      await APIService.moveTask(roomCode, String(task.id), 'unsorted', user?.id);
+      await APIService.moveTask(
+        roomCode,
+        String(task.id),
+        'unsorted',
+        user?.id
+      );
       // Delete the column from database
       await APIService.deleteColumn(roomCode, columnId);
     } catch (err) {
@@ -273,73 +302,72 @@ function TaskBoard({ user, onLogout }) {
     setShowCreateTask(false);
   };
 
-   const handleDeleteTask = async (taskId) => {
-     // Optimistic update - remove from UI immediately
-     const deletedTask = tasks.find((t) => String(t.id) === String(taskId));
-     if (!deletedTask) return;
+  const handleDeleteTask = async (taskId) => {
+    // Optimistic update - remove from UI immediately
+    const deletedTask = tasks.find((t) => String(t.id) === String(taskId));
+    if (!deletedTask) return;
 
-     // Mark task as deleted in optimistic UI state
-     setDeletedTaskIds((prev) => new Set([...prev, String(taskId)]));
+    // Mark task as deleted in optimistic UI state
+    setDeletedTaskIds((prev) => new Set([...prev, String(taskId)]));
 
-     try {
-       // Delete from backend in background
-       await APIService.deleteTask(roomCode, taskId);
+    try {
+      // Delete from backend in background
+      await APIService.deleteTask(roomCode, taskId);
 
-       // Check if the task's column is now empty and delete it
-       const taskColumnId = deletedTask.column_id;
-       if (taskColumnId && taskColumnId !== 'unsorted') {
-         // Check remaining tasks in this column (excluding the deleted task)
-         const tasksInColumn = displayTasks.filter(
-           (t) => t.column_id === taskColumnId && String(t.id) !== String(taskId)
-         );
+      // Check if the task's column is now empty and delete it
+      const taskColumnId = deletedTask.column_id;
+      if (taskColumnId && taskColumnId !== 'unsorted') {
+        // Check remaining tasks in this column (excluding the deleted task)
+        const tasksInColumn = displayTasks.filter(
+          (t) => t.column_id === taskColumnId && String(t.id) !== String(taskId)
+        );
 
-         // If column is now empty, delete it
-         if (tasksInColumn.length === 0) {
-           try {
-             await APIService.deleteColumn(roomCode, taskColumnId);
-           } catch (deleteErr) {
-             console.error('Error deleting empty column:', deleteErr);
-             // Don't fail the whole operation if column deletion fails
-           }
-         }
-       }
-     } catch (err) {
-       console.error('Error deleting task:', err);
-       alert('Failed to delete task: ' + err.message);
-       // On error, revert the deletion by removing from deleted set
-       setDeletedTaskIds((prev) => {
-         const updated = new Set(prev);
-         updated.delete(String(taskId));
-         return updated;
-       });
-     }
-   };
+        // If column is now empty, delete it
+        if (tasksInColumn.length === 0) {
+          try {
+            await APIService.deleteColumn(roomCode, taskColumnId);
+          } catch (deleteErr) {
+            console.error('Error deleting empty column:', deleteErr);
+            // Don't fail the whole operation if column deletion fails
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      alert('Failed to delete task: ' + err.message);
+      // On error, revert the deletion by removing from deleted set
+      setDeletedTaskIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(String(taskId));
+        return updated;
+      });
+    }
+  };
 
-   const handleUpdateTaskColor = (taskId, colorTag) => {
-     // Get the current task state (prefer optimistic, fall back to server)
-     const existingOptimistic = optimisticTasks[String(taskId)];
-     const serverTask = tasks.find((t) => String(t.id) === String(taskId));
-     const task = existingOptimistic || serverTask;
-     if (!task) return;
+  const handleUpdateTaskColor = (taskId, colorTag) => {
+    // Get the current task state (prefer optimistic, fall back to server)
+    const existingOptimistic = optimisticTasks[String(taskId)];
+    const serverTask = tasks.find((t) => String(t.id) === String(taskId));
+    const task = existingOptimistic || serverTask;
+    if (!task) return;
 
-     // Optimistic update - immediate UI feedback
-     setOptimisticTasks((prev) => ({
-       ...prev,
-       [String(taskId)]: { ...task, color_tag: colorTag },
-     }));
+    // Optimistic update - immediate UI feedback
+    setOptimisticTasks((prev) => ({
+      ...prev,
+      [String(taskId)]: { ...task, color_tag: colorTag },
+    }));
 
-     // Fire API call in background (don't await)
-     APIService.updateTaskColor(roomCode, taskId, colorTag)
-       .catch((err) => {
-         console.error('Error updating task color:', err);
-         // Revert optimistic update on error
-         setOptimisticTasks((prev) => {
-           const updated = { ...prev };
-           delete updated[String(taskId)];
-           return updated;
-         });
-       });
-   };
+    // Fire API call in background (don't await)
+    APIService.updateTaskColor(roomCode, taskId, colorTag).catch((err) => {
+      console.error('Error updating task color:', err);
+      // Revert optimistic update on error
+      setOptimisticTasks((prev) => {
+        const updated = { ...prev };
+        delete updated[String(taskId)];
+        return updated;
+      });
+    });
+  };
 
   if (loading) {
     return (
@@ -357,7 +385,10 @@ function TaskBoard({ user, onLogout }) {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <p className="text-xl text-gray-600">Session not found</p>
-          <a href="/" className="text-blue-600 hover:underline mt-4 inline-block">
+          <a
+            href="/"
+            className="text-blue-600 hover:underline mt-4 inline-block"
+          >
             Create New Session
           </a>
         </div>
@@ -370,21 +401,21 @@ function TaskBoard({ user, onLogout }) {
   // Merge optimistic columns with actual columns, filtering out deleted ones
   const displayColumns = [
     ...(columns || []).filter((col) => !deletedColumnIds.has(col.id)),
-    ...optimisticColumns.filter((col) => !columns?.some((c) => c.id === col.id)),
+    ...optimisticColumns.filter(
+      (col) => !columns?.some((c) => c.id === col.id)
+    ),
   ];
 
   // Merge optimistic updates with actual tasks, filtering out deleted ones
   const displayTasks = tasks
     .filter((task) => !deletedTaskIds.has(String(task.id)))
-    .map((task) =>
-      optimisticTasks[String(task.id)] || task
-    );
+    .map((task) => optimisticTasks[String(task.id)] || task);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
       {/* Christmas Snowflakes */}
       {isChristmas && <Snowflakes count={50} />}
-      
+
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -401,58 +432,58 @@ function TaskBoard({ user, onLogout }) {
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
                   Relative Pointing <Version className="ml-2" />
                 </h1>
-               <p className="text-sm text-gray-600 dark:text-gray-400">
-                 Room Code:{' '}
-                 <span
-                   onClick={handleCopyRoomCode}
-                   className="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
-                   title="Click to copy"
-                 >
-                   {roomCode}
-                   {copied && ' ✓'}
-                 </span>
-               </p>
-               {isCreator && (
-                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                   Jira Base URL:{' '}
-                   {showJiraUrlInput ? (
-                     <span className="inline-flex gap-2">
-                       <input
-                         type="text"
-                         value={jiraUrlInput}
-                         onChange={(e) => setJiraUrlInput(e.target.value)}
-                         placeholder="https://company.atlassian.net"
-                         className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
-                         autoFocus
-                       />
-                       <button
-                         onClick={handleSaveJiraUrl}
-                         className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                       >
-                         Save
-                       </button>
-                       <button
-                         onClick={() => setShowJiraUrlInput(false)}
-                         className="px-2 py-1 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white rounded text-sm hover:bg-gray-400"
-                       >
-                         Cancel
-                       </button>
-                     </span>
-                   ) : (
-                     <span
-                       onClick={() => {
-                         setJiraUrlInput(jiraBaseUrl);
-                         setShowJiraUrlInput(true);
-                       }}
-                       className="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
-                       title="Click to edit"
-                     >
-                       {jiraBaseUrl || 'Not set'} {jiraBaseUrl && '✎'}
-                     </span>
-                   )}
-                 </p>
-               )}
-               </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Room Code:{' '}
+                  <span
+                    onClick={handleCopyRoomCode}
+                    className="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+                    title="Click to copy"
+                  >
+                    {roomCode}
+                    {copied && ' ✓'}
+                  </span>
+                </p>
+                {isCreator && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                    Jira Base URL:{' '}
+                    {showJiraUrlInput ? (
+                      <span className="inline-flex gap-2">
+                        <input
+                          type="text"
+                          value={jiraUrlInput}
+                          onChange={(e) => setJiraUrlInput(e.target.value)}
+                          placeholder="https://company.atlassian.net"
+                          className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveJiraUrl}
+                          className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setShowJiraUrlInput(false)}
+                          className="px-2 py-1 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white rounded text-sm hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <span
+                        onClick={() => {
+                          setJiraUrlInput(jiraBaseUrl);
+                          setShowJiraUrlInput(true);
+                        }}
+                        className="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+                        title="Click to edit"
+                      >
+                        {jiraBaseUrl || 'Not set'} {jiraBaseUrl && '✎'}
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-4">
@@ -482,9 +513,9 @@ function TaskBoard({ user, onLogout }) {
                   Logout
                 </button>
               )}
-              <ParticipantList 
-                participants={participants} 
-                currentUser={user} 
+              <ParticipantList
+                participants={participants}
+                currentUser={user}
                 isCreator={isCreator}
                 skippedParticipants={session?.skipped_participants || []}
                 roomCode={roomCode}
@@ -501,7 +532,9 @@ function TaskBoard({ user, onLogout }) {
           <div className="flex-1 flex items-center gap-3">
             <div className="flex-1 h-1 bg-gradient-to-r from-gray-400 to-gray-300 dark:from-gray-500 dark:to-gray-600 rounded"></div>
             <div className="text-center whitespace-nowrap">
-              <div className="text-gray-600 dark:text-gray-300 font-semibold text-sm">Complexity</div>
+              <div className="text-gray-600 dark:text-gray-300 font-semibold text-sm">
+                Complexity
+              </div>
             </div>
             <div className="flex-1 h-1 bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-500 rounded"></div>
           </div>
@@ -520,76 +553,101 @@ function TaskBoard({ user, onLogout }) {
           {/* Task Board Area */}
           <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 flex justify-center">
             <div className="flex gap-4 min-h-full transition-all duration-200">
-            {displayTasks && displayTasks.length > 0 ? (
-              <>
-                {/* If no columns exist yet, show only a single centered drop zone for the first task */}
-                {displayColumns.length === 0 && activeId ? (
-                  <CreateColumnDropZone key="create-first" zoneId="new-column" isFirst={true} />
-                ) : (
-                  <>
-                    {/* Multiple columns exist - show left drop zone for creating simpler columns */}
-                    {displayColumns.length > 0 && activeId && (
-                      <CreateColumnDropZone key="create-left" zoneId="new-column-left" />
-                    )}
+              {displayTasks && displayTasks.length > 0 ? (
+                <>
+                  {/* If no columns exist yet, show only a single centered drop zone for the first task */}
+                  {displayColumns.length === 0 && activeId ? (
+                    <CreateColumnDropZone
+                      key="create-first"
+                      zoneId="new-column"
+                      isFirst={true}
+                    />
+                  ) : (
+                    <>
+                      {/* Multiple columns exist - show left drop zone for creating simpler columns */}
+                      {displayColumns.length > 0 && activeId && (
+                        <CreateColumnDropZone
+                          key="create-left"
+                          zoneId="new-column-left"
+                        />
+                      )}
 
-                    {/* Complexity columns that were created, sorted by order */}
-                    {displayColumns.length > 0 && (
-                      [...displayColumns].sort((a, b) => (a.column_order || 0) - (b.column_order || 0)).map((column, index, sortedColumns) => {
-                        const columnTasks = displayTasks?.filter(
-                          (task) => task.column_id === column.id
-                        ) || [];
-                        const isLastColumn = index === sortedColumns.length - 1;
-                        return (
-                          <React.Fragment key={`col-${column.id}`}>
-                            <div className="transition-all duration-200">
-                              <Column
-                                columnId={column.id}
-                                title={column.name}
-                                tasks={columnTasks}
-                                canDrag={true}
-                                onDelete={handleDeleteColumn}
-                                onDeleteTask={handleDeleteTask}
-                                onUpdateTaskColor={handleUpdateTaskColor}
-                                jiraBaseUrl={jiraBaseUrl}
-                              />
-                            </div>
-                            {/* Create new column between existing columns - only show between columns, not after the last one */}
-                            {activeId && displayColumns.length > 1 && !isLastColumn && <CreateColumnDropZone key={`create-${index}`} zoneId={`new-column-between-${column.id}`} />}
-                          </React.Fragment>
-                        );
-                      })
-                    )}
+                      {/* Complexity columns that were created, sorted by order */}
+                      {displayColumns.length > 0 &&
+                        [...displayColumns]
+                          .sort(
+                            (a, b) =>
+                              (a.column_order || 0) - (b.column_order || 0)
+                          )
+                          .map((column, index, sortedColumns) => {
+                            const columnTasks =
+                              displayTasks?.filter(
+                                (task) => task.column_id === column.id
+                              ) || [];
+                            const isLastColumn =
+                              index === sortedColumns.length - 1;
+                            return (
+                              <React.Fragment key={`col-${column.id}`}>
+                                <div className="transition-all duration-200">
+                                  <Column
+                                    columnId={column.id}
+                                    title={column.name}
+                                    tasks={columnTasks}
+                                    canDrag={true}
+                                    onDelete={handleDeleteColumn}
+                                    onDeleteTask={handleDeleteTask}
+                                    onUpdateTaskColor={handleUpdateTaskColor}
+                                    jiraBaseUrl={jiraBaseUrl}
+                                  />
+                                </div>
+                                {/* Create new column between existing columns - only show between columns, not after the last one */}
+                                {activeId &&
+                                  displayColumns.length > 1 &&
+                                  !isLastColumn && (
+                                    <CreateColumnDropZone
+                                      key={`create-${index}`}
+                                      zoneId={`new-column-between-${column.id}`}
+                                    />
+                                  )}
+                              </React.Fragment>
+                            );
+                          })}
 
-                    {/* Right drop zone for creating more complex columns - only show when dragging and columns exist */}
-                    {displayColumns.length > 0 && activeId && (
-                      <CreateColumnDropZone key="create-right" zoneId="new-column" />
-                    )}
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="text-gray-400 text-center py-8 w-full">
-                <p className="mb-2">No tasks yet</p>
-                <p className="text-sm">Upload a CSV or use the sample data to get started</p>
-              </div>
-            )}
+                      {/* Right drop zone for creating more complex columns - only show when dragging and columns exist */}
+                      {displayColumns.length > 0 && activeId && (
+                        <CreateColumnDropZone
+                          key="create-right"
+                          zoneId="new-column"
+                        />
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="text-gray-400 text-center py-8 w-full">
+                  <p className="mb-2">No tasks yet</p>
+                  <p className="text-sm">
+                    Upload a CSV or use the sample data to get started
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Tasks Queue Panel - Right Sidebar */}
           <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-1 overflow-y-auto">
-               <Column
-                 columnId="unsorted"
-                 title="Tasks"
-                 tasks={displayTasks.filter((t) => t.column_id === 'unsorted')}
-                 canDrag={true}
-                 variant="tasks"
-                 onDeleteTask={handleDeleteTask}
-                 onUpdateTaskColor={handleUpdateTaskColor}
-                 jiraBaseUrl={jiraBaseUrl}
-               />
-             </div>
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-1 overflow-y-auto">
+              <Column
+                columnId="unsorted"
+                title="Tasks"
+                tasks={displayTasks.filter((t) => t.column_id === 'unsorted')}
+                canDrag={true}
+                variant="tasks"
+                onDeleteTask={handleDeleteTask}
+                onUpdateTaskColor={handleUpdateTaskColor}
+                jiraBaseUrl={jiraBaseUrl}
+              />
+            </div>
             {/* Create Task Button */}
             {isCreator && (
               <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
@@ -605,23 +663,27 @@ function TaskBoard({ user, onLogout }) {
           </div>
         </div>
 
-         <DragOverlay>
-            {activeId ? (
-              <div className="bg-white dark:bg-gray-800 dark:text-gray-200 p-2 rounded shadow-lg opacity-75 max-w-xs">
-                {(() => {
-                  const task = displayTasks.find((t) => String(t.id) === String(activeId));
-                  return (
-                    <>
-                      <p className="text-sm font-medium">{task?.id}</p>
-                      {task?.title && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{task.title}</p>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            ) : null}
-          </DragOverlay>
+        <DragOverlay>
+          {activeId ? (
+            <div className="bg-white dark:bg-gray-800 dark:text-gray-200 p-2 rounded shadow-lg opacity-75 max-w-xs">
+              {(() => {
+                const task = displayTasks.find(
+                  (t) => String(t.id) === String(activeId)
+                );
+                return (
+                  <>
+                    <p className="text-sm font-medium">{task?.id}</p>
+                    {task?.title && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                        {task.title}
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {/* Create Task Modal */}

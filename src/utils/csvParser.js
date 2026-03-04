@@ -15,30 +15,34 @@ export function parseJiraCSV(file) {
       skipEmptyLines: true,
       complete: (results) => {
         try {
-           const tasks = results.data.map((row, index) => {
-             // Extract common Jira fields (case-insensitive for issue key)
-             const issueKey = row['Issue key'] || row['Issue Key'] || row['Key'] || `TASK-${index + 1}`;
-             const summary = row['Summary'] || row['Title'] || 'Untitled Task';
-             const description = row['Description'] || '';
-             const issueType = row['Issue Type'] || row['Type'] || '';
-             const priority = row['Priority'] || '';
-             const status = row['Status'] || '';
-             
-              return {
-                jiraKey: issueKey,
-                title: summary,
-                description: description,
+          const tasks = results.data.map((row, index) => {
+            // Extract common Jira fields (case-insensitive for issue key)
+            const issueKey =
+              row['Issue key'] ||
+              row['Issue Key'] ||
+              row['Key'] ||
+              `TASK-${index + 1}`;
+            const summary = row['Summary'] || row['Title'] || 'Untitled Task';
+            const description = row['Description'] || '';
+            const issueType = row['Issue Type'] || row['Type'] || '';
+            const priority = row['Priority'] || '';
+            const status = row['Status'] || '';
+
+            return {
+              jiraKey: issueKey,
+              title: summary,
+              description: description,
+              issueType,
+              priority,
+              status,
+              metadata: {
                 issueType,
                 priority,
                 status,
-                metadata: {
-                  issueType,
-                  priority,
-                  status,
-                  // Only store essential fields, not the entire row (which can be huge with Jira exports)
-                },
-              };
-           });
+                // Only store essential fields, not the entire row (which can be huge with Jira exports)
+              },
+            };
+          });
 
           // Try to extract Jira base URL from issue keys
           const jiraBaseUrl = extractJiraBaseUrl(tasks);
@@ -68,14 +72,14 @@ export function parseJiraCSV(file) {
  */
 function extractJiraBaseUrl(tasks) {
   // Check if any task has a URL field
-  const taskWithUrl = tasks.find(t => t.metadata?.originalRow?.URL);
+  const taskWithUrl = tasks.find((t) => t.metadata?.originalRow?.URL);
   if (taskWithUrl) {
     const url = taskWithUrl.metadata.originalRow.URL;
     // Extract base URL (e.g., "https://company.atlassian.net")
     const match = url.match(/(https?:\/\/[^/]+)/);
     return match ? match[1] : null;
   }
-  
+
   // Default to null - user can configure later
   return null;
 }
@@ -92,25 +96,28 @@ export function validateJiraCSV(file) {
       preview: 1, // Only parse first row for validation
       complete: (results) => {
         const headers = results.meta.fields || [];
-        
+
         // Check for required columns (flexible matching)
-        const hasIssueKey = headers.some(h => 
-          h.toLowerCase().includes('issue') && h.toLowerCase().includes('key') ||
-          h.toLowerCase() === 'key'
+        const hasIssueKey = headers.some(
+          (h) =>
+            (h.toLowerCase().includes('issue') &&
+              h.toLowerCase().includes('key')) ||
+            h.toLowerCase() === 'key'
         );
-        
-        const hasSummary = headers.some(h => 
-          h.toLowerCase().includes('summary') ||
-          h.toLowerCase().includes('title')
+
+        const hasSummary = headers.some(
+          (h) =>
+            h.toLowerCase().includes('summary') ||
+            h.toLowerCase().includes('title')
         );
-        
+
         const isValid = hasIssueKey && hasSummary;
-        
+
         resolve({
           isValid,
           headers,
-          message: isValid 
-            ? 'Valid Jira CSV format' 
+          message: isValid
+            ? 'Valid Jira CSV format'
             : 'CSV must contain "Issue Key" and "Summary" columns',
         });
       },

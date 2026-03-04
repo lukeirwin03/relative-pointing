@@ -62,7 +62,7 @@ function Snowflakes({ count = 50 }) {
           filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.8));
         }
       `}</style>
-      
+
       {snowflakes.map((flake) => (
         <span
           key={flake.id}

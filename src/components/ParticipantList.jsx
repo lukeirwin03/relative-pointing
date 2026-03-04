@@ -2,11 +2,23 @@ import React, { useState } from 'react';
 import APIService from '../services/api';
 
 const COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
-  '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'
+  '#FF6B6B',
+  '#4ECDC4',
+  '#45B7D1',
+  '#FFA07A',
+  '#98D8C8',
+  '#F7DC6F',
+  '#BB8FCE',
+  '#85C1E2',
 ];
 
-function ParticipantList({ participants = [], currentUser, isCreator = false, skippedParticipants = [], roomCode }) {
+function ParticipantList({
+  participants = [],
+  currentUser,
+  isCreator = false,
+  skippedParticipants = [],
+  roomCode,
+}) {
   const [hoveredId, setHoveredId] = useState(null);
   const [showTurnList, setShowTurnList] = useState(false);
 
@@ -21,7 +33,7 @@ function ParticipantList({ participants = [], currentUser, isCreator = false, sk
     const newSkipped = disabledParticipants.has(participantId)
       ? skippedParticipants.filter((id) => id !== participantId)
       : [...skippedParticipants, participantId];
-    
+
     // Fire and forget - optimistic since polling will sync state
     APIService.updateSkippedParticipants(roomCode, newSkipped).catch((err) => {
       console.error('Failed to update skipped participants:', err);
@@ -71,7 +83,9 @@ function ParticipantList({ participants = [], currentUser, isCreator = false, sk
               );
             })
           ) : (
-            <span className="text-xs text-gray-500 dark:text-gray-400">None</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              None
+            </span>
           )}
         </div>
         {participants.length > 0 && (
@@ -86,7 +100,7 @@ function ParticipantList({ participants = [], currentUser, isCreator = false, sk
 
       {/* Whose Turn List */}
       {showTurnList && participants.length > 0 && (
-        <div 
+        <div
           className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-20 min-w-[200px]"
           onClick={(e) => e.stopPropagation()}
         >
@@ -117,11 +131,25 @@ function ParticipantList({ participants = [], currentUser, isCreator = false, sk
                           ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 hover:border-green-400'
                           : 'border-green-500 bg-green-500 text-white hover:bg-green-600'
                       }`}
-                      title={isDisabled ? 'Include in turn order' : 'Skip this participant'}
+                      title={
+                        isDisabled
+                          ? 'Include in turn order'
+                          : 'Skip this participant'
+                      }
                     >
                       {!isDisabled && (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M5 13l4 4L19 7"
+                          />
                         </svg>
                       )}
                     </button>
@@ -131,7 +159,13 @@ function ParticipantList({ participants = [], currentUser, isCreator = false, sk
                       style={{ backgroundColor: getColorForParticipant(index) }}
                     />
                   )}
-                  <span className={participant.user_id === currentUser?.id ? 'font-semibold' : ''}>
+                  <span
+                    className={
+                      participant.user_id === currentUser?.id
+                        ? 'font-semibold'
+                        : ''
+                    }
+                  >
                     {participant.user_name}
                     {participant.user_id === currentUser?.id && ' (you)'}
                   </span>

@@ -25,7 +25,11 @@
     "@testing-library/user-event": "^14.5.1",
     "autoprefixer": "^10.4.16",
     "concurrently": "^8.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.2",
     "postcss": "^8.4.32",
+    "prettier": "^3.8.1",
     "tailwindcss": "^3.3.6"
   },
   "scripts": {
@@ -35,13 +39,29 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "lint": "eslint src/**/*.{js,jsx}",
-    "format": "prettier --write src/**/*.{js,jsx,json,css,md}"
+    "prepare": "husky",
+    "lint": "eslint 'src/**/*.{js,jsx}' 'server/**/*.js'",
+    "format": "prettier --write 'src/**/*.{js,jsx,json,css,md}' 'server/**/*.js'",
+    "format:check": "prettier --check 'src/**/*.{js,jsx,json,css,md}' 'server/**/*.js'"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "server/**/*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   },
   "eslintConfig": {
     "extends": [
       "react-app",
-      "react-app/jest"
+      "react-app/jest",
+      "prettier"
     ]
   },
   "browserslist": {
