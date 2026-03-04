@@ -50,7 +50,9 @@ export function ThemeProvider({ children }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme, isChristmas, toggleChristmas }}>
+    <ThemeContext.Provider
+      value={{ isDark, toggleTheme, isChristmas, toggleChristmas }}
+    >
       {children}
     </ThemeContext.Provider>
   );

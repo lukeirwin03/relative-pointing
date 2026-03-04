@@ -27,7 +27,7 @@ function initializeDatabase() {
     const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
 
     // Split schema by statements and execute each one sequentially
-    const statements = schema.split(';').filter(stmt => stmt.trim());
+    const statements = schema.split(';').filter((stmt) => stmt.trim());
 
     let index = 0;
 
@@ -43,7 +43,11 @@ function initializeDatabase() {
       index++;
 
       db.run(statement + ';', (err) => {
-        if (err && !err.message.includes('already exists') && !err.message.includes('no such column')) {
+        if (
+          err &&
+          !err.message.includes('already exists') &&
+          !err.message.includes('no such column')
+        ) {
           console.error('Error executing schema:', err);
         }
         executeNextStatement();
@@ -63,10 +67,12 @@ function runMigrations(callback) {
     } else if (!err) {
       console.log('Migration: Added last_activity_at column to sessions');
       db.run(`UPDATE sessions SET last_activity_at = CURRENT_TIMESTAMP`, () => {
-        console.log('Migration: Updated existing sessions with current timestamp');
+        console.log(
+          'Migration: Updated existing sessions with current timestamp'
+        );
       });
     }
-    
+
     // Migration 2: Add color_tag column to tasks if it doesn't exist
     db.run(`ALTER TABLE tasks ADD COLUMN color_tag TEXT`, (err2) => {
       if (err2 && err2.message.includes('duplicate column')) {
@@ -74,17 +80,24 @@ function runMigrations(callback) {
       } else if (!err2) {
         console.log('Migration: Added color_tag column to tasks');
       }
-      
+
       // Migration 3: Add skipped_participants column to sessions if it doesn't exist
-      db.run(`ALTER TABLE sessions ADD COLUMN skipped_participants TEXT`, (err3) => {
-        if (err3 && err3.message.includes('duplicate column')) {
-          console.log('Migration: skipped_participants column already exists');
-        } else if (!err3) {
-          console.log('Migration: Added skipped_participants column to sessions');
+      db.run(
+        `ALTER TABLE sessions ADD COLUMN skipped_participants TEXT`,
+        (err3) => {
+          if (err3 && err3.message.includes('duplicate column')) {
+            console.log(
+              'Migration: skipped_participants column already exists'
+            );
+          } else if (!err3) {
+            console.log(
+              'Migration: Added skipped_participants column to sessions'
+            );
+          }
+
+          if (callback) callback();
         }
-        
-        if (callback) callback();
-      });
+      );
     });
   });
 }
@@ -93,12 +106,15 @@ function runMigrations(callback) {
 function cleanupExpiredSessions() {
   // Format cutoff time to match SQLite's CURRENT_TIMESTAMP format (YYYY-MM-DD HH:MM:SS)
   const cutoffDate = new Date(Date.now() - SESSION_TIMEOUT_MS);
-  const cutoffTime = cutoffDate.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
-  
+  const cutoffTime = cutoffDate
+    .toISOString()
+    .replace('T', ' ')
+    .replace(/\.\d{3}Z$/, '');
+
   db.run(
     `DELETE FROM sessions WHERE last_activity_at IS NOT NULL AND last_activity_at < ?`,
     [cutoffTime],
-    function(err) {
+    function (err) {
       if (err) {
         console.error('Error cleaning up expired sessions:', err);
       } else if (this.changes > 0) {
@@ -115,7 +131,9 @@ function startSessionCleanup() {
     cleanupExpiredSessions();
     // Then run every minute
     setInterval(cleanupExpiredSessions, 60 * 1000);
-    console.log(`Session cleanup job started (timeout: ${SESSION_TIMEOUT_MS / 1000 / 60} minutes)`);
+    console.log(
+      `Session cleanup job started (timeout: ${SESSION_TIMEOUT_MS / 1000 / 60} minutes)`
+    );
   }, 5000);
 }
 
@@ -125,7 +143,7 @@ function touchSession(sessionId) {
     db.run(
       `UPDATE sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [sessionId],
-      function(err) {
+      function (err) {
         if (err) {
           reject(err);
         } else {
@@ -142,7 +160,7 @@ function touchSessionByRoomCode(roomCode) {
     db.run(
       `UPDATE sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE LOWER(room_code) = LOWER(?)`,
       [roomCode],
-      function(err) {
+      function (err) {
         if (err) {
           reject(err);
         } else {
@@ -157,7 +175,7 @@ function touchSessionByRoomCode(roomCode) {
 const dbPromise = {
   run: (sql, params = []) => {
     return new Promise((resolve, reject) => {
-      db.run(sql, params, function(err) {
+      db.run(sql, params, function (err) {
         if (err) {
           reject(err);
         } else {
@@ -189,7 +207,13 @@ const dbPromise = {
         }
       });
     });
-  }
+  },
 };
 
-module.exports = { db, dbPromise, touchSession, touchSessionByRoomCode, SESSION_TIMEOUT_MS };
+module.exports = {
+  db,
+  dbPromise,
+  touchSession,
+  touchSessionByRoomCode,
+  SESSION_TIMEOUT_MS,
+};

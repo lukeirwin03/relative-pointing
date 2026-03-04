@@ -9,10 +9,10 @@
  */
 export function buildJiraUrl(baseUrl, issueKey) {
   if (!baseUrl || !issueKey) return null;
-  
+
   // Remove trailing slash from base URL
   const cleanBaseUrl = baseUrl.replace(/\/$/, '');
-  
+
   // Build URL
   return `${cleanBaseUrl}/browse/${issueKey}`;
 }
@@ -65,18 +65,20 @@ export function groupTasksForBulkOpen(columns, tasks) {
   // Group tasks by column
   return columnArray
     .sort((a, b) => a.order - b.order)
-    .map(column => {
-      const columnTasks = taskArray.filter(task => task.columnId === column.id);
-      
+    .map((column) => {
+      const columnTasks = taskArray.filter(
+        (task) => task.columnId === column.id
+      );
+
       return {
         columnId: column.id,
         columnName: column.name,
         suggestedPoints: column.suggestedPoints,
         taskCount: columnTasks.length,
-        issueKeys: columnTasks.map(task => task.id),
+        issueKeys: columnTasks.map((task) => task.id),
       };
     })
-    .filter(group => group.taskCount > 0); // Only include columns with tasks
+    .filter((group) => group.taskCount > 0); // Only include columns with tasks
 }
 
 /**
@@ -88,15 +90,15 @@ export function groupTasksForBulkOpen(columns, tasks) {
 export function detectJiraBaseUrl(issueKey) {
   // This is a best-guess approach
   // In production, user should configure this
-  
+
   if (!issueKey || typeof issueKey !== 'string') return null;
-  
+
   // Extract project key (letters before hyphen)
   const projectMatch = issueKey.match(/^([A-Z]+)-\d+$/);
   if (!projectMatch) return null;
-  
+
   const projectKey = projectMatch[1].toLowerCase();
-  
+
   // Common Jira cloud pattern
   return `https://${projectKey}.atlassian.net`;
 }
@@ -108,16 +110,16 @@ export function detectJiraBaseUrl(issueKey) {
  */
 export function isValidJiraUrl(url) {
   if (!url || typeof url !== 'string') return false;
-  
+
   // Check if it's a valid URL
   try {
     const urlObj = new URL(url);
-    
+
     // Check if it looks like a Jira URL
     return (
       urlObj.protocol === 'https:' &&
-      (urlObj.hostname.includes('atlassian.net') || 
-       urlObj.hostname.includes('jira'))
+      (urlObj.hostname.includes('atlassian.net') ||
+        urlObj.hostname.includes('jira'))
     );
   } catch {
     return false;
