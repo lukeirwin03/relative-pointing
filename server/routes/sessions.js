@@ -955,11 +955,9 @@ router.post('/:roomCode/columns/apply-scale', async (req, res) => {
 
     const scaleValues = scales[scale];
     if (!scaleValues) {
-      return res
-        .status(400)
-        .json({
-          error: 'Invalid scale. Use: fibonacci, powers_of_2, tshirt, linear',
-        });
+      return res.status(400).json({
+        error: 'Invalid scale. Use: fibonacci, powers_of_2, tshirt, linear',
+      });
     }
 
     for (let i = 0; i < columns.length; i++) {

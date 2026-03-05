@@ -34,6 +34,21 @@ const showJiraUrlInput = ref(false);
 const sidebarCollapsed = ref(false);
 const boardAreaRef = ref(null);
 
+// Auto-collapse sidebar on narrow viewports
+const COLLAPSE_BREAKPOINT = 1024;
+function checkViewportWidth() {
+  if (window.innerWidth < COLLAPSE_BREAKPOINT) {
+    sidebarCollapsed.value = true;
+  }
+}
+onMounted(() => {
+  checkViewportWidth();
+  window.addEventListener('resize', checkViewportWidth);
+});
+onUnmounted(() => {
+  window.removeEventListener('resize', checkViewportWidth);
+});
+
 // Sand timer turn history tracking
 const turnHistory = ref([]);
 const draining = ref(false);
@@ -551,7 +566,7 @@ onUnmounted(() => {
         class="bg-white dark:bg-neon-bg-800/60 border-b border-gray-200 dark:border-white/10 py-4"
       >
         <div
-          class="flex items-center justify-center gap-2 px-4 pr-[calc(1rem+20rem)]"
+          class="flex items-center justify-center gap-2 px-4 pr-[calc(1rem+16rem)]"
         >
           <button
             class="text-3xl text-gray-500 dark:text-neon-cyan/40 hover:text-gray-800 dark:hover:text-neon-cyan transition-colors cursor-pointer select-none"
@@ -692,7 +707,7 @@ onUnmounted(() => {
 
         <!-- Tasks Queue Panel - Right Sidebar -->
         <div
-          class="w-80 bg-white dark:bg-neon-bg-800/60 border-l border-gray-200 dark:border-white/10 flex flex-col overflow-hidden relative z-20"
+          class="w-64 bg-white dark:bg-neon-bg-800/60 border-l border-gray-200 dark:border-white/10 flex flex-col overflow-hidden relative z-20"
         >
           <div
             class="p-4 border-b border-gray-200 dark:border-white/10 flex-1 overflow-y-auto"
