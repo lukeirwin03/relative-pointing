@@ -64,7 +64,9 @@ function openJira(e) {
     :class="[
       'p-3 rounded-lg shadow-sm transition-all group relative',
       'bg-white dark:glass-card',
-      dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
+      dragDisabled
+        ? 'cursor-default no-drag'
+        : 'cursor-grab active:cursor-grabbing',
       !dragDisabled && 'hover:shadow-md dark:hover:shadow-card-hover',
       highlighted &&
         'ring-2 ring-blue-400/60 dark:ring-neon-cyan/50 shadow-[0_0_12px_rgba(59,130,246,0.3)] dark:shadow-[0_0_16px_rgba(0,240,255,0.25)]',

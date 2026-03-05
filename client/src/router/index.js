@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import SessionCreator from '../components/SessionCreator.vue';
 import TaskBoard from '../components/TaskBoard.vue';
+import SessionReport from '../components/SessionReport.vue';
 
 const routes = [
   {
@@ -21,6 +22,11 @@ const routes = [
         next();
       }
     },
+  },
+  {
+    path: '/session/:roomCode/report',
+    name: 'report',
+    component: SessionReport,
   },
   {
     path: '/:pathMatch(.*)*',

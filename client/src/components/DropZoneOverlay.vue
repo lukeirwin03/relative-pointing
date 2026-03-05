@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { parseJiraCSV, validateJiraCSV } from '../utils/csvParser';
 import APIService from '../services/api';
+import CsvImportModal from './CsvImportModal.vue';
 
 const props = defineProps({
   roomCode: {
@@ -19,9 +20,9 @@ const emit = defineEmits(['tasksImported']);
 const isDragging = ref(false);
 const isUploading = ref(false);
 const error = ref(null);
+const pendingImport = ref(null);
 
 async function processFile(file) {
-  isUploading.value = true;
   error.value = null;
 
   try {
@@ -32,21 +33,39 @@ async function processFile(file) {
 
     const result = await parseJiraCSV(file);
 
-    await APIService.uploadTasks(
-      props.roomCode,
-      result.tasks,
-      result.jiraBaseUrl
-    );
+    if (result.tasks.length === 0) {
+      throw new Error('No valid tasks found in CSV file');
+    }
 
-    emit('tasksImported', result.totalCount);
-    error.value = null;
+    // Show confirmation modal instead of uploading immediately
+    pendingImport.value = result;
+  } catch (err) {
+    console.error('CSV parse error:', err);
+    error.value = err.message;
+    setTimeout(() => (error.value = null), 5000);
+  }
+}
+
+async function handleConfirmImport(selectedTasks, jiraBaseUrl) {
+  isUploading.value = true;
+  error.value = null;
+
+  try {
+    await APIService.uploadTasks(props.roomCode, selectedTasks, jiraBaseUrl);
+    emit('tasksImported', selectedTasks.length);
+    pendingImport.value = null;
   } catch (err) {
     console.error('CSV upload error:', err);
     error.value = err.message;
     setTimeout(() => (error.value = null), 5000);
+    pendingImport.value = null;
   } finally {
     isUploading.value = false;
   }
+}
+
+function handleCancelImport() {
+  pendingImport.value = null;
 }
 
 // Only react to external file drags, not internal SortableJS drags.
@@ -132,6 +151,17 @@ onUnmounted(() => {
         </p>
       </div>
     </div>
+
+    <!-- CSV Import Confirmation Modal -->
+    <CsvImportModal
+      v-if="pendingImport"
+      :tasks="pendingImport.tasks"
+      :file-name="pendingImport.fileName"
+      :skipped-rows="pendingImport.skippedRows"
+      :jira-base-url="pendingImport.jiraBaseUrl"
+      @confirm="handleConfirmImport"
+      @close="handleCancelImport"
+    />
 
     <!-- Error message -->
     <div

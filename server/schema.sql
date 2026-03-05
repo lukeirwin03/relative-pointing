@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   turn_started_at DATETIME,
   stack_mode INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  ended_at DATETIME
 );
 CREATE TABLE IF NOT EXISTS participants (
   id TEXT PRIMARY KEY,
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS columns (
   name TEXT NOT NULL,
   column_order INTEGER,
   created_by TEXT,
+  point_value REAL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
