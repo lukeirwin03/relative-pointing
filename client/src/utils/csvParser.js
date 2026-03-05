@@ -15,20 +15,29 @@ export function parseJiraCSV(file) {
       skipEmptyLines: true,
       complete: (results) => {
         try {
-          const tasks = results.data.map((row, index) => {
+          const tasks = [];
+          let skippedRows = 0;
+
+          results.data.forEach((row, index) => {
             // Extract common Jira fields (case-insensitive for issue key)
             const issueKey =
               row['Issue key'] ||
               row['Issue Key'] ||
               row['Key'] ||
               `TASK-${index + 1}`;
-            const summary = row['Summary'] || row['Title'] || 'Untitled Task';
+            const summary = row['Summary'] || row['Title'] || '';
             const description = row['Description'] || '';
             const issueType = row['Issue Type'] || row['Type'] || '';
             const priority = row['Priority'] || '';
             const status = row['Status'] || '';
 
-            return {
+            // Skip rows with no meaningful title
+            if (!summary.trim()) {
+              skippedRows++;
+              return;
+            }
+
+            tasks.push({
               jiraKey: issueKey,
               title: summary,
               description: description,
@@ -41,7 +50,7 @@ export function parseJiraCSV(file) {
                 status,
                 // Only store essential fields, not the entire row (which can be huge with Jira exports)
               },
-            };
+            });
           });
 
           // Try to extract Jira base URL from issue keys
@@ -51,6 +60,7 @@ export function parseJiraCSV(file) {
             tasks,
             jiraBaseUrl,
             totalCount: tasks.length,
+            skippedRows,
             fileName: file.name,
           });
         } catch (error) {
