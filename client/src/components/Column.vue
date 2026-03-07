@@ -57,14 +57,14 @@ const localTasks = computed({
 
 const variantClasses = computed(() => {
   if (props.variant === 'tasks') {
-    return 'bg-blue-50 dark:bg-neon-bg-700/60 border-2 border-blue-300 dark:border-neon-cyan/20 dark:neon-border-cyan';
+    return 'bg-warm-200 dark:bg-dark-bg-700/60 border-2 border-warm-400 dark:border-accent-cyan/20 dark:accent-border-primary';
   }
-  return 'bg-gray-100 dark:glass-panel-solid';
+  return 'bg-warm-50 border border-warm-400 shadow-md dark:glass-panel-solid dark:border-0 dark:shadow-none';
 });
 
 const titleClasses = computed(() => {
   if (props.variant === 'tasks') {
-    return 'text-lg font-bold text-blue-900 dark:neon-text-cyan';
+    return 'text-lg font-bold text-blue-900 dark:accent-text-primary';
   }
   return 'font-semibold text-gray-700 dark:text-gray-200';
 });
@@ -83,7 +83,7 @@ function onDragChange(evt) {
   <div>
     <div
       :class="[
-        'rounded-lg p-3 w-[220px] flex-shrink-0 transition-colors flex flex-col',
+        'rounded-lg p-3 w-[220px] flex-shrink-0 transition-colors flex flex-col warm-glow-border',
         variantClasses,
       ]"
       style="min-height: 400px"

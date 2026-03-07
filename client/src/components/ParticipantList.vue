@@ -153,7 +153,7 @@ function cancelTransfer() {
   <aside
     :class="[
       'h-full flex-shrink-0 transition-all duration-300 border-r',
-      'bg-white dark:glass-panel-solid dark:border-white/10 border-gray-200 z-20',
+      'bg-warm-50 dark:glass-panel-solid dark:border-white/10 border-warm-300 z-20',
       collapsed ? 'w-16' : 'w-64',
     ]"
   >
@@ -177,7 +177,7 @@ function cancelTransfer() {
 
       <!-- Header -->
       <div
-        class="relative z-10 p-3 border-b border-gray-200 dark:border-white/10 flex items-center"
+        class="relative z-10 p-3 border-b border-warm-300 dark:border-white/10 flex items-center"
         :class="collapsed ? 'justify-center' : 'justify-between'"
       >
         <span
@@ -190,7 +190,7 @@ function cancelTransfer() {
         </span>
         <button
           @click="emit('toggleCollapse')"
-          class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-neon-cyan transition-colors text-sm"
+          class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-accent-cyan transition-colors text-sm"
           :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         >
           {{ collapsed ? '▶' : '◀' }}
@@ -215,7 +215,7 @@ function cancelTransfer() {
                 class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold transition-all"
                 :class="[
                   participant.user_id === currentTurnUserId
-                    ? 'ring-2 ring-neon-green shadow-glow-green-sm animate-glow-pulse'
+                    ? 'ring-2 ring-accent-green shadow-glow-success-sm animate-glow-pulse'
                     : 'ring-2 ring-white/20',
                   { grayscale: !isOnline(participant) },
                 ]"
@@ -227,7 +227,7 @@ function cancelTransfer() {
               <!-- Offline dot -->
               <div
                 v-if="!isOnline(participant)"
-                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-gray-400 border-2 border-white dark:border-neon-bg-800"
+                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-gray-400 border-2 border-white dark:border-dark-bg-800"
                 title="Offline"
               />
             </div>
@@ -239,7 +239,7 @@ function cancelTransfer() {
                   class="text-sm font-medium truncate"
                   :class="
                     participant.user_id === currentTurnUserId
-                      ? 'text-gray-800 dark:neon-text-green'
+                      ? 'text-gray-800 dark:accent-text-success'
                       : 'text-gray-700 dark:text-gray-300'
                   "
                 >
@@ -257,7 +257,7 @@ function cancelTransfer() {
                 </div>
                 <div
                   v-if="participant.user_id === currentTurnUserId"
-                  class="text-[10px] font-semibold uppercase tracking-wider text-green-600 dark:text-neon-green"
+                  class="text-[10px] font-semibold uppercase tracking-wider text-green-600 dark:text-accent-green"
                 >
                   Current turn
                 </div>
@@ -313,8 +313,8 @@ function cancelTransfer() {
                 class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
                 :class="
                   disabledParticipants.has(participant.user_id)
-                    ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-neon-bg-600 hover:border-green-400 dark:hover:border-neon-green'
-                    : 'border-green-500 dark:border-neon-green bg-green-500 dark:bg-neon-green/80 text-white hover:bg-green-600'
+                    ? 'border-warm-400 dark:border-gray-600 bg-warm-200 dark:bg-dark-bg-600 hover:border-green-400 dark:hover:border-accent-green'
+                    : 'border-green-500 dark:border-accent-green bg-green-500 dark:bg-accent-green/80 text-white hover:bg-green-600'
                 "
                 :title="
                   disabledParticipants.has(participant.user_id)
@@ -360,7 +360,7 @@ function cancelTransfer() {
       <!-- Footer -->
       <div
         v-if="!collapsed && activeParticipants.length < participants.length"
-        class="relative z-10 p-3 border-t border-gray-200 dark:border-white/10 text-xs text-gray-500 dark:text-gray-400 text-center"
+        class="relative z-10 p-3 border-t border-warm-300 dark:border-white/10 text-xs text-gray-500 dark:text-gray-400 text-center"
       >
         {{ activeParticipants.length }} of {{ participants.length }} active
       </div>

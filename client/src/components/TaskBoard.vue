@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useSessionStore } from '../stores/session';
 import { useUserStore } from '../stores/user';
@@ -33,6 +33,8 @@ const jiraUrlInput = ref('');
 const showJiraUrlInput = ref(false);
 const sidebarCollapsed = ref(false);
 const boardAreaRef = ref(null);
+const dropZoneRef = ref(null);
+const columnsReady = ref(false);
 
 // Auto-collapse sidebar on narrow viewports
 const COLLAPSE_BREAKPOINT = 1024;
@@ -176,6 +178,25 @@ const sortedColumns = computed(() =>
   )
 );
 
+// Suppress column animation on initial load
+watch(sortedColumns, (cols) => {
+  if (!columnsReady.value && cols.length > 0) {
+    nextTick(() => {
+      columnsReady.value = true;
+    });
+  }
+});
+watch(
+  () => sessionStore.loading,
+  (loading) => {
+    if (!loading && !columnsReady.value) {
+      nextTick(() => {
+        columnsReady.value = true;
+      });
+    }
+  }
+);
+
 const unsortedTasks = computed(() =>
   sessionStore.displayTasks.filter((t) => t.column_id === 'unsorted')
 );
@@ -281,6 +302,16 @@ function handleUpdateTaskTag(taskId, tagId) {
   sessionStore.updateTaskTag(taskId, tagId);
 }
 
+// Live-lookup: keep the modal task in sync with optimistic/backend state
+const liveActionModalTask = computed(() => {
+  if (!actionModalTask.value) return null;
+  const taskId = String(actionModalTask.value.id);
+  return (
+    sessionStore.displayTasks.find((t) => String(t.id) === taskId) ||
+    actionModalTask.value
+  );
+});
+
 function handleOpenActionModal({ task, tab }) {
   actionModalTask.value = task;
   actionModalTab.value = tab || 'tags';
@@ -338,7 +369,7 @@ onUnmounted(() => {
   >
     <div class="text-center">
       <div
-        class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-neon-cyan mx-auto mb-4"
+        class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-accent-cyan mx-auto mb-4"
       ></div>
       <p class="text-gray-600 dark:text-gray-400">Loading session...</p>
     </div>
@@ -353,7 +384,7 @@ onUnmounted(() => {
       <p class="text-xl text-gray-600 dark:text-gray-400">Session not found</p>
       <router-link
         to="/"
-        class="text-blue-600 dark:neon-text-cyan hover:underline mt-4 inline-block"
+        class="text-blue-600 dark:accent-text-primary hover:underline mt-4 inline-block"
       >
         Create New Session
       </router-link>
@@ -363,7 +394,7 @@ onUnmounted(() => {
   <!-- Main board -->
   <div
     v-else
-    class="h-screen bg-gray-50 dark:bg-neon-bg-900 flex transition-colors neon-grid-bg"
+    class="h-screen bg-warm-100 dark:bg-dark-bg-900 flex transition-colors neon-grid-bg"
   >
     <!-- Christmas Snowflakes -->
     <Snowflakes v-if="themeStore.isChristmas" :count="50" />
@@ -391,14 +422,14 @@ onUnmounted(() => {
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Header -->
       <header
-        class="bg-white dark:glass-panel-solid shadow-sm border-b border-gray-200 dark:border-white/10"
+        class="bg-warm-50 dark:glass-panel-solid shadow-sm border-b border-warm-300 dark:border-white/10"
       >
         <div class="px-4 py-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
               <button
                 @click="router.push('/')"
-                class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-neon-cyan text-2xl transition-colors"
+                class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-accent-cyan text-2xl transition-colors"
                 title="Go to home"
               >
                 ←
@@ -411,7 +442,7 @@ onUnmounted(() => {
                   Room Code:
                   <span
                     @click="handleCopyRoomCode"
-                    class="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-white/5 transition-colors text-gray-800 dark:neon-text-cyan"
+                    class="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-white/5 transition-colors text-gray-800 dark:accent-text-primary"
                     title="Click to copy"
                   >
                     {{ roomCode }}
@@ -429,18 +460,18 @@ onUnmounted(() => {
                         type="text"
                         v-model="jiraUrlInput"
                         placeholder="https://company.atlassian.net"
-                        class="px-2 py-1 border border-gray-300 dark:border-white/20 rounded text-sm dark:bg-neon-bg-700 dark:text-white focus:ring-1 focus:ring-neon-cyan dark:focus:border-neon-cyan/50"
+                        class="px-2 py-1 border border-warm-400 dark:border-white/20 rounded text-sm dark:bg-dark-bg-700 dark:text-white focus:ring-1 focus:ring-accent-cyan dark:focus:border-accent-cyan/50"
                         autofocus
                       />
                       <button
                         @click="handleSaveJiraUrl"
-                        class="px-2 py-1 bg-blue-600 dark:bg-neon-green/80 text-white rounded text-sm hover:bg-blue-700 dark:hover:bg-neon-green transition-colors"
+                        class="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors btn-gradient-primary"
                       >
                         Save
                       </button>
                       <button
                         @click="showJiraUrlInput = false"
-                        class="px-2 py-1 bg-gray-300 dark:bg-white/10 text-gray-800 dark:text-white rounded text-sm hover:bg-gray-400 dark:hover:bg-white/20 transition-colors"
+                        class="px-2 py-1 bg-warm-300 dark:bg-white/10 text-gray-800 dark:text-white rounded text-sm hover:bg-warm-400 dark:hover:bg-white/20 transition-colors"
                       >
                         Cancel
                       </button>
@@ -467,14 +498,14 @@ onUnmounted(() => {
               <button
                 v-if="isCreator"
                 @click="showEndSessionConfirm = true"
-                class="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                class="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium btn-gradient-danger"
                 title="End this session and generate a report"
               >
                 End Session
               </button>
               <button
                 @click="themeStore.toggleChristmas()"
-                class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                class="p-2 rounded-lg hover:bg-warm-200 dark:hover:bg-white/5 transition-colors"
                 :title="
                   themeStore.isChristmas ? 'Disable snow' : 'Let it snow!'
                 "
@@ -483,7 +514,7 @@ onUnmounted(() => {
               </button>
               <button
                 @click="themeStore.toggleTheme()"
-                class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                class="p-2 rounded-lg hover:bg-warm-200 dark:hover:bg-white/5 transition-colors"
                 :title="
                   themeStore.isDark
                     ? 'Switch to light mode'
@@ -494,7 +525,7 @@ onUnmounted(() => {
               </button>
               <button
                 @click="handleLogout"
-                class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+                class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-warm-200 dark:hover:bg-white/5 rounded-lg transition-colors"
                 title="Logout"
               >
                 Logout
@@ -533,8 +564,8 @@ onUnmounted(() => {
             :class="[
               'font-semibold',
               sessionStore.isMyTurn
-                ? 'text-green-800 dark:neon-text-green'
-                : 'text-yellow-800 dark:text-neon-yellow',
+                ? 'text-green-800 dark:accent-text-success'
+                : 'text-yellow-800 dark:text-accent-yellow',
             ]"
           >
             <template v-if="sessionStore.isMyTurn"> It's your turn! </template>
@@ -547,14 +578,14 @@ onUnmounted(() => {
           <button
             v-if="sessionStore.isMyTurn"
             @click="sessionStore.endTurn()"
-            class="px-3 py-1.5 bg-green-600 dark:bg-neon-green/80 text-white dark:text-neon-bg-900 text-sm rounded-lg hover:bg-green-700 dark:hover:bg-neon-green transition-colors font-medium dark:shadow-glow-green-sm"
+            class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors font-medium btn-gradient-success"
           >
             End My Turn
           </button>
           <button
             v-if="isCreator && !sessionStore.isMyTurn"
             @click="sessionStore.endTurn()"
-            class="px-3 py-1.5 bg-yellow-600 dark:bg-neon-yellow/80 text-white dark:text-neon-bg-900 text-sm rounded-lg hover:bg-yellow-700 dark:hover:bg-neon-yellow transition-colors font-medium dark:shadow-glow-yellow-sm"
+            class="px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors font-medium btn-gradient-warning"
           >
             Skip Turn
           </button>
@@ -563,13 +594,13 @@ onUnmounted(() => {
 
       <!-- Complexity Header (interactive scroll nav) -->
       <div
-        class="bg-white dark:bg-neon-bg-800/60 border-b border-gray-200 dark:border-white/10 py-4"
+        class="bg-warm-50 dark:bg-dark-bg-800/60 border-b border-warm-300 dark:border-white/10 py-4"
       >
         <div
           class="flex items-center justify-center gap-2 px-4 pr-[calc(1rem+16rem)]"
         >
           <button
-            class="text-3xl text-gray-500 dark:text-neon-cyan/40 hover:text-gray-800 dark:hover:text-neon-cyan transition-colors cursor-pointer select-none"
+            class="text-3xl text-gray-500 dark:text-accent-cyan/40 hover:text-gray-800 dark:hover:text-accent-cyan transition-colors cursor-pointer select-none"
             title="Scroll left one column"
             @click="scrollColumnLeft"
           >
@@ -581,7 +612,7 @@ onUnmounted(() => {
             @click="handleComplexityBarClick"
           >
             <div
-              class="flex-1 h-1 bg-gradient-to-r from-gray-400 to-gray-300 dark:from-neon-cyan/30 dark:to-transparent rounded hover:h-1.5 transition-all"
+              class="flex-1 h-1 bg-gradient-to-r from-gray-400 to-gray-300 dark:from-accent-cyan/30 dark:to-transparent rounded hover:h-1.5 transition-all"
             ></div>
             <div class="text-center whitespace-nowrap pointer-events-none">
               <div
@@ -591,11 +622,11 @@ onUnmounted(() => {
               </div>
             </div>
             <div
-              class="flex-1 h-1 bg-gradient-to-r from-gray-300 to-gray-400 dark:from-transparent dark:to-neon-cyan/30 rounded hover:h-1.5 transition-all"
+              class="flex-1 h-1 bg-gradient-to-r from-gray-300 to-gray-400 dark:from-transparent dark:to-accent-cyan/30 rounded hover:h-1.5 transition-all"
             ></div>
           </div>
           <button
-            class="text-3xl text-gray-500 dark:text-neon-cyan/40 hover:text-gray-800 dark:hover:text-neon-cyan transition-colors cursor-pointer select-none"
+            class="text-3xl text-gray-500 dark:text-accent-cyan/40 hover:text-gray-800 dark:hover:text-accent-cyan transition-colors cursor-pointer select-none"
             title="Scroll right one column"
             @click="scrollColumnRight"
           >
@@ -611,9 +642,7 @@ onUnmounted(() => {
           ref="boardAreaRef"
           class="flex-1 overflow-x-auto overflow-y-auto p-4 relative z-10"
         >
-          <div
-            class="flex gap-4 min-h-full transition-all duration-200 px-4 mx-auto w-fit"
-          >
+          <div class="flex gap-4 min-h-full px-4 mx-auto w-fit">
             <template
               v-if="
                 sessionStore.displayTasks &&
@@ -647,26 +676,25 @@ onUnmounted(() => {
                   @task-dropped="handleDropZoneTask"
                 />
 
-                <!-- Columns -->
+                <!-- Columns with slide animation -->
                 <template
                   v-for="(column, index) in sortedColumns"
                   :key="`col-${column.id}`"
                 >
-                  <div
-                    class="transition-all duration-200"
-                    :data-column-index="index"
-                  >
-                    <Column
-                      :column-id="column.id"
-                      :title="column.name"
-                      :tasks="tasksForColumn(column.id)"
-                      :tags="sessionStore.tags"
-                      :jira-base-url="jiraBaseUrl"
-                      :drag-disabled="dragDisabled"
-                      @open-action-modal="handleOpenActionModal"
-                      @task-moved="handleTaskMoved"
-                    />
-                  </div>
+                  <Transition :name="columnsReady ? 'column-slide' : ''">
+                    <div :data-column-index="index">
+                      <Column
+                        :column-id="column.id"
+                        :title="column.name"
+                        :tasks="tasksForColumn(column.id)"
+                        :tags="sessionStore.tags"
+                        :jira-base-url="jiraBaseUrl"
+                        :drag-disabled="dragDisabled"
+                        @open-action-modal="handleOpenActionModal"
+                        @task-moved="handleTaskMoved"
+                      />
+                    </div>
+                  </Transition>
                   <!-- Between columns drop zone -->
                   <CreateColumnDropZone
                     v-if="
@@ -707,10 +735,10 @@ onUnmounted(() => {
 
         <!-- Tasks Queue Panel - Right Sidebar -->
         <div
-          class="w-64 bg-white dark:bg-neon-bg-800/60 border-l border-gray-200 dark:border-white/10 flex flex-col overflow-hidden relative z-20"
+          class="w-64 bg-warm-50 dark:bg-dark-bg-800/60 border-l border-warm-300 dark:border-white/10 flex flex-col overflow-hidden relative z-20"
         >
           <div
-            class="p-4 border-b border-gray-200 dark:border-white/10 flex-1 overflow-y-auto"
+            class="p-4 border-b border-warm-300 dark:border-white/10 flex-1 overflow-y-auto"
           >
             <Column
               column-id="unsorted"
@@ -728,7 +756,7 @@ onUnmounted(() => {
           </div>
           <!-- Sidebar Footer -->
           <div
-            class="p-3 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-neon-bg-700/50 space-y-2"
+            class="p-3 border-t border-warm-300 dark:border-white/10 bg-warm-100 dark:bg-dark-bg-700/50 space-y-2"
           >
             <!-- Stack Mode Toggle (creator only) -->
             <label
@@ -739,7 +767,7 @@ onUnmounted(() => {
                 type="checkbox"
                 :checked="sessionStore.stackMode"
                 @change="sessionStore.toggleStackMode()"
-                class="rounded border-gray-300 dark:border-white/20"
+                class="rounded border-warm-400 dark:border-white/20"
               />
               Stack mode (one task at a time)
             </label>
@@ -751,7 +779,7 @@ onUnmounted(() => {
                 sessionStore.topUnsortedTask
               "
               @click="sessionStore.skipTopTask()"
-              class="w-full px-3 py-2 bg-orange-500 dark:bg-neon-yellow/80 text-white dark:text-neon-bg-900 rounded-lg hover:bg-orange-600 dark:hover:bg-neon-yellow transition-colors font-medium text-sm dark:shadow-glow-yellow-sm"
+              class="w-full px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm btn-gradient-warning"
             >
               Skip Task
             </button>
@@ -759,10 +787,19 @@ onUnmounted(() => {
             <button
               v-if="isCreator"
               @click="showCreateTask = true"
-              class="w-full px-3 py-2 bg-green-600 dark:bg-neon-green/80 text-white dark:text-neon-bg-900 rounded-lg hover:bg-green-700 dark:hover:bg-neon-green transition-colors font-medium text-sm dark:shadow-glow-green-sm"
+              class="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm btn-gradient-success"
               title="Add a new task manually"
             >
               + Create Task
+            </button>
+            <!-- Import CSV Button -->
+            <button
+              v-if="isCreator"
+              @click="dropZoneRef?.openFilePicker()"
+              class="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm btn-gradient-primary"
+              title="Import tasks from a Jira or Linear CSV export"
+            >
+              Import CSV
             </button>
           </div>
         </div>
@@ -779,8 +816,8 @@ onUnmounted(() => {
 
     <!-- Task Action Modal (Tags & Comments) -->
     <TaskActionModal
-      v-if="actionModalTask"
-      :task="actionModalTask"
+      v-if="liveActionModalTask"
+      :task="liveActionModalTask"
       :tags="sessionStore.tags"
       :initial-tab="actionModalTab"
       @update-tag="handleUpdateTaskTag"
@@ -789,7 +826,11 @@ onUnmounted(() => {
     />
 
     <!-- Drop Zone Overlay for CSV import -->
-    <DropZoneOverlay :room-code="roomCode" :is-creator="isCreator" />
+    <DropZoneOverlay
+      ref="dropZoneRef"
+      :room-code="roomCode"
+      :is-creator="isCreator"
+    />
 
     <!-- End Session Confirmation Modal -->
     <Teleport to="body">
@@ -799,7 +840,7 @@ onUnmounted(() => {
         @click.self="showEndSessionConfirm = false"
       >
         <div
-          class="bg-white dark:bg-neon-bg-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-white/10"
+          class="bg-warm-50 dark:bg-dark-bg-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4 border border-warm-300 dark:border-white/10 warm-glow-border"
         >
           <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-2">
             End Session?
@@ -811,13 +852,13 @@ onUnmounted(() => {
           <div class="flex gap-3 justify-end">
             <button
               @click="showEndSessionConfirm = false"
-              class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+              class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-warm-200 dark:bg-white/10 rounded-lg hover:bg-warm-300 dark:hover:bg-white/20 transition-colors"
             >
               Cancel
             </button>
             <button
               @click="handleEndSession"
-              class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium btn-gradient-danger"
             >
               End Session
             </button>

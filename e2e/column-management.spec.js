@@ -169,4 +169,171 @@ test.describe('Column Management', () => {
 
     await user.context.close();
   });
+
+  test('column appears dynamically when created after page load', async ({
+    browser,
+    request,
+  }) => {
+    // Put a task into a column so user sees something initially
+    const colInitial = `col-init-${generateUUID().slice(0, 8)}`;
+    await createColumnViaAPI(request, roomCode, colInitial, 'Initial', 1);
+    const data = await getSessionViaAPI(request, roomCode);
+    await moveTaskViaAPI(
+      request,
+      roomCode,
+      data.tasks[0].id,
+      colInitial,
+      'system'
+    );
+
+    const user = await createAuthenticatedUserInSession(
+      browser,
+      request,
+      roomCode,
+      'Watcher'
+    );
+    // PROJ-123 is in the column on the board (not in the Tasks sidebar)
+    const boardArea = user.page.locator('.overflow-x-auto');
+    await expect(boardArea.getByText('PROJ-123').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+
+    // Now create a second column and move a task into it while user is on the page
+    const colNew = `col-new-${generateUUID().slice(0, 8)}`;
+    await createColumnViaAPI(request, roomCode, colNew, 'NewColumn', 2);
+    await moveTaskViaAPI(request, roomCode, data.tasks[1].id, colNew, 'system');
+
+    // After polling, PROJ-124 should appear in the board area
+    await expect(boardArea.getByText('PROJ-124').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+
+    // Verify 2 columns exist via API
+    const updated = await getSessionViaAPI(request, roomCode);
+    expect(updated.columns).toHaveLength(2);
+
+    await user.context.close();
+  });
+
+  test('column disappears when deleted after page load', async ({
+    browser,
+    request,
+  }) => {
+    const colKeep = `col-keep-${generateUUID().slice(0, 8)}`;
+    const colRemove = `col-remove-${generateUUID().slice(0, 8)}`;
+    await createColumnViaAPI(request, roomCode, colKeep, 'KeepMe', 1);
+    await createColumnViaAPI(request, roomCode, colRemove, 'RemoveMe', 2);
+
+    const data = await getSessionViaAPI(request, roomCode);
+    await moveTaskViaAPI(
+      request,
+      roomCode,
+      data.tasks[0].id,
+      colKeep,
+      'system'
+    );
+    await moveTaskViaAPI(
+      request,
+      roomCode,
+      data.tasks[1].id,
+      colRemove,
+      'system'
+    );
+
+    const user = await createAuthenticatedUserInSession(
+      browser,
+      request,
+      roomCode,
+      'Watcher'
+    );
+    const boardArea = user.page.locator('.overflow-x-auto');
+    await expect(boardArea.getByText('PROJ-123').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+    await expect(boardArea.getByText('PROJ-124').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+
+    // Move task out and delete the column
+    await moveTaskViaAPI(
+      request,
+      roomCode,
+      data.tasks[1].id,
+      'unsorted',
+      'system'
+    );
+    await request.delete(
+      `${API_URL}/sessions/${roomCode}/columns/${colRemove}`
+    );
+
+    // PROJ-124 should leave the board area (moved back to unsorted sidebar)
+    await expect(boardArea.getByText('PROJ-124')).toHaveCount(0, POLL_TIMEOUT);
+    // PROJ-123 should still be visible in its column
+    await expect(boardArea.getByText('PROJ-123').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+
+    // Only 1 column remains
+    const updated = await getSessionViaAPI(request, roomCode);
+    expect(updated.columns).toHaveLength(1);
+    expect(updated.columns[0].id).toBe(colKeep);
+
+    await user.context.close();
+  });
+
+  test('full column lifecycle: 0 → 2 → delete 1 → verify 1 remains', async ({
+    browser,
+    request,
+  }) => {
+    const user = await createAuthenticatedUserInSession(
+      browser,
+      request,
+      roomCode,
+      'Lifecycle'
+    );
+    const boardArea = user.page.locator('.overflow-x-auto');
+
+    // Start with 0 columns
+    const data = await getSessionViaAPI(request, roomCode);
+    expect(data.columns).toHaveLength(0);
+
+    // Create two columns and move tasks into them
+    const colA = `col-a-${generateUUID().slice(0, 8)}`;
+    const colB = `col-b-${generateUUID().slice(0, 8)}`;
+    await createColumnViaAPI(request, roomCode, colA, 'ColA', 1);
+    await createColumnViaAPI(request, roomCode, colB, 'ColB', 2);
+    await moveTaskViaAPI(request, roomCode, data.tasks[0].id, colA, 'system');
+    await moveTaskViaAPI(request, roomCode, data.tasks[1].id, colB, 'system');
+
+    // Both tasks should appear in the board area
+    await expect(boardArea.getByText('PROJ-123').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+    await expect(boardArea.getByText('PROJ-124').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+
+    // Delete one column (move task back to unsorted first)
+    await moveTaskViaAPI(
+      request,
+      roomCode,
+      data.tasks[0].id,
+      'unsorted',
+      'system'
+    );
+    await request.delete(`${API_URL}/sessions/${roomCode}/columns/${colA}`);
+
+    // PROJ-123 should leave the board, PROJ-124 should remain
+    await expect(boardArea.getByText('PROJ-123')).toHaveCount(0, POLL_TIMEOUT);
+    await expect(boardArea.getByText('PROJ-124').first()).toBeVisible(
+      POLL_TIMEOUT
+    );
+
+    // Verify via API
+    const finalData = await getSessionViaAPI(request, roomCode);
+    expect(finalData.columns).toHaveLength(1);
+    expect(finalData.columns[0].id).toBe(colB);
+
+    await user.context.close();
+  });
 });

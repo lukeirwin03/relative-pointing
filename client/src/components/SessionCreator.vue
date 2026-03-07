@@ -79,13 +79,13 @@ async function handleJoinSession() {
 
 <template>
   <div
-    class="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-neon-bg-900 dark:to-neon-bg-800 relative neon-grid-bg"
+    class="flex items-center justify-center min-h-screen bg-gradient-to-br from-warm-100 to-warm-200 dark:from-dark-bg-900 dark:to-dark-bg-800 relative neon-grid-bg"
   >
     <div class="absolute bottom-4 right-4">
       <Version />
     </div>
     <div
-      class="bg-white dark:glass-panel-solid p-8 rounded-lg shadow-lg dark:shadow-card max-w-md w-full"
+      class="bg-warm-50 dark:glass-panel-solid p-8 rounded-lg shadow-lg dark:shadow-card max-w-md w-full warm-glow-border"
     >
       <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">
         Relative Pointing
@@ -102,8 +102,8 @@ async function handleJoinSession() {
           :class="[
             'flex-1 py-2 px-4 rounded-lg font-medium transition-all',
             mode === 'create'
-              ? 'bg-blue-600 dark:bg-neon-cyan/80 text-white dark:text-neon-bg-900 dark:shadow-glow-cyan-sm'
-              : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10',
+              ? 'bg-blue-600 text-white btn-gradient-primary'
+              : 'bg-warm-200 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:bg-warm-300 dark:hover:bg-white/10',
           ]"
         >
           Create Session
@@ -114,8 +114,8 @@ async function handleJoinSession() {
           :class="[
             'flex-1 py-2 px-4 rounded-lg font-medium transition-all',
             mode === 'join'
-              ? 'bg-blue-600 dark:bg-neon-cyan/80 text-white dark:text-neon-bg-900 dark:shadow-glow-cyan-sm'
-              : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10',
+              ? 'bg-blue-600 text-white btn-gradient-primary'
+              : 'bg-warm-200 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:bg-warm-300 dark:hover:bg-white/10',
           ]"
         >
           Join Session
@@ -135,7 +135,7 @@ async function handleJoinSession() {
             type="text"
             id="userName"
             v-model="userName"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-neon-cyan focus:border-transparent dark:bg-neon-bg-700 dark:text-white dark:placeholder-gray-500"
+            class="w-full px-4 py-2 border border-warm-400 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-accent-cyan focus:border-transparent dark:bg-dark-bg-700 dark:text-white dark:placeholder-gray-500"
             placeholder="Enter your name"
             maxlength="50"
             :disabled="loading"
@@ -153,7 +153,7 @@ async function handleJoinSession() {
         <button
           type="submit"
           :disabled="loading || !userName.trim()"
-          class="w-full bg-blue-600 dark:bg-neon-cyan/80 text-white dark:text-neon-bg-900 py-2 px-4 rounded-lg hover:bg-blue-700 dark:hover:bg-neon-cyan transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed dark:shadow-glow-cyan-sm font-medium"
+          class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed font-medium btn-gradient-primary"
         >
           {{ loading ? 'Creating Session...' : 'Create New Session' }}
         </button>
@@ -172,7 +172,7 @@ async function handleJoinSession() {
             type="text"
             id="userName-join"
             v-model="userName"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-neon-cyan focus:border-transparent dark:bg-neon-bg-700 dark:text-white dark:placeholder-gray-500"
+            class="w-full px-4 py-2 border border-warm-400 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-accent-cyan focus:border-transparent dark:bg-dark-bg-700 dark:text-white dark:placeholder-gray-500"
             placeholder="Enter your name"
             maxlength="50"
             :disabled="loading"
@@ -192,7 +192,7 @@ async function handleJoinSession() {
             id="roomCode"
             v-model="roomCode"
             @input="roomCode = roomCode.toLowerCase()"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-neon-cyan focus:border-transparent dark:bg-neon-bg-700 dark:text-white dark:placeholder-gray-500"
+            class="w-full px-4 py-2 border border-warm-400 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-accent-cyan focus:border-transparent dark:bg-dark-bg-700 dark:text-white dark:placeholder-gray-500"
             placeholder="Enter room code"
             :disabled="loading"
           />
@@ -208,7 +208,7 @@ async function handleJoinSession() {
         <button
           type="submit"
           :disabled="loading || !userName.trim() || !roomCode.trim()"
-          class="w-full bg-blue-600 dark:bg-neon-cyan/80 text-white dark:text-neon-bg-900 py-2 px-4 rounded-lg hover:bg-blue-700 dark:hover:bg-neon-cyan transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed dark:shadow-glow-cyan-sm font-medium"
+          class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed font-medium btn-gradient-primary"
         >
           {{ loading ? 'Joining...' : 'Join Session' }}
         </button>
