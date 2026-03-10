@@ -43,7 +43,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['openActionModal', 'deleteColumn', 'taskMoved']);
+const emit = defineEmits(['openActionModal', 'taskMoved']);
 
 const selectedTask = ref(null);
 
@@ -57,9 +57,9 @@ const localTasks = computed({
 
 const variantClasses = computed(() => {
   if (props.variant === 'tasks') {
-    return 'bg-warm-200 dark:bg-dark-bg-700/60 border-2 border-warm-400 dark:border-accent-cyan/20 dark:accent-border-primary';
+    return 'bg-transparent dark:bg-transparent border-2 border-transparent dark:border-accent-cyan/20 dark:accent-border-primary';
   }
-  return 'bg-warm-50 border border-warm-400 shadow-md dark:glass-panel-solid dark:border-0 dark:shadow-none';
+  return 'bg-transparent dark:bg-transparent border border-transparent dark:border-0 shadow-none dark:shadow-none';
 });
 
 const titleClasses = computed(() => {
@@ -105,28 +105,40 @@ function onDragChange(evt) {
         ghost-class="opacity-30"
         @change="onDragChange"
       >
-        <template #item="{ element }">
-          <TaskItem
-            :task="element"
-            :jira-base-url="jiraBaseUrl"
-            :tags="tags"
-            :show-info="true"
-            :highlighted="
-              stackMode &&
-              variant === 'tasks' &&
-              topTaskId &&
-              String(element.id) === String(topTaskId)
-            "
-            :drag-disabled="
-              dragDisabled ||
-              (stackMode &&
+        <template #item="{ element, index }">
+          <div>
+            <TaskItem
+              :task="element"
+              :jira-base-url="jiraBaseUrl"
+              :tags="tags"
+              :show-info="true"
+              :highlighted="
+                stackMode &&
                 variant === 'tasks' &&
                 topTaskId &&
-                String(element.id) !== String(topTaskId))
-            "
-            @open-action-modal="emit('openActionModal', $event)"
-            @show-info="selectedTask = $event"
-          />
+                String(element.id) === String(topTaskId)
+              "
+              :drag-disabled="
+                dragDisabled ||
+                (stackMode &&
+                  variant === 'tasks' &&
+                  topTaskId &&
+                  String(element.id) !== String(topTaskId))
+              "
+              @open-action-modal="emit('openActionModal', $event)"
+              @show-info="selectedTask = $event"
+            />
+            <!-- Stack mode separator between top card and rest -->
+            <hr
+              v-if="
+                stackMode &&
+                variant === 'tasks' &&
+                index === 0 &&
+                localTasks.length > 1
+              "
+              class="border-t border-amber-300 dark:border-cyan-700 my-3 mx-1 opacity-60"
+            />
+          </div>
         </template>
         <template #footer>
           <p

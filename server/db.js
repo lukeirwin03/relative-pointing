@@ -222,7 +222,28 @@ function runMigrations(callback) {
                                         );
                                       }
 
-                                      if (callback) callback();
+                                      // Migration 11: Add started_at column to sessions
+                                      db.run(
+                                        `ALTER TABLE sessions ADD COLUMN started_at DATETIME`,
+                                        (err11) => {
+                                          if (
+                                            err11 &&
+                                            err11.message.includes(
+                                              'duplicate column'
+                                            )
+                                          ) {
+                                            console.log(
+                                              'Migration: started_at column already exists'
+                                            );
+                                          } else if (!err11) {
+                                            console.log(
+                                              'Migration: Added started_at column to sessions'
+                                            );
+                                          }
+
+                                          if (callback) callback();
+                                        }
+                                      );
                                     }
                                   );
                                 }
@@ -366,8 +387,8 @@ function startPresenceCheck() {
           ? JSON.parse(session.skipped_participants)
           : [];
 
-        // --- Auto-skip turn if turn holder is offline ---
-        if (session.current_turn_user_id) {
+        // --- Auto-skip turn if turn holder is offline (only for started sessions) ---
+        if (session.current_turn_user_id && session.started_at) {
           const turnHolder = participants.find(
             (p) => p.user_id === session.current_turn_user_id
           );
@@ -416,8 +437,8 @@ function startPresenceCheck() {
           [session.id]
         );
 
-        // If turn is null but there are online active participants, assign one
-        if (!freshSession.current_turn_user_id) {
+        // If turn is null but session has started and there are online active participants, assign one
+        if (!freshSession.current_turn_user_id && freshSession.started_at) {
           const onlineActive = participants.filter(
             (p) =>
               !skippedList.includes(p.user_id) &&

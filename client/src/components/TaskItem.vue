@@ -62,22 +62,33 @@ function openJira(e) {
 <template>
   <div
     :class="[
-      'p-3 rounded-lg shadow-sm transition-all group relative warm-glow-border',
-      'bg-warm-50 dark:glass-card',
+      'p-3 rounded-lg transition-all group relative',
+      'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:shadow-sm dark:glass-card dark:warm-glow-border',
       dragDisabled
         ? 'cursor-default no-drag'
         : 'cursor-grab active:cursor-grabbing',
       !dragDisabled && 'hover:shadow-md dark:hover:shadow-card-hover',
-      highlighted &&
-        'ring-2 ring-blue-400/60 dark:ring-accent-cyan/50 shadow-[0_0_12px_rgba(59,130,246,0.3)] dark:shadow-[0_0_16px_rgba(86,214,224,0.25)]',
-      taskTag
-        ? `border-l-4 ${tagColors.border}`
-        : 'border-l-4 border-transparent',
+      highlighted
+        ? 'card-glow-golden'
+        : taskTag && tagColors.glowRgb
+          ? 'card-glow'
+          : '',
     ]"
+    :style="
+      !highlighted && taskTag && tagColors.glowRgb
+        ? { '--glow-color': tagColors.glowRgb }
+        : {}
+    "
   >
+    <!-- Corner tab -->
+    <div
+      v-if="taskTag && tagColors.cornerColor"
+      class="absolute top-0 right-0 w-5 h-5 rounded-bl-lg rounded-tr-lg"
+      :style="{ backgroundColor: tagColors.cornerColor }"
+    ></div>
     <!-- Icons (top-right, hover-visible) -->
     <div
-      class="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+      class="absolute top-1 right-7 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
     >
       <!-- Add tag button (shown when no tag) -->
       <button
@@ -186,7 +197,6 @@ function openJira(e) {
         :class="[
           'px-2 py-0.5 rounded-full text-[10px] font-semibold inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity max-w-[90px] truncate',
           tagColors.pill,
-          'dark:' + tagColors.glow,
         ]"
         :title="taskTag.name"
         @pointerdown.stop

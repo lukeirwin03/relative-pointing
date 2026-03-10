@@ -54,8 +54,14 @@ router.post('/', async (req, res) => {
       console.log(`[CREATE] Creating session with room code: ${roomCode}`);
       try {
         await dbPromise.run(
-          `INSERT INTO sessions (id, room_code, creator_id, creator_name, current_turn_user_id, turn_started_at, last_activity_at, stack_mode) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)`,
-          [sessionId, roomCode, creatorId, creatorName, creatorId]
+          `INSERT INTO sessions (id, room_code, creator_id, creator_name, skipped_participants, last_activity_at, stack_mode) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)`,
+          [
+            sessionId,
+            roomCode,
+            creatorId,
+            creatorName,
+            JSON.stringify([creatorId]),
+          ]
         );
         break;
       } catch (err) {
@@ -454,7 +460,7 @@ router.patch('/:roomCode', async (req, res) => {
       values
     );
 
-    // If skipped_participants changed, check if current turn user is now skipped
+    // If skipped_participants changed and session has started, check if current turn user is now skipped
     if (skipped_participants !== undefined) {
       const updatedSession = await dbPromise.get(
         `SELECT * FROM sessions WHERE id = ?`,
@@ -462,6 +468,7 @@ router.patch('/:roomCode', async (req, res) => {
       );
       const skippedList = skipped_participants || [];
       if (
+        updatedSession.started_at &&
         updatedSession.current_turn_user_id &&
         skippedList.includes(updatedSession.current_turn_user_id)
       ) {
@@ -493,12 +500,12 @@ router.patch('/:roomCode', async (req, res) => {
       }
 
       // If turn is currently null (all were disabled) and we now have active participants,
-      // assign the turn to the first active participant
+      // assign the turn to the first active participant — but only if the session has started
       const currentSession = await dbPromise.get(
-        `SELECT current_turn_user_id FROM sessions WHERE id = ?`,
+        `SELECT current_turn_user_id, started_at FROM sessions WHERE id = ?`,
         [session.id]
       );
-      if (!currentSession.current_turn_user_id) {
+      if (!currentSession.current_turn_user_id && currentSession.started_at) {
         const participants = await dbPromise.all(
           `SELECT * FROM participants WHERE session_id = ? ORDER BY joined_at ASC`,
           [session.id]
@@ -745,6 +752,67 @@ router.delete('/:roomCode/columns/:columnId', async (req, res) => {
 });
 
 // End a session (leader only)
+// Start a session (creator only) — initializes turn rotation
+router.post('/:roomCode/start', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE LOWER(room_code) = LOWER(?)`,
+      [roomCode]
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    if (userId !== session.creator_id) {
+      return res
+        .status(403)
+        .json({ error: 'Only the session creator can start the session' });
+    }
+
+    if (session.started_at) {
+      return res.status(400).json({ error: 'Session already started' });
+    }
+
+    // Find the first non-skipped participant to assign the turn to
+    const participants = await dbPromise.all(
+      `SELECT * FROM participants WHERE session_id = ? ORDER BY joined_at ASC`,
+      [session.id]
+    );
+    const skippedList = session.skipped_participants
+      ? JSON.parse(session.skipped_participants)
+      : [];
+    const activeParticipants = participants.filter(
+      (p) => !skippedList.includes(p.user_id)
+    );
+
+    if (activeParticipants.length === 0) {
+      return res
+        .status(400)
+        .json({ error: 'No active participants to start with' });
+    }
+
+    const firstActiveUserId = activeParticipants[0].user_id;
+
+    await dbPromise.run(
+      `UPDATE sessions SET started_at = CURRENT_TIMESTAMP, current_turn_user_id = ?, turn_started_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [firstActiveUserId, session.id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error starting session:', err);
+    res.status(500).json({ error: 'Failed to start session' });
+  }
+});
+
 router.post('/:roomCode/end', async (req, res) => {
   try {
     const { roomCode } = req.params;

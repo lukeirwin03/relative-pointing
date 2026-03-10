@@ -268,7 +268,7 @@ onMounted(fetchReport);
           </select>
           <button
             @click="handleApplyScale"
-            class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium btn-gradient-primary"
+            class="px-4 py-2 text-sm rounded-lg transition-colors font-medium cursor-pointer btn-gradient-primary"
           >
             Apply Scale
           </button>

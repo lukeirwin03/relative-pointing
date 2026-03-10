@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   turn_started_at DATETIME,
   stack_mode INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  started_at DATETIME,
   last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   ended_at DATETIME
 );

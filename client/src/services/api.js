@@ -183,31 +183,6 @@ class APIService {
   }
 
   /**
-   * Update task color tag (legacy)
-   */
-  static async updateTaskColor(roomCode, taskId, colorTag) {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/sessions/${roomCode}/tasks/${taskId}/color`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ colorTag }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to update task color');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error updating task color:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Update task tag
    */
   static async updateTaskTag(roomCode, taskId, tagId) {
@@ -557,6 +532,32 @@ class APIService {
       return await response.json();
     } catch (error) {
       console.error('Error transferring ownership:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Start a session (creator only) — initializes turn rotation
+   */
+  static async startSession(roomCode, userId) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/start`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to start session');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error starting session:', error);
       throw error;
     }
   }

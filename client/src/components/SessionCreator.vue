@@ -102,7 +102,7 @@ async function handleJoinSession() {
           :class="[
             'flex-1 py-2 px-4 rounded-lg font-medium transition-all',
             mode === 'create'
-              ? 'bg-blue-600 text-white btn-gradient-primary'
+              ? 'bg-blue-600 text-white dark:bg-blue-500'
               : 'bg-warm-200 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:bg-warm-300 dark:hover:bg-white/10',
           ]"
         >
@@ -114,7 +114,7 @@ async function handleJoinSession() {
           :class="[
             'flex-1 py-2 px-4 rounded-lg font-medium transition-all',
             mode === 'join'
-              ? 'bg-blue-600 text-white btn-gradient-primary'
+              ? 'bg-blue-600 text-white dark:bg-blue-500'
               : 'bg-warm-200 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:bg-warm-300 dark:hover:bg-white/10',
           ]"
         >
@@ -153,7 +153,7 @@ async function handleJoinSession() {
         <button
           type="submit"
           :disabled="loading || !userName.trim()"
-          class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed font-medium btn-gradient-primary"
+          class="w-full py-2 px-4 rounded-lg transition-all disabled:cursor-not-allowed font-medium cursor-pointer btn-gradient-primary"
         >
           {{ loading ? 'Creating Session...' : 'Create New Session' }}
         </button>
@@ -208,7 +208,7 @@ async function handleJoinSession() {
         <button
           type="submit"
           :disabled="loading || !userName.trim() || !roomCode.trim()"
-          class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed font-medium btn-gradient-primary"
+          class="w-full py-2 px-4 rounded-lg transition-all disabled:cursor-not-allowed font-medium cursor-pointer btn-gradient-primary"
         >
           {{ loading ? 'Joining...' : 'Join Session' }}
         </button>

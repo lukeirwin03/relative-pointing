@@ -7,19 +7,12 @@ const props = defineProps({
     type: String,
     default: 'new-column',
   },
-  isFirst: {
-    type: Boolean,
-    default: false,
-  },
 });
 
 const emit = defineEmits(['taskDropped']);
 
-const widthClass = computed(() =>
-  props.isFirst ? 'min-w-[50px]' : 'min-w-[20px]'
-);
-
-// Drop zone starts locked — only accepts drops after hover delay
+// Drop zone starts locked — only accepts drops after a short hover delay
+// to prevent accidental column creation when dragging past quickly.
 const activated = ref(false);
 let hoverTimer = null;
 
@@ -46,7 +39,7 @@ onUnmounted(() => {
   clearTimeout(hoverTimer);
 });
 
-// Empty list for the drop zone
+// Empty list — drop zone never holds items itself
 const items = computed({
   get: () => [],
   set: () => {},
@@ -69,18 +62,15 @@ function onDragChange(evt) {
     :group="groupConfig"
     item-key="id"
     :class="[
-      'rounded-lg flex-shrink-0 min-h-[500px] border-2 border-dashed flex items-center justify-center text-center transition-all duration-300 ease-out',
+      'rounded-lg flex-shrink-0 min-h-[500px] border-2 border-dashed flex items-center justify-center text-center transition-colors transition-opacity duration-150',
       activated
-        ? 'min-w-[120px] border-blue-500 bg-blue-100 dark:border-accent-cyan/60 dark:bg-accent-cyan/15'
-        : [
-            widthClass,
-            'border-blue-400/50 bg-blue-50/40 dark:border-accent-cyan/20 dark:bg-accent-cyan/5',
-          ],
+        ? 'min-w-[120px] border-blue-500 bg-blue-100 dark:border-accent-cyan/60 dark:bg-accent-cyan/15 opacity-100'
+        : 'min-w-[50px] border-gray-300/60 dark:border-white/10 opacity-60',
     ]"
     ghost-class="opacity-0"
     @change="onDragChange"
-    @dragenter.native="onHoverStart"
-    @dragleave.native="onHoverEnd"
+    @dragenter="onHoverStart"
+    @dragleave="onHoverEnd"
   >
     <template #header>
       <div

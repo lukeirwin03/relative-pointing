@@ -204,7 +204,7 @@ async function handleImport() {
             type="button"
             @click="handleImport"
             :disabled="loading || noneSelected"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px] btn-gradient-primary"
+            class="px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed min-w-[120px] cursor-pointer btn-gradient-primary"
           >
             {{
               loading

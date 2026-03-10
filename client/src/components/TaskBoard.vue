@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useSessionStore } from '../stores/session';
 import { useUserStore } from '../stores/user';
@@ -34,7 +34,6 @@ const showJiraUrlInput = ref(false);
 const sidebarCollapsed = ref(false);
 const boardAreaRef = ref(null);
 const dropZoneRef = ref(null);
-const columnsReady = ref(false);
 
 // Auto-collapse sidebar on narrow viewports
 const COLLAPSE_BREAKPOINT = 1024;
@@ -178,25 +177,6 @@ const sortedColumns = computed(() =>
   )
 );
 
-// Suppress column animation on initial load
-watch(sortedColumns, (cols) => {
-  if (!columnsReady.value && cols.length > 0) {
-    nextTick(() => {
-      columnsReady.value = true;
-    });
-  }
-});
-watch(
-  () => sessionStore.loading,
-  (loading) => {
-    if (!loading && !columnsReady.value) {
-      nextTick(() => {
-        columnsReady.value = true;
-      });
-    }
-  }
-);
-
 const unsortedTasks = computed(() =>
   sessionStore.displayTasks.filter((t) => t.column_id === 'unsorted')
 );
@@ -317,12 +297,25 @@ function handleOpenActionModal({ task, tab }) {
   actionModalTab.value = tab || 'tags';
 }
 
-function handleDeleteColumn(columnId, task) {
-  sessionStore.deleteColumn(columnId, task);
-}
-
 function handleTaskCreated() {
   showCreateTask.value = false;
+}
+
+async function handleStartSession() {
+  try {
+    await sessionStore.startSession();
+    // Auto-move the top unsorted task into a new column so the board isn't empty
+    const topTask = sessionStore.topUnsortedTask;
+    if (topTask) {
+      sessionStore.moveTaskToColumn(
+        String(topTask.id),
+        'new-column',
+        userStore.userId
+      );
+    }
+  } catch (err) {
+    alert('Failed to start session: ' + err.message);
+  }
 }
 
 async function handleEndSession() {
@@ -465,7 +458,7 @@ onUnmounted(() => {
                       />
                       <button
                         @click="handleSaveJiraUrl"
-                        class="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors btn-gradient-primary"
+                        class="px-2 py-1 rounded text-sm transition-colors cursor-pointer btn-gradient-primary"
                       >
                         Save
                       </button>
@@ -496,9 +489,17 @@ onUnmounted(() => {
 
             <div class="flex items-center gap-3">
               <button
-                v-if="isCreator"
+                v-if="isCreator && !sessionStore.isStarted"
+                @click="handleStartSession"
+                class="px-3 py-2 text-sm rounded-lg transition-colors font-medium cursor-pointer btn-gradient-success"
+                title="Start the session and begin turn rotation"
+              >
+                Start Session
+              </button>
+              <button
+                v-if="isCreator && sessionStore.isStarted"
                 @click="showEndSessionConfirm = true"
-                class="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium btn-gradient-danger"
+                class="px-3 py-2 text-sm rounded-lg transition-colors font-medium cursor-pointer btn-gradient-danger"
                 title="End this session and generate a report"
               >
                 End Session
@@ -536,8 +537,23 @@ onUnmounted(() => {
       </header>
 
       <!-- All participants disabled banner -->
+      <!-- Pre-start: prompt to enable participants -->
       <div
         v-if="
+          !sessionStore.isStarted &&
+          sessionStore.participants.length > 0 &&
+          !sessionStore.loading
+        "
+        class="px-4 py-3 flex items-center justify-between border-b bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800"
+      >
+        <span class="font-semibold text-amber-800 dark:text-amber-200">
+          Please enable a participant to begin.
+        </span>
+      </div>
+      <!-- Post-start: all participants disabled -->
+      <div
+        v-if="
+          sessionStore.isStarted &&
           !sessionStore.currentTurnParticipant &&
           sessionStore.participants.length > 0 &&
           !sessionStore.loading
@@ -553,19 +569,17 @@ onUnmounted(() => {
       <div
         v-if="sessionStore.currentTurnParticipant"
         :class="[
-          'px-4 py-3 flex items-center justify-between border-b h-[52px]',
-          sessionStore.isMyTurn
-            ? 'bg-green-100 dark:bg-transparent border-green-200 dark:border-white/10 dark:turn-glow-active'
-            : 'bg-yellow-100 dark:bg-transparent border-yellow-200 dark:border-white/10 dark:turn-glow-waiting',
+          'px-5 py-4 flex items-center justify-between border-b',
+          sessionStore.isMyTurn ? 'turn-banner-active' : 'turn-banner-waiting',
         ]"
       >
         <div class="flex items-center gap-3">
           <span
             :class="[
-              'font-semibold',
+              'font-bold text-lg',
               sessionStore.isMyTurn
-                ? 'text-green-800 dark:accent-text-success'
-                : 'text-yellow-800 dark:text-accent-yellow',
+                ? 'text-pink-800 dark:text-pink-300'
+                : 'text-yellow-800 dark:text-emerald-300',
             ]"
           >
             <template v-if="sessionStore.isMyTurn"> It's your turn! </template>
@@ -578,14 +592,20 @@ onUnmounted(() => {
           <button
             v-if="sessionStore.isMyTurn"
             @click="sessionStore.endTurn()"
-            class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors font-medium btn-gradient-success"
+            :class="[
+              'px-3 py-1.5 text-sm rounded-lg font-medium cursor-pointer turn-banner-btn',
+              'text-pink-800 dark:text-pink-300',
+            ]"
           >
             End My Turn
           </button>
           <button
             v-if="isCreator && !sessionStore.isMyTurn"
             @click="sessionStore.endTurn()"
-            class="px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors font-medium btn-gradient-warning"
+            :class="[
+              'px-3 py-1.5 text-sm rounded-lg font-medium cursor-pointer turn-banner-btn',
+              'text-yellow-800 dark:text-emerald-300',
+            ]"
           >
             Skip Turn
           </button>
@@ -596,9 +616,7 @@ onUnmounted(() => {
       <div
         class="bg-warm-50 dark:bg-dark-bg-800/60 border-b border-warm-300 dark:border-white/10 py-4"
       >
-        <div
-          class="flex items-center justify-center gap-2 px-4 pr-[calc(1rem+16rem)]"
-        >
+        <div class="flex items-center justify-center gap-2 px-4">
           <button
             class="text-3xl text-gray-500 dark:text-accent-cyan/40 hover:text-gray-800 dark:hover:text-accent-cyan transition-colors cursor-pointer select-none"
             title="Scroll left one column"
@@ -636,11 +654,11 @@ onUnmounted(() => {
       </div>
 
       <!-- Main Content -->
-      <div class="flex-1 flex overflow-hidden">
+      <div class="flex-1 overflow-hidden">
         <!-- Task Board Area -->
         <div
           ref="boardAreaRef"
-          class="flex-1 overflow-x-auto overflow-y-auto p-4 relative z-10"
+          class="h-full overflow-x-auto overflow-y-auto p-4 relative z-10"
         >
           <div class="flex gap-4 min-h-full px-4 mx-auto w-fit">
             <template
@@ -659,7 +677,6 @@ onUnmounted(() => {
               >
                 <CreateColumnDropZone
                   zone-id="new-column"
-                  :is-first="true"
                   @task-dropped="handleDropZoneTask"
                 />
               </template>
@@ -681,20 +698,18 @@ onUnmounted(() => {
                   v-for="(column, index) in sortedColumns"
                   :key="`col-${column.id}`"
                 >
-                  <Transition :name="columnsReady ? 'column-slide' : ''">
-                    <div :data-column-index="index">
-                      <Column
-                        :column-id="column.id"
-                        :title="column.name"
-                        :tasks="tasksForColumn(column.id)"
-                        :tags="sessionStore.tags"
-                        :jira-base-url="jiraBaseUrl"
-                        :drag-disabled="dragDisabled"
-                        @open-action-modal="handleOpenActionModal"
-                        @task-moved="handleTaskMoved"
-                      />
-                    </div>
-                  </Transition>
+                  <div :data-column-index="index">
+                    <Column
+                      :column-id="column.id"
+                      :title="column.name"
+                      :tasks="tasksForColumn(column.id)"
+                      :tags="sessionStore.tags"
+                      :jira-base-url="jiraBaseUrl"
+                      :drag-disabled="dragDisabled"
+                      @open-action-modal="handleOpenActionModal"
+                      @task-moved="handleTaskMoved"
+                    />
+                  </div>
                   <!-- Between columns drop zone -->
                   <CreateColumnDropZone
                     v-if="
@@ -732,77 +747,77 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- Tasks Queue Panel - Right Sidebar -->
-        <div
-          class="w-64 bg-warm-50 dark:bg-dark-bg-800/60 border-l border-warm-300 dark:border-white/10 flex flex-col overflow-hidden relative z-20"
+    <!-- Tasks Queue Panel - Right Sidebar (full height) -->
+    <div
+      class="w-64 bg-warm-50 dark:bg-dark-bg-800/60 border-l border-warm-300 dark:border-white/10 flex flex-col overflow-hidden relative z-20"
+    >
+      <div
+        class="p-4 border-b border-warm-300 dark:border-white/10 flex-1 overflow-y-auto"
+      >
+        <Column
+          column-id="unsorted"
+          title="Tasks"
+          :tasks="unsortedTasks"
+          :tags="sessionStore.tags"
+          variant="tasks"
+          :jira-base-url="jiraBaseUrl"
+          :drag-disabled="dragDisabled"
+          :stack-mode="sessionStore.stackMode"
+          :top-task-id="topTaskId"
+          @open-action-modal="handleOpenActionModal"
+          @task-moved="handleTaskMoved"
+        />
+      </div>
+      <!-- Sidebar Footer -->
+      <div
+        class="p-3 border-t border-warm-300 dark:border-white/10 bg-warm-100 dark:bg-dark-bg-700/50 space-y-2"
+      >
+        <!-- Stack Mode Toggle (creator only) -->
+        <label
+          v-if="isCreator"
+          class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
         >
-          <div
-            class="p-4 border-b border-warm-300 dark:border-white/10 flex-1 overflow-y-auto"
-          >
-            <Column
-              column-id="unsorted"
-              title="Tasks"
-              :tasks="unsortedTasks"
-              :tags="sessionStore.tags"
-              variant="tasks"
-              :jira-base-url="jiraBaseUrl"
-              :drag-disabled="dragDisabled"
-              :stack-mode="sessionStore.stackMode"
-              :top-task-id="topTaskId"
-              @open-action-modal="handleOpenActionModal"
-              @task-moved="handleTaskMoved"
-            />
-          </div>
-          <!-- Sidebar Footer -->
-          <div
-            class="p-3 border-t border-warm-300 dark:border-white/10 bg-warm-100 dark:bg-dark-bg-700/50 space-y-2"
-          >
-            <!-- Stack Mode Toggle (creator only) -->
-            <label
-              v-if="isCreator"
-              class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                :checked="sessionStore.stackMode"
-                @change="sessionStore.toggleStackMode()"
-                class="rounded border-warm-400 dark:border-white/20"
-              />
-              Stack mode (one task at a time)
-            </label>
-            <!-- Skip Task Button -->
-            <button
-              v-if="
-                sessionStore.stackMode &&
-                sessionStore.isMyTurn &&
-                sessionStore.topUnsortedTask
-              "
-              @click="sessionStore.skipTopTask()"
-              class="w-full px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm btn-gradient-warning"
-            >
-              Skip Task
-            </button>
-            <!-- Create Task Button -->
-            <button
-              v-if="isCreator"
-              @click="showCreateTask = true"
-              class="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm btn-gradient-success"
-              title="Add a new task manually"
-            >
-              + Create Task
-            </button>
-            <!-- Import CSV Button -->
-            <button
-              v-if="isCreator"
-              @click="dropZoneRef?.openFilePicker()"
-              class="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm btn-gradient-primary"
-              title="Import tasks from a Jira or Linear CSV export"
-            >
-              Import CSV
-            </button>
-          </div>
-        </div>
+          <input
+            type="checkbox"
+            :checked="sessionStore.stackMode"
+            @change="sessionStore.toggleStackMode()"
+            class="rounded border-warm-400 dark:border-white/20"
+          />
+          Stack mode (one task at a time)
+        </label>
+        <!-- Skip Task Button -->
+        <button
+          v-if="
+            sessionStore.stackMode &&
+            sessionStore.isMyTurn &&
+            sessionStore.topUnsortedTask
+          "
+          @click="sessionStore.skipTopTask()"
+          class="w-full px-3 py-2 rounded-lg transition-colors font-medium text-sm cursor-pointer btn-gradient-warning"
+        >
+          Skip Task
+        </button>
+        <!-- Create Task Button -->
+        <button
+          v-if="isCreator"
+          @click="showCreateTask = true"
+          class="w-full px-3 py-2 rounded-lg transition-colors font-medium text-sm cursor-pointer btn-gradient-success"
+          title="Add a new task manually"
+        >
+          + Create Task
+        </button>
+        <!-- Import CSV Button -->
+        <button
+          v-if="isCreator"
+          @click="dropZoneRef?.openFilePicker()"
+          class="w-full px-3 py-2 rounded-lg transition-colors font-medium text-sm cursor-pointer btn-gradient-primary"
+          title="Import tasks from a Jira or Linear CSV export"
+        >
+          Import CSV
+        </button>
       </div>
     </div>
 
@@ -858,7 +873,7 @@ onUnmounted(() => {
             </button>
             <button
               @click="handleEndSession"
-              class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium btn-gradient-danger"
+              class="px-4 py-2 text-sm rounded-lg transition-colors font-medium cursor-pointer btn-gradient-danger"
             >
               End Session
             </button>

@@ -88,41 +88,6 @@ test.describe('Multi-User Task Operations', () => {
     await bob.context.close();
   });
 
-  test('task color changed by User A is visible to User B', async ({
-    browser,
-    request,
-  }) => {
-    // Get a sample task ID
-    const data = await getSessionViaAPI(request, roomCode);
-    const task = data.tasks[0];
-
-    const alice = await createAuthenticatedUserInSession(
-      browser,
-      request,
-      roomCode,
-      'Alice'
-    );
-    const bob = await createAuthenticatedUserInSession(
-      browser,
-      request,
-      roomCode,
-      'Bob'
-    );
-
-    // Set color via API
-    await updateTaskColorViaAPI(request, roomCode, task.id, 'red');
-
-    // Both should see the color applied (border-l-4 class on colored task cards)
-    const aliceTask = alice.page.locator('.border-l-4').first();
-    const bobTask = bob.page.locator('.border-l-4').first();
-
-    await expect(aliceTask).toBeVisible(POLL_TIMEOUT);
-    await expect(bobTask).toBeVisible(POLL_TIMEOUT);
-
-    await alice.context.close();
-    await bob.context.close();
-  });
-
   test('both users see same sample tasks on initial load', async ({
     browser,
     request,

@@ -285,7 +285,7 @@ function formatTime(dateStr) {
             </div>
             <div class="flex gap-2">
               <button
-                class="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium btn-gradient-primary"
+                class="px-3 py-1 text-xs rounded-lg transition-colors font-medium cursor-pointer btn-gradient-primary"
                 @click="handleCreateTag"
               >
                 Save
@@ -319,7 +319,7 @@ function formatTime(dateStr) {
               @keyup.enter="handleAddComment"
             />
             <button
-              class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 btn-gradient-primary"
+              class="px-3 py-1.5 text-xs rounded-lg transition-colors font-medium cursor-pointer btn-gradient-primary"
               :disabled="!commentText.trim() || submittingComment"
               @click="handleAddComment"
             >

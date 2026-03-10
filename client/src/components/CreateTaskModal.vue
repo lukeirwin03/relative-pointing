@@ -144,7 +144,7 @@ async function handleSubmit() {
           <button
             type="submit"
             :disabled="loading || !issueKey.trim() || !title.trim()"
-            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium btn-gradient-primary"
+            class="flex-1 px-4 py-2 rounded-lg transition-all disabled:cursor-not-allowed font-medium cursor-pointer btn-gradient-primary"
           >
             {{ loading ? 'Creating...' : 'Create Task' }}
           </button>
