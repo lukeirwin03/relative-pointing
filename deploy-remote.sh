@@ -363,7 +363,8 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
 
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    # Note: HSTS header is added by certbot/setup_ssl after a valid certificate is obtained.
+    # Do NOT add HSTS here with a self-signed cert - browsers will permanently block access.
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
 
@@ -588,28 +589,108 @@ install_dependencies() {
     fi
 }
 
-# Ensure Let's Encrypt certificate is configured
+# Obtain and configure Let's Encrypt SSL certificate
 setup_ssl() {
-    print_header "Configuring SSL Certificate"
+    print_header "Configuring SSL Certificate (Let's Encrypt)"
     
-    # Check if Let's Encrypt cert exists (needs sudo to access letsencrypt directory)
-    if ssh -i "$EC2_KEY_PATH" \
+    local certbot_email="${CERTBOT_EMAIL:-admin@$EC2_DOMAIN}"
+    
+    ssh -i "$EC2_KEY_PATH" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
         "$EC2_USER@$EC2_HOST" \
-        "sudo test -f /etc/letsencrypt/live/$EC2_DOMAIN/fullchain.pem"; then
-        
-        print_info "Let's Encrypt certificate found, configuring nginx..."
-        ssh -i "$EC2_KEY_PATH" \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$EC2_USER@$EC2_HOST" \
-            "sudo certbot --nginx -d $EC2_DOMAIN -d www.$EC2_DOMAIN --non-interactive --agree-tos --email admin@$EC2_DOMAIN && sudo systemctl reload nginx"
-        print_success "Let's Encrypt certificate configured"
+        "bash -s" << SSLEOF
+set -e
+
+# Color functions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_error() { echo -e "\${RED}✗ \$1\${NC}"; }
+print_success() { echo -e "\${GREEN}✓ \$1\${NC}"; }
+print_info() { echo -e "\${BLUE}ℹ \$1\${NC}"; }
+print_warning() { echo -e "\${YELLOW}⚠ \$1\${NC}"; }
+
+EC2_DOMAIN="$EC2_DOMAIN"
+CERTBOT_EMAIL="$certbot_email"
+
+# Check if a valid Let's Encrypt cert already exists
+if sudo test -f "/etc/letsencrypt/live/\${EC2_DOMAIN}/fullchain.pem"; then
+    print_success "Let's Encrypt certificate already exists for \${EC2_DOMAIN}"
+    
+    # Ensure nginx is using the Let's Encrypt cert (not self-signed)
+    if grep -q "snakeoil" /etc/nginx/sites-available/\${EC2_DOMAIN} 2>/dev/null; then
+        print_info "Updating nginx to use Let's Encrypt certificate..."
+        sudo certbot --nginx -d \${EC2_DOMAIN} --non-interactive --agree-tos --email \${CERTBOT_EMAIL} 2>&1
+    fi
+else
+    # Install certbot if not present
+    if ! command -v certbot &> /dev/null; then
+        print_info "Installing certbot..."
+        sudo apt-get update -qq > /dev/null
+        sudo apt-get install -y -qq certbot python3-certbot-nginx > /dev/null
+        print_success "certbot installed"
     else
-        print_warning "No Let's Encrypt certificate found. Using self-signed certificate."
-        print_info "To get a real certificate, run on EC2:"
-        print_info "  sudo certbot --nginx -d $EC2_DOMAIN -d www.$EC2_DOMAIN"
+        print_success "certbot already installed"
+    fi
+
+    # Obtain certificate using nginx plugin
+    print_info "Obtaining Let's Encrypt certificate for \${EC2_DOMAIN}..."
+    if sudo certbot --nginx \
+        -d \${EC2_DOMAIN} \
+        --non-interactive \
+        --agree-tos \
+        --email \${CERTBOT_EMAIL} \
+        --redirect 2>&1; then
+        print_success "Let's Encrypt certificate obtained and configured"
+    else
+        print_error "Failed to obtain Let's Encrypt certificate"
+        print_warning "Common causes:"
+        print_warning "  - DNS not pointing to this server yet"
+        print_warning "  - Port 80 not open in security group"
+        print_warning "  - Domain not registered or propagated"
+        print_warning ""
+        print_warning "The app is deployed with a self-signed cert for now."
+        print_warning "Once DNS is ready, run on EC2:"
+        print_warning "  sudo certbot --nginx -d \${EC2_DOMAIN}"
+        exit 0
+    fi
+fi
+
+# Add HSTS header to nginx config now that we have a valid certificate
+if ! grep -q "Strict-Transport-Security" /etc/nginx/sites-available/\${EC2_DOMAIN} 2>/dev/null; then
+    print_info "Adding HSTS header to nginx config..."
+    sudo sed -i '/X-Content-Type-Options/i\\    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;' /etc/nginx/sites-available/\${EC2_DOMAIN}
+fi
+
+# Verify nginx config and reload
+if sudo nginx -t > /dev/null 2>&1; then
+    sudo systemctl reload nginx
+    print_success "nginx reloaded with valid SSL certificate"
+else
+    print_error "nginx config test failed after SSL setup"
+    sudo nginx -t
+    exit 1
+fi
+
+# Verify auto-renewal is set up
+print_info "Verifying certbot auto-renewal..."
+if sudo certbot renew --dry-run > /dev/null 2>&1; then
+    print_success "Certificate auto-renewal is working"
+else
+    print_warning "Auto-renewal dry-run failed. You may need to set up a cron job."
+fi
+
+print_success "SSL setup complete"
+SSLEOF
+
+    if [ $? -eq 0 ]; then
+        print_success "SSL certificate configured"
+    else
+        print_warning "SSL setup had issues - check output above"
     fi
 }
 
@@ -667,47 +748,16 @@ WHAT HAPPENED:
   ✓ Configured nginx
   ✓ Created systemd service (uses nvm environment)
   ✓ Started backend service
+  ✓ Obtained Let's Encrypt SSL certificate (auto-renews)
 
-NEXT STEPS:
+VERIFY IT WORKS:
+  Visit: https://$EC2_DOMAIN
+  API:   curl https://$EC2_DOMAIN/api/health
 
-1. Set Up AWS ACM Certificate:
-   a. Go to AWS Console → Certificate Manager (ACM)
-   b. Request certificate for $EC2_DOMAIN
-   c. Validate domain ownership via DNS
-   d. Download certificate files
-
-2. Update nginx with ACM Certificate:
-   a. SCP certificate files to EC2:
-      scp -i $EC2_KEY_PATH cert.pem ubuntu@$EC2_HOST:/tmp/
-      scp -i $EC2_KEY_PATH key.pem ubuntu@$EC2_HOST:/tmp/
-   
-   b. SSH to EC2 and install:
-      ssh -i $EC2_KEY_PATH ubuntu@$EC2_HOST
-      sudo mkdir -p /etc/ssl/acm
-      sudo mv /tmp/cert.pem /etc/ssl/acm/certificate.pem
-      sudo mv /tmp/key.pem /etc/ssl/acm/private-key.pem
-   
-   c. Update nginx config:
-      sudo nano /etc/nginx/sites-available/$EC2_DOMAIN
-      
-      Change these lines:
-      ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
-      ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
-      
-      To:
-      ssl_certificate /etc/ssl/acm/certificate.pem;
-      ssl_certificate_key /etc/ssl/acm/private-key.pem;
-   
-   d. Test and reload nginx:
-      sudo nginx -t
-      sudo systemctl reload nginx
-
-3. Configure Domain DNS:
-   Point A record to: $EC2_HOST
-
-4. Verify It Works:
-   curl http://$EC2_HOST:5000/api/health
-   # Should return: {"status":"ok"}
+SSL CERTIFICATE:
+  Let's Encrypt certificates auto-renew via certbot timer.
+  To manually renew: ssh to EC2 and run: sudo certbot renew
+  To check status:   sudo certbot certificates
 
 USEFUL COMMANDS:
 
@@ -722,10 +772,6 @@ Restart backend:
 Update code (redeploy):
   1. Make changes locally
   2. Run this script again: ./deploy-remote.sh
-
-═══════════════════════════════════════════════════════════════════════════════
-
-For detailed ACM setup, see: AWS-ACM-DEPLOYMENT.md
 
 EOF
 }
