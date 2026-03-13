@@ -41,9 +41,9 @@ const fields = computed(() => {
 
 function priorityColor(priority) {
   const p = String(priority).toLowerCase();
-  if (p.includes('high')) return 'bg-red-500 dark:bg-neon-red';
-  if (p.includes('medium')) return 'bg-yellow-500 dark:bg-neon-yellow';
-  return 'bg-green-500 dark:bg-neon-green';
+  if (p.includes('high')) return 'bg-red-500 dark:bg-accent-red';
+  if (p.includes('medium')) return 'bg-yellow-500 dark:bg-accent-yellow';
+  return 'bg-green-500 dark:bg-accent-green';
 }
 
 onMounted(async () => {
@@ -75,18 +75,18 @@ function formatTime(dateStr) {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white dark:glass-panel-solid rounded-lg shadow-xl dark:shadow-card max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+      class="bg-warm-50 dark:glass-panel-solid rounded-lg shadow-xl dark:shadow-card max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto warm-glow-border"
     >
       <!-- Header -->
       <div
-        class="sticky top-0 px-6 py-4 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-neon-bg-800 flex items-center justify-between"
+        class="sticky top-0 px-6 py-4 border-b border-warm-300 dark:border-white/10 bg-warm-50 dark:bg-dark-bg-800 flex items-center justify-between"
       >
         <h2 class="text-xl font-bold text-gray-800 dark:text-white">
           Task Details
         </h2>
         <button
           @click="emit('close')"
-          class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-neon-cyan text-2xl leading-none transition-colors"
+          class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-accent-cyan text-2xl leading-none transition-colors"
         >
           ×
         </button>
@@ -119,7 +119,7 @@ function formatTime(dateStr) {
             class="text-sm text-gray-500 dark:text-gray-400"
           >
             ID:
-            <span class="font-mono dark:neon-text-cyan">{{
+            <span class="font-mono dark:accent-text-primary">{{
               String(task.display_id || task.id)
             }}</span>
           </p>
@@ -196,7 +196,7 @@ function formatTime(dateStr) {
             <div
               v-for="key in fields"
               :key="key"
-              class="flex gap-3 pb-3 border-b border-gray-200 dark:border-white/10 last:border-0"
+              class="flex gap-3 pb-3 border-b border-warm-300 dark:border-white/10 last:border-0"
             >
               <div
                 class="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[120px] break-words"
@@ -219,7 +219,7 @@ function formatTime(dateStr) {
             (!metadata ||
               (!metadata.issueType && !metadata.priority && !metadata.status))
           "
-          class="p-4 bg-gray-50 dark:bg-neon-bg-700 rounded-lg text-center"
+          class="p-4 bg-warm-100 dark:bg-dark-bg-700 rounded-lg text-center"
         >
           <p class="text-sm text-gray-500 dark:text-gray-400">
             No additional metadata available for this task
@@ -247,7 +247,7 @@ function formatTime(dateStr) {
             <div
               v-for="comment in comments"
               :key="comment.id"
-              class="bg-gray-50 dark:bg-neon-bg-700/50 rounded-lg px-3 py-2"
+              class="bg-warm-100 dark:bg-dark-bg-700/50 rounded-lg px-3 py-2"
             >
               <div class="flex items-center justify-between mb-1">
                 <span
@@ -269,11 +269,11 @@ function formatTime(dateStr) {
 
       <!-- Footer -->
       <div
-        class="sticky bottom-0 px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-neon-bg-800 flex justify-end"
+        class="sticky bottom-0 px-6 py-4 border-t border-warm-300 dark:border-white/10 bg-warm-100 dark:bg-dark-bg-800 flex justify-end"
       >
         <button
           @click="emit('close')"
-          class="px-4 py-2 bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors"
+          class="px-4 py-2 bg-warm-300 dark:bg-white/10 text-gray-800 dark:text-white rounded-lg hover:bg-warm-400 dark:hover:bg-white/20 transition-colors"
         >
           Close
         </button>

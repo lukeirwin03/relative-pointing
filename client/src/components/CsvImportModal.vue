@@ -62,18 +62,18 @@ async function handleImport() {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full mx-4 flex flex-col max-h-[85vh]"
+      class="bg-warm-50 dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full mx-4 flex flex-col max-h-[85vh] warm-glow-border"
     >
       <!-- Header -->
       <div
-        class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0"
+        class="px-6 py-4 border-b border-warm-300 dark:border-gray-700 flex items-center justify-between flex-shrink-0"
       >
         <div class="flex items-center gap-3">
           <h2 class="text-xl font-bold text-gray-800 dark:text-white">
             Import Tasks
           </h2>
           <span
-            class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-full font-mono"
+            class="px-2 py-0.5 bg-warm-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-full font-mono"
           >
             {{ fileName }}
           </span>
@@ -114,9 +114,9 @@ async function handleImport() {
       <!-- Task table -->
       <div class="px-6 py-4 overflow-y-auto flex-1 min-h-0">
         <table class="w-full text-sm">
-          <thead class="sticky top-0 bg-white dark:bg-gray-800">
+          <thead class="sticky top-0 bg-warm-50 dark:bg-gray-800">
             <tr
-              class="border-b border-gray-200 dark:border-gray-700 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide"
+              class="border-b border-warm-300 dark:border-gray-700 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide"
             >
               <th class="pb-2 pr-2 w-8">
                 <input
@@ -124,7 +124,7 @@ async function handleImport() {
                   :checked="allSelected"
                   :indeterminate="!allSelected && !noneSelected"
                   @change="toggleAll"
-                  class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  class="rounded border-warm-400 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   :disabled="loading"
                 />
               </th>
@@ -147,7 +147,7 @@ async function handleImport() {
                   type="checkbox"
                   :checked="selectedIds.has(index)"
                   @change="toggleTask(index)"
-                  class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  class="rounded border-warm-400 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   :disabled="loading"
                 />
               </td>
@@ -183,7 +183,7 @@ async function handleImport() {
 
       <!-- Footer -->
       <div
-        class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0"
+        class="px-6 py-4 border-t border-warm-300 dark:border-gray-700 flex items-center justify-between flex-shrink-0"
       >
         <span class="text-sm text-gray-500 dark:text-gray-400">
           {{ selectedCount }} of {{ tasks.length }} task{{
@@ -196,7 +196,7 @@ async function handleImport() {
             type="button"
             @click="emit('close')"
             :disabled="loading"
-            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-4 py-2 border border-warm-400 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-warm-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
@@ -204,7 +204,7 @@ async function handleImport() {
             type="button"
             @click="handleImport"
             :disabled="loading || noneSelected"
-            class="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
+            class="px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed min-w-[120px] cursor-pointer btn-gradient-primary"
           >
             {{
               loading

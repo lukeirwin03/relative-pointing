@@ -6,6 +6,7 @@ const {
   joinSessionViaAPI,
   getSessionViaAPI,
   updateSessionViaAPI,
+  startSessionViaAPI,
   endTurnViaAPI,
   moveTaskRawViaAPI,
   transferOwnershipViaAPI,
@@ -86,8 +87,8 @@ test.describe('Presence Tracking', () => {
       'Alice'
     );
 
-    // Both should be visible initially
-    await expect(creator.page.getByText('Participants (2/2)')).toBeVisible(
+    // Creator (skipped) + Alice = 2 total, 1 active
+    await expect(creator.page.getByText('Participants (1/2)')).toBeVisible(
       POLL_TIMEOUT
     );
 
@@ -289,8 +290,8 @@ test.describe('Manual Ownership Transfer', () => {
       'Creator'
     );
 
-    // Wait for Alice to appear in the sidebar
-    await expect(creator.page.getByText('Participants (2/2)')).toBeVisible(
+    // Creator (skipped) + Alice = 2 total, 1 active
+    await expect(creator.page.getByText('Participants (1/2)')).toBeVisible(
       POLL_TIMEOUT
     );
 
@@ -313,6 +314,11 @@ test.describe('Disabled User Protection', () => {
     const session = await createSessionViaAPI(request, 'Creator');
     roomCode = session.roomCode;
     creatorId = session.creatorId;
+    // Unskip creator and start session so turns are active
+    await updateSessionViaAPI(request, roomCode, {
+      skipped_participants: [],
+    });
+    await startSessionViaAPI(request, roomCode, creatorId);
   });
 
   test('disabled user cannot move tasks via API', async ({ request }) => {
@@ -356,7 +362,7 @@ test.describe('Disabled User Protection', () => {
       'Creator'
     );
 
-    // Wait for initial load
+    // Wait for initial load — session is started, creator has the turn
     await expect(creator.page.getByText("It's your turn!")).toBeVisible(
       POLL_TIMEOUT
     );
@@ -412,6 +418,11 @@ test.describe('Auto-skip Turn on Disconnect', () => {
     const session = await createSessionViaAPI(request, 'Creator');
     roomCode = session.roomCode;
     creatorId = session.creatorId;
+    // Unskip creator and start session
+    await updateSessionViaAPI(request, roomCode, {
+      skipped_participants: [],
+    });
+    await startSessionViaAPI(request, roomCode, creatorId);
   });
 
   test('turn auto-advances when turn holder goes offline', async ({

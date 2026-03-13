@@ -3,11 +3,11 @@ export const COLOR_OPTIONS = [
   {
     id: null,
     name: 'None',
-    bg: 'bg-white dark:bg-neon-bg-700',
-    border: 'border-gray-300 dark:border-white/10',
-    pill: 'bg-gray-200 text-gray-600 dark:bg-white/10 dark:text-gray-400',
+    bg: 'bg-warm-50 dark:bg-dark-bg-700',
+    border: 'border-warm-300 dark:border-white/10',
+    pill: 'bg-warm-300 text-gray-600 dark:bg-white/10 dark:text-gray-400',
     pillActive:
-      'bg-gray-300 text-gray-800 ring-2 ring-gray-400 dark:bg-white/20 dark:text-gray-200 dark:ring-gray-400',
+      'bg-warm-400 text-gray-800 ring-2 ring-gray-400 dark:bg-white/20 dark:text-gray-200 dark:ring-gray-400',
   },
   {
     id: 'red',
@@ -17,7 +17,7 @@ export const COLOR_OPTIONS = [
     dot: 'bg-red-500',
     pill: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
     pillActive:
-      'bg-red-200 text-red-800 ring-2 ring-red-400 dark:bg-red-500/30 dark:text-red-200 dark:ring-red-400 dark:shadow-glow-red-sm',
+      'bg-red-200 text-red-800 ring-2 ring-red-400 dark:bg-red-500/30 dark:text-red-200 dark:ring-red-400 dark:shadow-glow-danger-sm',
   },
   {
     id: 'orange',
@@ -47,7 +47,7 @@ export const COLOR_OPTIONS = [
     dot: 'bg-green-500',
     pill: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
     pillActive:
-      'bg-green-200 text-green-800 ring-2 ring-green-400 dark:bg-green-500/30 dark:text-green-200 dark:ring-green-400 dark:shadow-glow-green-sm',
+      'bg-green-200 text-green-800 ring-2 ring-green-400 dark:bg-green-500/30 dark:text-green-200 dark:ring-green-400 dark:shadow-glow-success-sm',
   },
   {
     id: 'blue',
@@ -67,7 +67,7 @@ export const COLOR_OPTIONS = [
     dot: 'bg-purple-500',
     pill: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
     pillActive:
-      'bg-purple-200 text-purple-800 ring-2 ring-purple-400 dark:bg-purple-500/30 dark:text-purple-200 dark:ring-purple-400 dark:shadow-glow-magenta-sm',
+      'bg-purple-200 text-purple-800 ring-2 ring-purple-400 dark:bg-purple-500/30 dark:text-purple-200 dark:ring-purple-400 dark:shadow-glow-accent-sm',
   },
   {
     id: 'pink',

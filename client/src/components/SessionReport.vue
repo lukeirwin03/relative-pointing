@@ -171,11 +171,11 @@ onMounted(fetchReport);
   <!-- Loading -->
   <div
     v-if="loading"
-    class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-neon-bg-900"
+    class="flex items-center justify-center min-h-screen bg-warm-100 dark:bg-dark-bg-900"
   >
     <div class="text-center">
       <div
-        class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-neon-cyan mx-auto mb-4"
+        class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-accent-cyan mx-auto mb-4"
       ></div>
       <p class="text-gray-600 dark:text-gray-400">Loading report...</p>
     </div>
@@ -184,13 +184,13 @@ onMounted(fetchReport);
   <!-- Error -->
   <div
     v-else-if="error"
-    class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-neon-bg-900"
+    class="flex items-center justify-center min-h-screen bg-warm-100 dark:bg-dark-bg-900"
   >
     <div class="text-center">
       <p class="text-xl text-red-600 dark:text-red-400 mb-4">{{ error }}</p>
       <router-link
         to="/"
-        class="text-blue-600 dark:neon-text-cyan hover:underline"
+        class="text-blue-600 dark:accent-text-primary hover:underline"
       >
         Go Home
       </router-link>
@@ -200,18 +200,18 @@ onMounted(fetchReport);
   <!-- Report -->
   <div
     v-else
-    class="min-h-screen bg-gray-50 dark:bg-neon-bg-900 transition-colors"
+    class="min-h-screen bg-warm-100 dark:bg-dark-bg-900 transition-colors"
   >
     <!-- Header -->
     <header
-      class="bg-white dark:glass-panel-solid shadow-sm border-b border-gray-200 dark:border-white/10"
+      class="bg-warm-50 dark:glass-panel-solid shadow-sm border-b border-warm-300 dark:border-white/10"
     >
       <div class="max-w-7xl mx-auto px-4 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <button
               @click="router.push('/')"
-              class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-neon-cyan text-2xl transition-colors"
+              class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-accent-cyan text-2xl transition-colors"
               title="Go to home"
             >
               ←
@@ -222,9 +222,10 @@ onMounted(fetchReport);
               </h1>
               <p class="text-sm text-gray-600 dark:text-gray-400">
                 Room:
-                <span class="font-mono font-semibold dark:neon-text-cyan">{{
-                  roomCode
-                }}</span>
+                <span
+                  class="font-mono font-semibold dark:accent-text-primary"
+                  >{{ roomCode }}</span
+                >
                 <span v-if="sessionDuration" class="ml-3">
                   Duration: {{ sessionDuration }}
                 </span>
@@ -234,7 +235,7 @@ onMounted(fetchReport);
           <div class="flex items-center gap-3">
             <button
               @click="themeStore.toggleTheme()"
-              class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+              class="p-2 rounded-lg hover:bg-warm-200 dark:hover:bg-white/5 transition-colors"
             >
               {{ themeStore.isDark ? '☀️' : '🌙' }}
             </button>
@@ -247,7 +248,7 @@ onMounted(fetchReport);
       <!-- Scale Controls (leader only) -->
       <div
         v-if="isCreator"
-        class="bg-white dark:bg-neon-bg-800/60 rounded-xl border border-gray-200 dark:border-white/10 p-4"
+        class="bg-warm-50 dark:bg-dark-bg-800/60 rounded-xl border border-warm-300 dark:border-white/10 p-4"
       >
         <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
           Point Scale
@@ -255,7 +256,7 @@ onMounted(fetchReport);
         <div class="flex items-center gap-3 flex-wrap">
           <select
             v-model="selectedScale"
-            class="px-3 py-2 border border-gray-300 dark:border-white/20 rounded-lg text-sm bg-white dark:bg-neon-bg-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-neon-cyan"
+            class="px-3 py-2 border border-warm-400 dark:border-white/20 rounded-lg text-sm bg-warm-50 dark:bg-dark-bg-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-accent-cyan"
           >
             <option
               v-for="option in SCALE_OPTIONS"
@@ -267,7 +268,7 @@ onMounted(fetchReport);
           </select>
           <button
             @click="handleApplyScale"
-            class="px-4 py-2 bg-blue-600 dark:bg-neon-cyan/80 text-white dark:text-neon-bg-900 text-sm rounded-lg hover:bg-blue-700 dark:hover:bg-neon-cyan transition-colors font-medium"
+            class="px-4 py-2 text-sm rounded-lg transition-colors font-medium cursor-pointer btn-gradient-primary"
           >
             Apply Scale
           </button>
@@ -279,11 +280,11 @@ onMounted(fetchReport);
         <div
           v-for="column in sortedColumns"
           :key="column.id"
-          class="bg-white dark:bg-neon-bg-800/60 rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden"
+          class="bg-warm-50 dark:bg-dark-bg-800/60 rounded-xl border border-warm-300 dark:border-white/10 overflow-hidden"
         >
           <!-- Column Header -->
           <div
-            class="px-4 py-3 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-neon-bg-700/50"
+            class="px-4 py-3 border-b border-warm-300 dark:border-white/10 bg-warm-100 dark:bg-dark-bg-700/50"
           >
             <div class="flex items-center justify-between">
               <h3 class="font-semibold text-gray-800 dark:text-white">
@@ -306,12 +307,12 @@ onMounted(fetchReport);
                 type="number"
                 :value="column.point_value"
                 @change="handlePointValueChange(column.id, $event.target.value)"
-                class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-white/20 rounded bg-white dark:bg-neon-bg-700 text-gray-800 dark:text-white focus:ring-1 focus:ring-blue-500 dark:focus:ring-neon-cyan"
+                class="w-20 px-2 py-1 text-sm border border-warm-400 dark:border-white/20 rounded bg-warm-50 dark:bg-dark-bg-700 text-gray-800 dark:text-white focus:ring-1 focus:ring-blue-500 dark:focus:ring-accent-cyan"
                 step="any"
               />
               <span
                 v-else
-                class="text-sm font-semibold text-blue-600 dark:neon-text-cyan"
+                class="text-sm font-semibold text-blue-600 dark:accent-text-primary"
               >
                 {{ column.point_value ?? '—' }}
               </span>
@@ -323,7 +324,7 @@ onMounted(fetchReport);
             <div
               v-for="task in tasksForColumn(column.id)"
               :key="task.id"
-              class="p-3 bg-gray-50 dark:bg-neon-bg-700/50 rounded-lg border border-gray-100 dark:border-white/5"
+              class="p-3 bg-warm-100 dark:bg-dark-bg-700/50 rounded-lg border border-warm-200 dark:border-white/5"
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
@@ -358,7 +359,7 @@ onMounted(fetchReport);
               <!-- Comments -->
               <div
                 v-if="task.comments && task.comments.length > 0"
-                class="mt-2 space-y-1 border-t border-gray-200 dark:border-white/10 pt-2"
+                class="mt-2 space-y-1 border-t border-warm-300 dark:border-white/10 pt-2"
               >
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
                   Comments ({{ task.comments.length }})
@@ -366,7 +367,7 @@ onMounted(fetchReport);
                 <div
                   v-for="comment in task.comments"
                   :key="comment.id"
-                  class="text-xs text-gray-600 dark:text-gray-400 pl-2 border-l-2 border-gray-300 dark:border-white/20"
+                  class="text-xs text-gray-600 dark:text-gray-400 pl-2 border-l-2 border-warm-400 dark:border-white/20"
                 >
                   <span class="font-medium">{{ comment.user_name }}:</span>
                   {{ comment.content }}
@@ -386,10 +387,10 @@ onMounted(fetchReport);
       <!-- Unsorted Tasks -->
       <div
         v-if="unsortedTasks.length > 0"
-        class="bg-white dark:bg-neon-bg-800/60 rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden"
+        class="bg-warm-50 dark:bg-dark-bg-800/60 rounded-xl border border-warm-300 dark:border-white/10 overflow-hidden"
       >
         <div
-          class="px-4 py-3 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-neon-bg-700/50"
+          class="px-4 py-3 border-b border-warm-300 dark:border-white/10 bg-warm-100 dark:bg-dark-bg-700/50"
         >
           <h3 class="font-semibold text-gray-800 dark:text-white">
             Unsorted Tasks
@@ -405,7 +406,7 @@ onMounted(fetchReport);
           <div
             v-for="task in unsortedTasks"
             :key="task.id"
-            class="p-3 bg-gray-50 dark:bg-neon-bg-700/50 rounded-lg border border-gray-100 dark:border-white/5"
+            class="p-3 bg-warm-100 dark:bg-dark-bg-700/50 rounded-lg border border-warm-200 dark:border-white/5"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0 flex-1">
@@ -434,7 +435,7 @@ onMounted(fetchReport);
             <!-- Comments -->
             <div
               v-if="task.comments && task.comments.length > 0"
-              class="mt-2 space-y-1 border-t border-gray-200 dark:border-white/10 pt-2"
+              class="mt-2 space-y-1 border-t border-warm-300 dark:border-white/10 pt-2"
             >
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
                 Comments ({{ task.comments.length }})
@@ -442,7 +443,7 @@ onMounted(fetchReport);
               <div
                 v-for="comment in task.comments"
                 :key="comment.id"
-                class="text-xs text-gray-600 dark:text-gray-400 pl-2 border-l-2 border-gray-300 dark:border-white/20"
+                class="text-xs text-gray-600 dark:text-gray-400 pl-2 border-l-2 border-warm-400 dark:border-white/20"
               >
                 <span class="font-medium">{{ comment.user_name }}:</span>
                 {{ comment.content }}
@@ -454,14 +455,16 @@ onMounted(fetchReport);
 
       <!-- Summary -->
       <div
-        class="bg-white dark:bg-neon-bg-800/60 rounded-xl border border-gray-200 dark:border-white/10 p-4"
+        class="bg-warm-50 dark:bg-dark-bg-800/60 rounded-xl border border-warm-300 dark:border-white/10 p-4"
       >
         <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
           Summary
         </h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="text-center">
-            <p class="text-2xl font-bold text-blue-600 dark:neon-text-cyan">
+            <p
+              class="text-2xl font-bold text-blue-600 dark:accent-text-primary"
+            >
               {{ totalPoints }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -469,7 +472,9 @@ onMounted(fetchReport);
             </p>
           </div>
           <div class="text-center">
-            <p class="text-2xl font-bold text-green-600 dark:neon-text-green">
+            <p
+              class="text-2xl font-bold text-green-600 dark:accent-text-success"
+            >
               {{ tasksPointed }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -491,7 +496,7 @@ onMounted(fetchReport);
         </div>
 
         <!-- Participant List -->
-        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
+        <div class="mt-4 pt-4 border-t border-warm-300 dark:border-white/10">
           <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
             Participants
           </p>
@@ -499,12 +504,12 @@ onMounted(fetchReport);
             <span
               v-for="p in participants"
               :key="p.id"
-              class="px-2 py-1 text-xs bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-full"
+              class="px-2 py-1 text-xs bg-warm-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-full"
             >
               {{ p.user_name }}
               <span
                 v-if="p.user_id === session?.creator_id"
-                class="text-blue-500 dark:text-neon-cyan"
+                class="text-blue-500 dark:text-accent-cyan"
                 title="Session leader"
               >
                 ★

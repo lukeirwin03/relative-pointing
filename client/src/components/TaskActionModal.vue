@@ -146,11 +146,11 @@ function formatTime(dateStr) {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white dark:glass-panel-solid rounded-lg shadow-xl dark:shadow-card w-full max-w-md mx-4 max-h-[80vh] flex flex-col"
+      class="bg-warm-50 dark:glass-panel-solid rounded-lg shadow-xl dark:shadow-card w-full max-w-md mx-4 max-h-[80vh] flex flex-col warm-glow-border"
     >
       <!-- Header -->
       <div
-        class="px-4 py-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between flex-shrink-0"
+        class="px-4 py-3 border-b border-warm-300 dark:border-white/10 flex items-center justify-between flex-shrink-0"
       >
         <h3
           class="font-semibold text-gray-800 dark:text-white text-sm truncate"
@@ -167,13 +167,13 @@ function formatTime(dateStr) {
 
       <!-- Tabs -->
       <div
-        class="flex border-b border-gray-200 dark:border-white/10 flex-shrink-0"
+        class="flex border-b border-warm-300 dark:border-white/10 flex-shrink-0"
       >
         <button
           :class="[
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeTab === 'tags'
-              ? 'text-blue-600 dark:text-neon-cyan border-b-2 border-blue-600 dark:border-neon-cyan'
+              ? 'text-blue-600 dark:text-accent-cyan border-b-2 border-blue-600 dark:border-accent-cyan'
               : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
           ]"
           @click="activeTab = 'tags'"
@@ -184,7 +184,7 @@ function formatTime(dateStr) {
           :class="[
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeTab === 'comments'
-              ? 'text-blue-600 dark:text-neon-cyan border-b-2 border-blue-600 dark:border-neon-cyan'
+              ? 'text-blue-600 dark:text-accent-cyan border-b-2 border-blue-600 dark:border-accent-cyan'
               : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
           ]"
           @click="activeTab = 'comments'"
@@ -192,7 +192,7 @@ function formatTime(dateStr) {
           Comments
           <span
             v-if="comments.length > 0"
-            class="ml-1 text-xs bg-gray-200 dark:bg-white/10 rounded-full px-1.5"
+            class="ml-1 text-xs bg-warm-300 dark:bg-white/10 rounded-full px-1.5"
           >
             {{ comments.length }}
           </span>
@@ -201,7 +201,7 @@ function formatTime(dateStr) {
           :class="[
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeTab === 'settings'
-              ? 'text-blue-600 dark:text-neon-cyan border-b-2 border-blue-600 dark:border-neon-cyan'
+              ? 'text-blue-600 dark:text-accent-cyan border-b-2 border-blue-600 dark:border-accent-cyan'
               : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
           ]"
           @click="activeTab = 'settings'"
@@ -219,12 +219,12 @@ function formatTime(dateStr) {
               v-for="tag in orderedTags"
               :key="tag.id"
               :class="[
-                'px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer flex items-center gap-2 border-2',
+                'px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer flex items-center gap-2',
                 currentTagId === tag.id
                   ? getTagColorClasses(tag.color).pillActive +
-                    ' border-current shadow-md scale-[1.02]'
+                    ' shadow-lg scale-[1.02]'
                   : getTagColorClasses(tag.color).pill +
-                    ' border-transparent hover:border-gray-300 dark:hover:border-white/20',
+                    ' hover:scale-[1.01] hover:brightness-110',
               ]"
               @click="selectTag(tag.id)"
             >
@@ -259,13 +259,13 @@ function formatTime(dateStr) {
           <!-- Create tag -->
           <div
             v-if="showCreateTag"
-            class="space-y-2 pt-2 border-t border-gray-200 dark:border-white/10"
+            class="space-y-2 pt-2 border-t border-warm-300 dark:border-white/10"
           >
             <input
               v-model="newTagName"
               type="text"
               placeholder="Tag name"
-              class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-white/20 rounded-lg dark:bg-neon-bg-700 dark:text-white focus:ring-1 focus:ring-blue-500 dark:focus:ring-neon-cyan"
+              class="w-full px-3 py-1.5 text-sm border border-warm-400 dark:border-white/20 rounded-lg dark:bg-dark-bg-700 dark:text-white focus:ring-1 focus:ring-blue-500 dark:focus:ring-accent-cyan"
               @keyup.enter="handleCreateTag"
             />
             <div class="flex flex-wrap gap-1.5">
@@ -285,13 +285,13 @@ function formatTime(dateStr) {
             </div>
             <div class="flex gap-2">
               <button
-                class="px-3 py-1 text-xs bg-blue-600 dark:bg-neon-cyan/80 text-white dark:text-neon-bg-900 rounded-lg hover:bg-blue-700 dark:hover:bg-neon-cyan transition-colors font-medium"
+                class="px-3 py-1 text-xs rounded-lg transition-colors font-medium cursor-pointer btn-gradient-primary"
                 @click="handleCreateTag"
               >
                 Save
               </button>
               <button
-                class="px-3 py-1 text-xs bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors"
+                class="px-3 py-1 text-xs bg-warm-300 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors"
                 @click="showCreateTag = false"
               >
                 Cancel
@@ -300,7 +300,7 @@ function formatTime(dateStr) {
           </div>
           <button
             v-else
-            class="text-xs text-blue-600 dark:text-neon-cyan hover:underline"
+            class="text-xs text-blue-600 dark:text-accent-cyan hover:underline"
             @click="showCreateTag = true"
           >
             + Create Tag
@@ -315,11 +315,11 @@ function formatTime(dateStr) {
               v-model="commentText"
               type="text"
               placeholder="Add a comment..."
-              class="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-white/20 rounded-lg dark:bg-neon-bg-700 dark:text-white focus:ring-1 focus:ring-blue-500 dark:focus:ring-neon-cyan"
+              class="flex-1 px-3 py-1.5 text-sm border border-warm-400 dark:border-white/20 rounded-lg dark:bg-dark-bg-700 dark:text-white focus:ring-1 focus:ring-blue-500 dark:focus:ring-accent-cyan"
               @keyup.enter="handleAddComment"
             />
             <button
-              class="px-3 py-1.5 text-xs bg-blue-600 dark:bg-neon-cyan/80 text-white dark:text-neon-bg-900 rounded-lg hover:bg-blue-700 dark:hover:bg-neon-cyan transition-colors font-medium disabled:opacity-50"
+              class="px-3 py-1.5 text-xs rounded-lg transition-colors font-medium cursor-pointer btn-gradient-primary"
               :disabled="!commentText.trim() || submittingComment"
               @click="handleAddComment"
             >
@@ -340,7 +340,7 @@ function formatTime(dateStr) {
             <div
               v-for="comment in comments"
               :key="comment.id"
-              class="bg-gray-50 dark:bg-neon-bg-700/50 rounded-lg px-3 py-2"
+              class="bg-warm-100 dark:bg-dark-bg-700/50 rounded-lg px-3 py-2"
             >
               <div class="flex items-center justify-between mb-1">
                 <span

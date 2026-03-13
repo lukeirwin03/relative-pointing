@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { parseJiraCSV, validateJiraCSV } from '../utils/csvParser';
+import { parseCSV, validateCSV } from '../utils/csvParser';
 import APIService from '../services/api';
 import CsvImportModal from './CsvImportModal.vue';
 
@@ -21,17 +21,33 @@ const isDragging = ref(false);
 const isUploading = ref(false);
 const error = ref(null);
 const pendingImport = ref(null);
+const fileInputRef = ref(null);
+
+function openFilePicker() {
+  fileInputRef.value?.click();
+}
+
+function handleFileInput(e) {
+  const file = e.target.files?.[0];
+  if (file) {
+    processFile(file);
+  }
+  // Reset so the same file can be re-selected
+  e.target.value = '';
+}
+
+defineExpose({ openFilePicker });
 
 async function processFile(file) {
   error.value = null;
 
   try {
-    const validation = await validateJiraCSV(file);
+    const validation = await validateCSV(file);
     if (!validation.isValid) {
       throw new Error(validation.message);
     }
 
-    const result = await parseJiraCSV(file);
+    const result = await parseCSV(file);
 
     if (result.tasks.length === 0) {
       throw new Error('No valid tasks found in CSV file');
@@ -125,16 +141,25 @@ onUnmounted(() => {
 
 <template>
   <template v-if="isCreator">
+    <!-- Hidden file input for button-triggered import -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept=".csv,text/csv"
+      class="hidden"
+      @change="handleFileInput"
+    />
+
     <!-- Dragging overlay -->
     <div
       v-if="isDragging"
-      class="fixed inset-0 bg-blue-500/20 dark:bg-neon-cyan/10 backdrop-blur-sm flex items-center justify-center z-40 pointer-events-none"
+      class="fixed inset-0 bg-blue-500/20 dark:bg-accent-cyan/10 backdrop-blur-sm flex items-center justify-center z-40 pointer-events-none"
     >
       <div
-        class="bg-white dark:glass-panel-solid p-8 rounded-lg shadow-2xl dark:shadow-glow-cyan text-center"
+        class="bg-warm-50 dark:glass-panel-solid p-8 rounded-lg shadow-2xl dark:shadow-glow-primary text-center"
       >
         <svg
-          class="w-16 h-16 mx-auto mb-4 text-blue-600 dark:text-neon-cyan animate-bounce"
+          class="w-16 h-16 mx-auto mb-4 text-blue-600 dark:text-accent-cyan animate-bounce"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -174,12 +199,12 @@ onUnmounted(() => {
     <!-- Loading indicator -->
     <div
       v-if="isUploading"
-      class="fixed bottom-4 right-4 bg-blue-50 dark:bg-neon-bg-700 border border-blue-200 dark:border-neon-cyan/30 rounded-lg p-4 shadow-lg dark:shadow-glow-cyan-sm z-50 flex items-center gap-3"
+      class="fixed bottom-4 right-4 bg-warm-200 dark:bg-dark-bg-700 border border-warm-300 dark:border-accent-cyan/30 rounded-lg p-4 shadow-lg dark:shadow-glow-primary-sm z-50 flex items-center gap-3"
     >
       <div
-        class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 dark:border-neon-cyan"
+        class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 dark:border-accent-cyan"
       ></div>
-      <p class="text-sm text-blue-600 dark:neon-text-cyan">
+      <p class="text-sm text-blue-600 dark:accent-text-primary">
         Importing tasks...
       </p>
     </div>

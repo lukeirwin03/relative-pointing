@@ -31,11 +31,11 @@ test.describe('Multi-User Session Management', () => {
       'Bob'
     );
 
-    // Both should see "Participants (3/3)" — Creator + Alice + Bob
-    await expect(alice.page.getByText('Participants (3/3)')).toBeVisible(
+    // Creator (skipped) + Alice + Bob = 3 total, 2 active
+    await expect(alice.page.getByText('Participants (2/3)')).toBeVisible(
       POLL_TIMEOUT
     );
-    await expect(bob.page.getByText('Participants (3/3)')).toBeVisible(
+    await expect(bob.page.getByText('Participants (2/3)')).toBeVisible(
       POLL_TIMEOUT
     );
 
@@ -66,14 +66,14 @@ test.describe('Multi-User Session Management', () => {
       'Charlie'
     );
 
-    // Creator + 3 joiners = 4
-    await expect(alice.page.getByText('Participants (4/4)')).toBeVisible(
+    // Creator (skipped) + 3 joiners = 4 total, 3 active
+    await expect(alice.page.getByText('Participants (3/4)')).toBeVisible(
       POLL_TIMEOUT
     );
-    await expect(bob.page.getByText('Participants (4/4)')).toBeVisible(
+    await expect(bob.page.getByText('Participants (3/4)')).toBeVisible(
       POLL_TIMEOUT
     );
-    await expect(charlie.page.getByText('Participants (4/4)')).toBeVisible(
+    await expect(charlie.page.getByText('Participants (3/4)')).toBeVisible(
       POLL_TIMEOUT
     );
 
@@ -94,8 +94,8 @@ test.describe('Multi-User Session Management', () => {
       'Alice'
     );
 
-    // Initially: Creator + Alice = 2
-    await expect(alice.page.getByText('Participants (2/2)')).toBeVisible(
+    // Initially: Creator (skipped) + Alice = 2 total, 1 active
+    await expect(alice.page.getByText('Participants (1/2)')).toBeVisible(
       POLL_TIMEOUT
     );
 
@@ -107,8 +107,8 @@ test.describe('Multi-User Session Management', () => {
       'Bob'
     );
 
-    // Alice should see the count update to 3 after poll
-    await expect(alice.page.getByText('Participants (3/3)')).toBeVisible(
+    // Alice should see the count update to 3 total, 2 active
+    await expect(alice.page.getByText('Participants (2/3)')).toBeVisible(
       POLL_TIMEOUT
     );
 

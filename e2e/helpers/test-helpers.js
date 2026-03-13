@@ -182,6 +182,15 @@ async function openBrowserAsUser(browser, roomCode, userId, userName) {
   return { context, page, userId };
 }
 
+/** POST /api/sessions/:roomCode/start — start the session (creator only) */
+async function startSessionViaAPI(request, roomCode, userId) {
+  const response = await request.post(`${API_URL}/sessions/${roomCode}/start`, {
+    headers: JSON_HEADERS,
+    data: { userId },
+  });
+  return response.json();
+}
+
 /** POST /api/sessions/:roomCode/end-turn */
 async function endTurnViaAPI(request, roomCode, userId) {
   const response = await request.post(
@@ -259,6 +268,7 @@ module.exports = {
   updateTaskColorViaAPI,
   createUserContext,
   createAuthenticatedUserInSession,
+  startSessionViaAPI,
   endTurnViaAPI,
   updateSessionViaAPI,
   skipTopTaskViaAPI,

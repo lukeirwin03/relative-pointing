@@ -3,8 +3,12 @@ import { ref, computed, watch } from 'vue';
 import APIService from '../services/api';
 import { useUserStore } from './user';
 
+const LOG_PREFIX = '[BOARD]';
+
 export const useSessionStore = defineStore('session', () => {
-  // Core state from backend
+  // ---------------------------------------------------------------------------
+  // Core state (synced from backend via polling every 2s)
+  // ---------------------------------------------------------------------------
   const session = ref(null);
   const participants = ref([]);
   const tasks = ref([]);
@@ -13,18 +17,35 @@ export const useSessionStore = defineStore('session', () => {
   const loading = ref(true);
   const error = ref(null);
   const roomCode = ref(null);
-  const serverConfig = ref({ offlineThresholdSeconds: 15 }); // default fallback
+  const serverConfig = ref({ offlineThresholdSeconds: 15 });
 
+  // ---------------------------------------------------------------------------
   // Optimistic state
+  //
+  // These overlay backend state to give instant UI feedback while API calls
+  // are in-flight. Reconciliation watchers clean them up once backend catches up.
+  //
+  //   optimisticTasks   — task overrides keyed by ID (column_id, tag_id changes)
+  //   optimisticColumns — columns that exist locally but aren't confirmed by backend yet
+  //   deletedTaskIds    — tasks hidden from display while delete API is in-flight
+  //   deletedColumnIds  — columns hidden from display while delete API is in-flight
+  //   pendingMoves      — task IDs with in-flight move API calls; reconciliation
+  //                        skips these to prevent polling from reverting the UI
+  // ---------------------------------------------------------------------------
   const optimisticTasks = ref({});
   const optimisticColumns = ref([]);
   const deletedTaskIds = ref(new Set());
   const deletedColumnIds = ref(new Set());
+  const pendingMoves = ref(new Set());
 
+  // ---------------------------------------------------------------------------
   // Polling
+  // ---------------------------------------------------------------------------
   let pollInterval = null;
 
-  // Computed: merge optimistic state with backend state
+  // ---------------------------------------------------------------------------
+  // Display state — merge optimistic + backend for the UI
+  // ---------------------------------------------------------------------------
   const displayColumns = computed(() => {
     const backendCols = (columns.value || []).filter(
       (col) => !deletedColumnIds.value.has(col.id)
@@ -41,12 +62,19 @@ export const useSessionStore = defineStore('session', () => {
       .map((task) => optimisticTasks.value[String(task.id)] || task);
   });
 
-  // Reconcile optimistic tasks when backend state updates
+  // ---------------------------------------------------------------------------
+  // Reconciliation — clean up optimistic state once backend catches up
+  // ---------------------------------------------------------------------------
+
+  // Tasks: clear optimistic overlay when backend matches.
+  // Skip tasks with in-flight operations (pendingMoves) to prevent flicker.
   watch(tasks, (newTasks) => {
     const updated = { ...optimisticTasks.value };
     let hasChanges = false;
 
     Object.keys(updated).forEach((taskId) => {
+      if (pendingMoves.value.has(taskId)) return;
+
       const optimisticTask = updated[taskId];
       const backendTask = newTasks.find((t) => String(t.id) === String(taskId));
 
@@ -63,26 +91,38 @@ export const useSessionStore = defineStore('session', () => {
     if (hasChanges) optimisticTasks.value = updated;
   });
 
-  // Reconcile optimistic columns when backend state updates
+  // Columns: clear optimistic columns once backend confirms them.
+  // Clear deletedColumnIds for columns that no longer exist in backend.
   watch(columns, (newColumns) => {
     if (newColumns && newColumns.length > 0) {
       const backendColumnIds = new Set(newColumns.map((c) => c.id));
+
+      // Remove optimistic columns that now exist in backend
       const remaining = optimisticColumns.value.filter(
         (c) => !backendColumnIds.has(c.id)
       );
       if (remaining.length !== optimisticColumns.value.length) {
         optimisticColumns.value = remaining;
       }
-      // Clear deleted column ids that no longer exist
+
+      // Stop hiding columns that the backend already deleted
       const newDeleted = new Set(
         [...deletedColumnIds.value].filter((id) => backendColumnIds.has(id))
       );
       if (newDeleted.size !== deletedColumnIds.value.size) {
         deletedColumnIds.value = newDeleted;
       }
+    } else {
+      // Backend has no columns — clear all optimistic deletions
+      if (deletedColumnIds.value.size > 0) {
+        deletedColumnIds.value = new Set();
+      }
     }
   });
 
+  // ---------------------------------------------------------------------------
+  // Session fetching & polling
+  // ---------------------------------------------------------------------------
   async function fetchSession() {
     if (!roomCode.value) return;
     try {
@@ -133,9 +173,12 @@ export const useSessionStore = defineStore('session', () => {
     optimisticColumns.value = [];
     deletedTaskIds.value = new Set();
     deletedColumnIds.value = new Set();
+    pendingMoves.value = new Set();
   }
 
+  // ---------------------------------------------------------------------------
   // Turn-based computed properties
+  // ---------------------------------------------------------------------------
   const currentTurnUserId = computed(
     () => session.value?.current_turn_user_id || null
   );
@@ -169,9 +212,12 @@ export const useSessionStore = defineStore('session', () => {
     return skipped.includes(userStore.userId);
   });
 
+  const isStarted = computed(() => !!session.value?.started_at);
   const isEnded = computed(() => !!session.value?.ended_at);
 
+  // ---------------------------------------------------------------------------
   // Turn-based actions
+  // ---------------------------------------------------------------------------
   async function endTurn() {
     if (!roomCode.value) return;
     const userStore = useUserStore();
@@ -200,6 +246,18 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  async function startSession() {
+    if (!roomCode.value) return;
+    const userStore = useUserStore();
+    try {
+      await APIService.startSession(roomCode.value, userStore.userId);
+      await fetchSession();
+    } catch (err) {
+      console.error('Error starting session:', err);
+      throw err;
+    }
+  }
+
   async function endSession() {
     if (!roomCode.value) return;
     const userStore = useUserStore();
@@ -221,7 +279,6 @@ export const useSessionStore = defineStore('session', () => {
         userStore.userId,
         newOwnerId
       );
-      // Immediately fetch to reflect the change
       await fetchSession();
     } catch (err) {
       console.error('Error transferring ownership:', err);
@@ -229,88 +286,238 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  // Actions
+  // ---------------------------------------------------------------------------
+  // Column ordering helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Compute the column_order value for a new column based on the drop zone ID.
+   *
+   * Zone ID conventions:
+   *   "new-column"                → append to the right (after last column)
+   *   "new-column-left"           → prepend to the left (before first column)
+   *   "new-column-between-<id>"   → insert between <id> and its right neighbor
+   */
+  function computeColumnOrder(zoneId) {
+    const allColumns = [...(columns.value || []), ...optimisticColumns.value];
+    const sorted = [...allColumns].sort(
+      (a, b) => (a.column_order || 0) - (b.column_order || 0)
+    );
+
+    if (zoneId === 'new-column-left') {
+      const min =
+        sorted.length > 0
+          ? Math.min(...sorted.map((c) => c.column_order || 0))
+          : 0;
+      return min - 1;
+    }
+
+    if (zoneId.startsWith('new-column-between-')) {
+      const leftColumnId = zoneId.replace('new-column-between-', '');
+      const leftIndex = sorted.findIndex((c) => c.id === leftColumnId);
+      if (leftIndex !== -1 && leftIndex < sorted.length - 1) {
+        const leftOrder = sorted[leftIndex].column_order || 0;
+        const rightOrder = sorted[leftIndex + 1].column_order || 0;
+        return (leftOrder + rightOrder) / 2;
+      }
+      // Fallthrough: left column is rightmost → treat as append-right
+    }
+
+    // Default: append to the right
+    const max =
+      sorted.length > 0
+        ? Math.max(...sorted.map((c) => c.column_order || 0))
+        : 0;
+    return max + 1;
+  }
+
+  /** Returns true if zoneId is a "create new column" drop zone. */
+  function isNewColumnZone(zoneId) {
+    return (
+      zoneId === 'new-column' ||
+      zoneId === 'new-column-left' ||
+      String(zoneId).startsWith('new-column-between')
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helper: get a task's effective column_id (optimistic state over backend)
+  // ---------------------------------------------------------------------------
+  function getEffectiveColumnId(taskIdStr) {
+    const optimistic = optimisticTasks.value[taskIdStr];
+    if (optimistic) return optimistic.column_id;
+    const backend = tasks.value.find((t) => String(t.id) === taskIdStr);
+    return backend ? backend.column_id : null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helper: hide an empty column immediately and delete it on the server
+  //
+  // Called after a task is successfully moved out of a column. Checks whether
+  // the source column is now empty (using displayTasks to account for other
+  // optimistic moves) and if so, hides it instantly via deletedColumnIds
+  // before the async server delete.
+  // ---------------------------------------------------------------------------
+  function cleanupEmptyColumn(columnId, excludeTaskId) {
+    if (!columnId || columnId === 'unsorted') return;
+
+    const remaining = displayTasks.value.filter(
+      (t) => t.column_id === columnId && String(t.id) !== excludeTaskId
+    );
+
+    if (remaining.length > 0) return;
+
+    console.log(LOG_PREFIX, 'Column empty, removing:', columnId);
+
+    // Hide immediately so the UI doesn't show an empty column
+    deletedColumnIds.value = new Set([...deletedColumnIds.value, columnId]);
+
+    // Also remove from optimistic columns if it was a preview column
+    optimisticColumns.value = optimisticColumns.value.filter(
+      (c) => c.id !== columnId
+    );
+
+    // Delete on server (best-effort — column is already hidden)
+    APIService.deleteColumn(roomCode.value, columnId).catch((err) => {
+      console.warn(
+        LOG_PREFIX,
+        'Failed to delete empty column on server:',
+        columnId,
+        err.message
+      );
+      // Don't revert deletedColumnIds — the column is genuinely empty.
+      // Polling reconciliation will clean up the deletedColumnIds entry
+      // once the backend no longer returns this column.
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Core action: move a task to a column (or create a new column via drop zone)
+  //
+  // Operations handled:
+  //   1. MOVE unsorted → existing column
+  //   2. MOVE column A → column B
+  //   3. MOVE column → unsorted (return to queue)
+  //   4. CREATE new column + move task into it (via drop zone)
+  //   5. DESTROY empty source column (auto-cleanup after move)
+  //
+  // Guards:
+  //   - Must be current turn user and not disabled
+  //   - Task must not already have an in-flight move (prevents race conditions)
+  //   - Task must not already be in the target column
+  //
+  // Sequence:
+  //   1. Validate guards
+  //   2. If drop zone → create optimistic preview column
+  //   3. Apply optimistic task move (instant UI)
+  //   4. Mark task as pending (protects from polling reconciliation)
+  //   5. Server: create column if needed (bail on failure)
+  //   6. Server: move task
+  //   7. Clean up empty source column (hide + delete)
+  //   8. On failure: revert all optimistic state
+  //   9. Always: clear pending flag
+  // ---------------------------------------------------------------------------
   async function moveTaskToColumn(taskId, targetColumnId, userId) {
-    if (!isMyTurn.value || isCurrentUserDisabled.value) return;
-
     const taskIdStr = String(taskId);
-    const draggedTask = tasks.value.find((t) => String(t.id) === taskIdStr);
-    if (!draggedTask) return;
-    if (draggedTask.column_id === targetColumnId) return;
 
+    // --- Guard: turn check ---
+    if (!isMyTurn.value || isCurrentUserDisabled.value) {
+      console.warn(
+        LOG_PREFIX,
+        'Move rejected: not your turn or disabled',
+        taskIdStr
+      );
+      return;
+    }
+
+    // --- Guard: task already has an in-flight move ---
+    if (pendingMoves.value.has(taskIdStr)) {
+      console.warn(
+        LOG_PREFIX,
+        'Move rejected: task already in-flight',
+        taskIdStr
+      );
+      return;
+    }
+
+    // --- Guard: task exists ---
+    const backendTask = tasks.value.find((t) => String(t.id) === taskIdStr);
+    if (!backendTask) {
+      console.warn(
+        LOG_PREFIX,
+        'Move rejected: task not found in backend state',
+        taskIdStr
+      );
+      return;
+    }
+
+    // --- Guard: not a no-op (check effective column, not stale backend) ---
+    const effectiveColumnId = getEffectiveColumnId(taskIdStr);
+    if (effectiveColumnId === targetColumnId) {
+      console.log(
+        LOG_PREFIX,
+        'Move skipped: task already in target column',
+        taskIdStr,
+        targetColumnId
+      );
+      return;
+    }
+
+    const sourceColumnId = effectiveColumnId || backendTask.column_id;
+
+    // --- Step 2: If dropping on a drop zone, create a preview column ---
     let newColumnData = null;
     let actualTargetColumnId = targetColumnId;
 
-    // Handle "create new column" zones
-    if (
-      targetColumnId === 'new-column' ||
-      targetColumnId === 'new-column-left' ||
-      String(targetColumnId).startsWith('new-column-between')
-    ) {
-      let newColumnOrder;
-      const isLeftZone = targetColumnId === 'new-column-left';
-      const isBetweenZone =
-        String(targetColumnId).startsWith('new-column-between');
-      const allColumns = [...(columns.value || []), ...optimisticColumns.value];
-      const sortedCols = [...allColumns].sort(
-        (a, b) => (a.column_order || 0) - (b.column_order || 0)
-      );
-
-      if (isLeftZone) {
-        const minOrder =
-          sortedCols.length > 0
-            ? Math.min(...sortedCols.map((c) => c.column_order || 0))
-            : 0;
-        newColumnOrder = minOrder - 1;
-      } else if (isBetweenZone) {
-        // Extract the left column ID from "new-column-between-<columnId>"
-        const leftColumnId = targetColumnId.replace('new-column-between-', '');
-        const leftIndex = sortedCols.findIndex((c) => c.id === leftColumnId);
-        if (leftIndex !== -1 && leftIndex < sortedCols.length - 1) {
-          const leftOrder = sortedCols[leftIndex].column_order || 0;
-          const rightOrder = sortedCols[leftIndex + 1].column_order || 0;
-          newColumnOrder = (leftOrder + rightOrder) / 2;
-        } else {
-          // Fallback: place at end
-          const maxOrder =
-            sortedCols.length > 0
-              ? Math.max(...sortedCols.map((c) => c.column_order || 0))
-              : 0;
-          newColumnOrder = maxOrder + 1;
-        }
-      } else {
-        const maxOrder =
-          sortedCols.length > 0
-            ? Math.max(...sortedCols.map((c) => c.column_order || 0))
-            : 0;
-        newColumnOrder = maxOrder + 1;
-      }
-
+    if (isNewColumnZone(targetColumnId)) {
       actualTargetColumnId = `column-${Date.now()}`;
+      const order = computeColumnOrder(targetColumnId);
       newColumnData = {
         id: actualTargetColumnId,
         name: 'New Column',
-        column_order: newColumnOrder,
+        column_order: order,
       };
-
       optimisticColumns.value = [...optimisticColumns.value, newColumnData];
+      console.log(
+        LOG_PREFIX,
+        'Preview column created:',
+        actualTargetColumnId,
+        'order:',
+        order,
+        'zone:',
+        targetColumnId
+      );
     }
 
-    // Optimistic update
-    const existingOptimistic = optimisticTasks.value[taskIdStr] || {};
+    // --- Step 3: Optimistic task update ---
+    const existingOptimistic = optimisticTasks.value[taskIdStr];
     optimisticTasks.value = {
       ...optimisticTasks.value,
       [taskIdStr]: {
-        ...draggedTask,
-        ...existingOptimistic,
+        ...backendTask,
         column_id: actualTargetColumnId,
+        // Preserve any in-flight tag change
+        ...(existingOptimistic?.tag_id != null
+          ? { tag_id: existingOptimistic.tag_id }
+          : {}),
       },
     };
 
-    const sourceColumnId = draggedTask.column_id;
+    console.log(
+      LOG_PREFIX,
+      'Move:',
+      taskIdStr,
+      sourceColumnId,
+      '→',
+      actualTargetColumnId
+    );
 
-    // Backend operations (non-blocking)
+    // --- Step 4: Mark pending ---
+    pendingMoves.value = new Set([...pendingMoves.value, taskIdStr]);
+
+    // --- Steps 5-7: Server calls ---
     try {
+      // 5a. Create column on server (if needed)
       if (newColumnData) {
         await APIService.createColumn(
           roomCode.value,
@@ -318,62 +525,79 @@ export const useSessionStore = defineStore('session', () => {
           newColumnData.name,
           newColumnData.column_order
         );
+        console.log(LOG_PREFIX, 'Column created on server:', newColumnData.id);
       }
+
+      // 6. Move task on server
       await APIService.moveTask(
         roomCode.value,
         taskIdStr,
         actualTargetColumnId,
         userId
       );
+      console.log(
+        LOG_PREFIX,
+        'Task moved on server:',
+        taskIdStr,
+        '→',
+        actualTargetColumnId
+      );
 
-      // Clean up empty source column
-      if (sourceColumnId && sourceColumnId !== 'unsorted') {
-        const tasksInSource = tasks.value.filter(
-          (t) => t.column_id === sourceColumnId && String(t.id) !== taskIdStr
-        );
-        if (tasksInSource.length === 0) {
-          APIService.deleteColumn(roomCode.value, sourceColumnId).catch(
-            () => {}
-          );
-        }
-      }
+      // 7. Clean up empty source column
+      cleanupEmptyColumn(sourceColumnId, taskIdStr);
     } catch (err) {
-      console.error('Error moving task:', err);
-      // Revert
+      // 8. Revert all optimistic state on failure
+      console.error(
+        LOG_PREFIX,
+        'Move failed, reverting:',
+        taskIdStr,
+        err.message
+      );
+
       const updated = { ...optimisticTasks.value };
       delete updated[taskIdStr];
       optimisticTasks.value = updated;
+
       if (newColumnData) {
         optimisticColumns.value = optimisticColumns.value.filter(
           (c) => c.id !== newColumnData.id
         );
       }
+    } finally {
+      // 9. Clear pending flag — allows polling to reconcile this task
+      const remaining = new Set(pendingMoves.value);
+      remaining.delete(taskIdStr);
+      pendingMoves.value = remaining;
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Delete a task (and clean up its column if it was the last one)
+  // ---------------------------------------------------------------------------
   async function deleteTask(taskId) {
     const taskIdStr = String(taskId);
     const deletedTask = tasks.value.find((t) => String(t.id) === taskIdStr);
-    if (!deletedTask) return;
+    if (!deletedTask) {
+      console.warn(LOG_PREFIX, 'Delete rejected: task not found', taskIdStr);
+      return;
+    }
 
+    console.log(LOG_PREFIX, 'Deleting task:', taskIdStr);
     deletedTaskIds.value = new Set([...deletedTaskIds.value, taskIdStr]);
 
     try {
       await APIService.deleteTask(roomCode.value, taskId);
+      console.log(LOG_PREFIX, 'Task deleted on server:', taskIdStr);
 
-      const taskColumnId = deletedTask.column_id;
-      if (taskColumnId && taskColumnId !== 'unsorted') {
-        const tasksInColumn = displayTasks.value.filter(
-          (t) => t.column_id === taskColumnId && String(t.id) !== taskIdStr
-        );
-        if (tasksInColumn.length === 0) {
-          await APIService.deleteColumn(roomCode.value, taskColumnId).catch(
-            (err) => console.error('Error deleting empty column:', err)
-          );
-        }
-      }
+      // Clean up the column if it's now empty
+      cleanupEmptyColumn(deletedTask.column_id, taskIdStr);
     } catch (err) {
-      console.error('Error deleting task:', err);
+      console.error(
+        LOG_PREFIX,
+        'Delete failed, reverting:',
+        taskIdStr,
+        err.message
+      );
       alert('Failed to delete task: ' + err.message);
       const updated = new Set(deletedTaskIds.value);
       updated.delete(taskIdStr);
@@ -381,37 +605,9 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  async function deleteColumn(columnId, task) {
-    // Optimistic: move task to unsorted, mark column deleted
-    optimisticTasks.value = {
-      ...optimisticTasks.value,
-      [String(task.id)]: { ...task, column_id: 'unsorted' },
-    };
-    deletedColumnIds.value = new Set([...deletedColumnIds.value, columnId]);
-    optimisticColumns.value = optimisticColumns.value.filter(
-      (c) => c.id !== columnId
-    );
-
-    try {
-      await APIService.moveTask(
-        roomCode.value,
-        String(task.id),
-        'unsorted',
-        null
-      );
-      await APIService.deleteColumn(roomCode.value, columnId);
-    } catch (err) {
-      console.error('Error deleting column:', err);
-      // Revert
-      const updatedTasks = { ...optimisticTasks.value };
-      delete updatedTasks[String(task.id)];
-      optimisticTasks.value = updatedTasks;
-      const updatedDeleted = new Set(deletedColumnIds.value);
-      updatedDeleted.delete(columnId);
-      deletedColumnIds.value = updatedDeleted;
-    }
-  }
-
+  // ---------------------------------------------------------------------------
+  // Tag management
+  // ---------------------------------------------------------------------------
   function updateTaskTag(taskId, tagId) {
     const taskIdStr = String(taskId);
     const existingOptimistic = optimisticTasks.value[taskIdStr];
@@ -455,6 +651,9 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
   return {
     // State
     session,
@@ -476,6 +675,7 @@ export const useSessionStore = defineStore('session', () => {
     topUnsortedTask,
     isMyTurn,
     isCurrentUserDisabled,
+    isStarted,
     isEnded,
     // Actions
     startPolling,
@@ -483,11 +683,11 @@ export const useSessionStore = defineStore('session', () => {
     resetState,
     moveTaskToColumn,
     deleteTask,
-    deleteColumn,
     updateTaskTag,
     createTag,
     deleteTag,
     endTurn,
+    startSession,
     endSession,
     toggleStackMode,
     skipTopTask,

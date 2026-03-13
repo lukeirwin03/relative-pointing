@@ -6,7 +6,7 @@ const themeStore = useThemeStore();
 
 <template>
   <div
-    class="min-h-screen bg-gray-50 dark:bg-neon-bg-900 transition-colors neon-grid-bg"
+    class="min-h-screen bg-warm-100 dark:bg-dark-bg-900 transition-colors neon-grid-bg"
   >
     <router-view />
   </div>

@@ -9,6 +9,7 @@ const {
   openBrowserAsUser,
   endTurnViaAPI,
   updateSessionViaAPI,
+  startSessionViaAPI,
   skipTopTaskViaAPI,
 } = require('./helpers/test-helpers');
 
@@ -20,6 +21,12 @@ test.describe('Turn-Based Features', () => {
     const session = await createSessionViaAPI(request, 'Creator');
     roomCode = session.roomCode;
     creatorId = session.creatorId;
+    // Unskip creator so they participate in turn rotation
+    await updateSessionViaAPI(request, roomCode, {
+      skipped_participants: [],
+    });
+    // Start the session to enable turns
+    await startSessionViaAPI(request, roomCode, creatorId);
   });
 
   test('full turn rotation: creator clicks End My Turn, banner updates for each user', async ({
@@ -275,7 +282,7 @@ test.describe('Turn-Based Features', () => {
       'Creator'
     );
 
-    // Wait for participants to load — format is "Participants (active/total)"
+    // Wait for participants to load — Creator + Alice, both active
     await expect(creator.page.getByText('Participants (2/2)')).toBeVisible(
       POLL_TIMEOUT
     );
@@ -311,7 +318,7 @@ test.describe('Turn-Based Features', () => {
       'Creator'
     );
 
-    // Wait for all 3 participants to show — format is "Participants (active/total)"
+    // Wait for all 3 participants to show — all active
     await expect(creator.page.getByText('Participants (3/3)')).toBeVisible(
       POLL_TIMEOUT
     );

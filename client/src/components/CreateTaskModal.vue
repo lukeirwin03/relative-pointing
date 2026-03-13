@@ -55,18 +55,18 @@ async function handleSubmit() {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white dark:glass-panel-solid rounded-lg shadow-xl dark:shadow-card max-w-md w-full mx-4"
+      class="bg-warm-50 dark:glass-panel-solid rounded-lg shadow-xl dark:shadow-card max-w-md w-full mx-4 warm-glow-border"
     >
       <!-- Header -->
       <div
-        class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between"
+        class="px-6 py-4 border-b border-warm-300 dark:border-white/10 flex items-center justify-between"
       >
         <h2 class="text-xl font-bold text-gray-800 dark:text-white">
           Create New Task
         </h2>
         <button
           @click="emit('close')"
-          class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-neon-cyan text-2xl leading-none transition-colors"
+          class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-accent-cyan text-2xl leading-none transition-colors"
           :disabled="loading"
         >
           ×
@@ -82,7 +82,7 @@ async function handleSubmit() {
             class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
           >
             Issue Key
-            <span class="text-red-500 dark:text-neon-red ml-1">*</span>
+            <span class="text-red-500 dark:text-accent-red ml-1">*</span>
           </label>
           <input
             type="text"
@@ -90,7 +90,7 @@ async function handleSubmit() {
             v-model="issueKey"
             @input="issueKey = issueKey.toUpperCase()"
             placeholder="e.g., PROJ-1"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-neon-cyan focus:border-transparent dark:bg-neon-bg-700 dark:text-white font-mono dark:placeholder-gray-500"
+            class="w-full px-4 py-2 border border-warm-400 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-accent-cyan focus:border-transparent dark:bg-dark-bg-700 dark:text-white font-mono dark:placeholder-gray-500"
             maxlength="20"
             :disabled="loading"
             autofocus
@@ -107,14 +107,14 @@ async function handleSubmit() {
             class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
           >
             Task Title
-            <span class="text-red-500 dark:text-neon-red ml-1">*</span>
+            <span class="text-red-500 dark:text-accent-red ml-1">*</span>
           </label>
           <input
             type="text"
             id="task-title"
             v-model="title"
             placeholder="Enter task title"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-neon-cyan focus:border-transparent dark:bg-neon-bg-700 dark:text-white dark:placeholder-gray-500"
+            class="w-full px-4 py-2 border border-warm-400 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-accent-cyan focus:border-transparent dark:bg-dark-bg-700 dark:text-white dark:placeholder-gray-500"
             maxlength="200"
             :disabled="loading"
           />
@@ -137,14 +137,14 @@ async function handleSubmit() {
             type="button"
             @click="emit('close')"
             :disabled="loading"
-            class="flex-1 px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex-1 px-4 py-2 border border-warm-400 dark:border-white/20 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-warm-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             type="submit"
             :disabled="loading || !issueKey.trim() || !title.trim()"
-            class="flex-1 px-4 py-2 bg-blue-600 dark:bg-neon-cyan/80 text-white dark:text-neon-bg-900 rounded-lg hover:bg-blue-700 dark:hover:bg-neon-cyan transition-all disabled:opacity-50 disabled:cursor-not-allowed dark:shadow-glow-cyan-sm font-medium"
+            class="flex-1 px-4 py-2 rounded-lg transition-all disabled:cursor-not-allowed font-medium cursor-pointer btn-gradient-primary"
           >
             {{ loading ? 'Creating...' : 'Create Task' }}
           </button>

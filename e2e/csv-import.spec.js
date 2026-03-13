@@ -325,7 +325,9 @@ test.describe('CSV Import Confirmation Dialog', () => {
 
     // Error toast should appear
     await expect(
-      creator.page.getByText('CSV must contain "Issue Key" and "Summary"')
+      creator.page.getByText(
+        'CSV must contain task ID and title columns (Jira or Linear format)'
+      )
     ).toBeVisible(POLL_TIMEOUT);
 
     await creator.context.close();
