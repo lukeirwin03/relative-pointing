@@ -1,12 +1,50 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const {
   dbPromise,
   touchSessionByRoomCode,
   touchParticipant,
+  safeJsonParse,
   OFFLINE_THRESHOLD_S,
 } = require('../db');
 const { generateRoomCode } = require('../utils/roomCodeGenerator');
 const { v4: uuidv4 } = require('uuid');
+
+// Load sample tasks from CSV at startup
+function loadSampleTasks() {
+  try {
+    const csvPath = path.join(__dirname, '..', '..', 'sample-tasks.csv');
+    const csv = fs.readFileSync(csvPath, 'utf-8');
+    const lines = csv.trim().split('\n');
+    const headers = lines[0].split(',');
+    return lines
+      .slice(1)
+      .filter(Boolean)
+      .map((line) => {
+        // Simple CSV parse (handles our format — no commas in fields)
+        const values = line.split(',');
+        const row = {};
+        headers.forEach((h, i) => (row[h.trim()] = (values[i] || '').trim()));
+        return {
+          jiraKey: row['Issue Key'],
+          title: row['Summary'],
+          issueType: row['Issue Type'] || 'Story',
+          status: row['Status'] || 'To Do',
+          priority: row['Priority'] || 'Medium',
+          description: row['Description'] || '',
+        };
+      });
+  } catch (err) {
+    console.warn(
+      'Could not load sample-tasks.csv, using empty task list:',
+      err.message
+    );
+    return [];
+  }
+}
+
+const sampleTasks = loadSampleTasks();
 
 const router = express.Router();
 
@@ -115,58 +153,7 @@ router.post('/', async (req, res) => {
     // Note: Columns are created dynamically when tasks are dragged to new locations
     // No default columns are created - start with blank work area
 
-    // Add sample default tasks
-    const sampleTasks = [
-      {
-        jiraKey: 'PROJ-123',
-        title: 'Implement user authentication',
-        description: 'Add login and signup functionality with OAuth support',
-        issueType: 'Story',
-        status: 'To Do',
-        priority: 'High',
-      },
-      {
-        jiraKey: 'PROJ-124',
-        title: 'Design homepage mockup',
-        description: 'Create visual design for landing page with modern UI',
-        issueType: 'Story',
-        status: 'To Do',
-        priority: 'Medium',
-      },
-      {
-        jiraKey: 'PROJ-125',
-        title: 'Set up CI/CD pipeline',
-        description: 'Configure automated deployment with GitHub Actions',
-        issueType: 'Task',
-        status: 'To Do',
-        priority: 'High',
-      },
-      {
-        jiraKey: 'PROJ-126',
-        title: 'Write API documentation',
-        description: 'Document all REST endpoints with examples',
-        issueType: 'Task',
-        status: 'To Do',
-        priority: 'Low',
-      },
-      {
-        jiraKey: 'PROJ-127',
-        title: 'Add error logging',
-        description: 'Implement error tracking system with Sentry',
-        issueType: 'Story',
-        status: 'To Do',
-        priority: 'Medium',
-      },
-      {
-        jiraKey: 'PROJ-128',
-        title: 'Optimize database queries',
-        description: 'Improve query performance for user dashboard',
-        issueType: 'Task',
-        status: 'In Progress',
-        priority: 'High',
-      },
-    ];
-
+    // Add sample tasks from CSV
     for (let i = 0; i < sampleTasks.length; i++) {
       const task = sampleTasks[i];
       const taskId = uuidv4();
@@ -259,15 +246,13 @@ router.get('/:roomCode', async (req, res) => {
     const processedTasks = tasks.map((task) => ({
       ...task,
       display_id: task.jira_key || task.id,
-      metadata: task.metadata ? JSON.parse(task.metadata) : {},
+      metadata: safeJsonParse(task.metadata, {}),
     }));
 
     // Parse skipped_participants JSON and normalize turn fields
     const processedSession = {
       ...session,
-      skipped_participants: session.skipped_participants
-        ? JSON.parse(session.skipped_participants)
-        : [],
+      skipped_participants: safeJsonParse(session.skipped_participants, []),
       stack_mode: !!session.stack_mode,
     };
 
@@ -567,9 +552,7 @@ router.post('/:roomCode/end-turn', async (req, res) => {
       [session.id]
     );
 
-    const skippedList = session.skipped_participants
-      ? JSON.parse(session.skipped_participants)
-      : [];
+    const skippedList = safeJsonParse(session.skipped_participants, []);
     const rotation = participants.filter(
       (p) => !skippedList.includes(p.user_id)
     );
@@ -786,9 +769,7 @@ router.post('/:roomCode/start', async (req, res) => {
       `SELECT * FROM participants WHERE session_id = ? ORDER BY joined_at ASC`,
       [session.id]
     );
-    const skippedList = session.skipped_participants
-      ? JSON.parse(session.skipped_participants)
-      : [];
+    const skippedList = safeJsonParse(session.skipped_participants, []);
     const activeParticipants = participants.filter(
       (p) => !skippedList.includes(p.user_id)
     );
@@ -925,16 +906,14 @@ router.get('/:roomCode/report', async (req, res) => {
     const processedTasks = tasks.map((task) => ({
       ...task,
       display_id: task.jira_key || task.id,
-      metadata: task.metadata ? JSON.parse(task.metadata) : {},
+      metadata: safeJsonParse(task.metadata, {}),
       comments: commentsByTask[task.id] || [],
     }));
 
     res.json({
       session: {
         ...session,
-        skipped_participants: session.skipped_participants
-          ? JSON.parse(session.skipped_participants)
-          : [],
+        skipped_participants: safeJsonParse(session.skipped_participants, []),
       },
       participants,
       columns,

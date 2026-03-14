@@ -200,14 +200,14 @@ build_locally() {
     
     print_info "Building React production bundle..."
     # Set production API URL for React build
-    export REACT_APP_API_URL="https://${EC2_DOMAIN}/api"
+    export VITE_API_URL="https://${EC2_DOMAIN}/api"
     if ! npm run build; then
         print_error "Failed to build React app"
         exit 1
     fi
-    print_success "React app built successfully (API: $REACT_APP_API_URL)"
+    print_success "Vue app built successfully (API: $VITE_API_URL)"
     
-    if [ ! -d "$SCRIPT_DIR/build" ]; then
+    if [ ! -d "$SCRIPT_DIR/client/dist" ]; then
         print_error "Build directory not found after build!"
         exit 1
     fi
@@ -376,7 +376,7 @@ server {
 
     # Serve React frontend (static)
     location / {
-        root ${EC2_APP_DIR}/app/build;
+        root ${EC2_APP_DIR}/app/client/dist;
         try_files \$uri \$uri/ /index.html;
         
         location = /index.html {
@@ -391,7 +391,7 @@ server {
 
     # Proxy API requests to backend
     location /api/ {
-        proxy_pass http://localhost:5000/api/;
+        proxy_pass http://localhost:5001/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -436,7 +436,7 @@ Environment="PATH=$HOME/.nvm/versions/node/v${NODE_VERSION}/bin:/usr/local/sbin:
 Environment="NODE_ENV=production"
 Environment="PORT=5000"
 Environment="DATABASE_PATH=${EC2_APP_DIR}/database/app.db"
-Environment="REACT_APP_API_URL=https://${EC2_DOMAIN}/api"
+Environment="VITE_API_URL=https://${EC2_DOMAIN}/api"
 
 ExecStart=$HOME/.nvm/versions/node/v${NODE_VERSION}/bin/npm run start:backend
 
@@ -493,8 +493,8 @@ create_env_on_ec2() {
 NODE_ENV=production
 PORT=5000
 DATABASE_PATH=$EC2_APP_DIR/database/app.db
-REACT_APP_API_URL=https://$EC2_DOMAIN/api
-BACKEND_URL=http://localhost:5000
+VITE_API_URL=https://$EC2_DOMAIN/api
+BACKEND_URL=http://localhost:5001
 EOF
     
     if [ $? -eq 0 ]; then
@@ -509,7 +509,7 @@ EOF
 upload_build() {
     print_header "Uploading Build to EC2"
     
-    local build_path="$SCRIPT_DIR/build"
+    local build_path="$SCRIPT_DIR/client/dist"
     local server_path="$SCRIPT_DIR/server"
     local package_json="$SCRIPT_DIR/package.json"
     local package_lock="$SCRIPT_DIR/package-lock.json"
@@ -654,7 +654,7 @@ DEPLOYMENT SUMMARY:
   Domain:    $EC2_DOMAIN
   App Dir:   $EC2_APP_DIR
   Node:      $NODE_VERSION (via nvm)
-  Backend:   http://localhost:5000 (proxied through nginx)
+  Backend:   http://localhost:5001 (proxied through nginx)
 
 WHAT HAPPENED:
   ✓ Built React app locally
@@ -706,7 +706,7 @@ NEXT STEPS:
    Point A record to: $EC2_HOST
 
 4. Verify It Works:
-   curl http://$EC2_HOST:5000/api/health
+   curl http://$EC2_HOST:5001/api/health
    # Should return: {"status":"ok"}
 
 USEFUL COMMANDS:

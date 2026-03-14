@@ -383,9 +383,7 @@ function startPresenceCheck() {
 
         if (participants.length === 0) continue;
 
-        const skippedList = session.skipped_participants
-          ? JSON.parse(session.skipped_participants)
-          : [];
+        const skippedList = safeJsonParse(session.skipped_participants, []);
 
         // --- Auto-skip turn if turn holder is offline (only for started sessions) ---
         if (session.current_turn_user_id && session.started_at) {
@@ -536,12 +534,23 @@ const dbPromise = {
   },
 };
 
+function safeJsonParse(str, fallback = []) {
+  if (!str) return fallback;
+  try {
+    return JSON.parse(str);
+  } catch {
+    console.error('Failed to parse JSON:', str);
+    return fallback;
+  }
+}
+
 module.exports = {
   db,
   dbPromise,
   touchSession,
   touchSessionByRoomCode,
   touchParticipant,
+  safeJsonParse,
   SESSION_TIMEOUT_MS,
   OFFLINE_THRESHOLD_S,
 };

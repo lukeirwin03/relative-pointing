@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const http = require('http');
-const { Server } = require('socket.io');
 const rateLimit = require('express-rate-limit');
 require('./db'); // Initialize database
 
@@ -13,15 +11,6 @@ const commentsRouter = require('./routes/comments');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
-
-// Create HTTP server for Socket.io
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
-});
 
 // Trust proxy (needed for rate limiting behind nginx)
 app.set('trust proxy', 1);
@@ -90,24 +79,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Socket.io event handlers
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
-
-  // User joins a room
-  socket.on('join-room', (data) => {
-    const { roomCode } = data;
-    socket.join(roomCode);
-  });
-
-  // Handle disconnect
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
-});
-
 // Start server
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║  Relative Pointing App - Backend       ║
@@ -115,8 +88,6 @@ server.listen(PORT, () => {
 
   Server running at http://localhost:${PORT}
   API available at http://localhost:${PORT}/api
-  WebSocket available at ws://localhost:${PORT}
-
   Health check: http://localhost:${PORT}/api/health
 
   Press Ctrl+C to stop

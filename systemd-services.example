@@ -17,7 +17,7 @@
 # OPTION 1: Backend Service Only (Recommended for Production)
 ################################################################################
 # File: /etc/systemd/system/relative-pointing-backend.service
-# This service runs the Express backend on port 5000
+# This service runs the Express backend on port 5001
 # Frontend is served statically by nginx from the build directory
 
 [Unit]
@@ -32,9 +32,9 @@ WorkingDirectory=/var/www/relative-pointing/app
 
 # Environment variables
 Environment="NODE_ENV=production"
-Environment="PORT=5000"
+Environment="PORT=5001"
 Environment="DATABASE_PATH=/var/www/relative-pointing/database/app.db"
-Environment="REACT_APP_API_URL=https://relativepointing.app/api"
+Environment="VITE_API_URL=https://relativepointing.app/api"
 
 # Start command
 ExecStart=/usr/bin/npm run start:backend
@@ -64,7 +64,7 @@ WantedBy=multi-user.target
 # OPTION 2: Frontend Build Service (Optional)
 ################################################################################
 # File: /etc/systemd/system/relative-pointing-frontend.service
-# This builds the React app (runs once on startup)
+# This builds the Vue app (runs once on startup)
 # Not needed if you manually build before deployment
 
 [Unit]
@@ -110,9 +110,9 @@ WorkingDirectory=/var/www/relative-pointing/app
 
 # Environment
 Environment="NODE_ENV=production"
-Environment="PORT=5000"
+Environment="PORT=5001"
 Environment="DATABASE_PATH=/var/www/relative-pointing/database/app.db"
-Environment="REACT_APP_API_URL=https://relativepointing.app/api"
+Environment="VITE_API_URL=https://relativepointing.app/api"
 
 # Pre-start: rebuild frontend if needed
 ExecStartPre=/bin/bash -c 'npm run build || true'
@@ -191,7 +191,7 @@ WantedBy=multi-user.target
 #   3. Test manually: cd /var/www/relative-pointing/app && npm run start:backend
 #
 # Port already in use?
-#   sudo lsof -i :5000
+#   sudo lsof -i :5001
 #   sudo kill -9 <PID>
 #
 # Permission denied?

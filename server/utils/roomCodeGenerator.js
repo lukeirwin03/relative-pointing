@@ -117,34 +117,6 @@ function generateRoomCode() {
   return `${adjective}-${noun}`.toLowerCase();
 }
 
-/**
- * Validates a room code format (now validates fun names)
- * @param {string} code - Room code to validate
- * @returns {boolean} True if valid format
- */
-function isValidRoomCode(code) {
-  if (typeof code !== 'string') return false;
-
-  // Simple validation: must contain hyphen and be reasonable length
-  const parts = code.split('-');
-  if (parts.length !== 2) return false;
-  if (code.length > 20) return false;
-  if (code.length < 5) return false;
-
-  return true;
-}
-
-/**
- * Formats a room code for display (no formatting needed for fun names)
- * @param {string} code - Room code
- * @returns {string} Formatted code
- */
-function formatRoomCode(code) {
-  return code;
-}
-
 module.exports = {
   generateRoomCode,
-  isValidRoomCode,
-  formatRoomCode,
 };
