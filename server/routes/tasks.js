@@ -1,5 +1,5 @@
 const express = require('express');
-const { dbPromise, touchSessionByRoomCode } = require('../db');
+const { dbPromise, touchSessionByRoomCode, safeJsonParse } = require('../db');
 const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router({ mergeParams: true });
@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
     );
     const defaultTagId = defaultTag ? defaultTag.id : null;
 
-    // Insert tasks
+    // Insert tasks (truncate fields from CSV to enforce max lengths)
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
       const taskId = uuidv4();
@@ -50,9 +50,9 @@ router.post('/', async (req, res) => {
         [
           taskId,
           session.id,
-          task.jiraKey || null,
-          task.title || '',
-          task.description || '',
+          (task.jiraKey || '').slice(0, 50) || null,
+          (task.title || '').slice(0, 500),
+          (task.description || '').slice(0, 5000),
           task.issueType || '',
           task.status || '',
           task.priority || '',
@@ -281,30 +281,25 @@ router.put('/:taskId', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Turn enforcement: only current turn user can move tasks
-    // Skip enforcement when assignedBy is not a valid participant UUID (e.g. 'system' or null)
-    const isValidParticipantId =
-      assignedBy &&
-      assignedBy.match(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      );
+    // Require assignedBy for task moves
+    if (!assignedBy) {
+      return res.status(400).json({ error: 'assignedBy is required' });
+    }
 
+    // Turn enforcement: only current turn user can move tasks
     if (
       session.current_turn_user_id &&
-      isValidParticipantId &&
       assignedBy !== session.current_turn_user_id
     ) {
       return res.status(403).json({ error: 'It is not your turn' });
     }
 
     // Reject moves from disabled/skipped participants
-    if (isValidParticipantId) {
-      const skippedList = JSON.parse(session.skipped_participants || '[]');
-      if (skippedList.includes(assignedBy)) {
-        return res
-          .status(403)
-          .json({ error: 'You are currently disabled and cannot move tasks' });
-      }
+    const skippedList = safeJsonParse(session.skipped_participants, []);
+    if (skippedList.includes(assignedBy)) {
+      return res
+        .status(403)
+        .json({ error: 'You are currently disabled and cannot move tasks' });
     }
 
     // Find task by either database id or jira_key (since frontend sends display id)
@@ -350,6 +345,24 @@ router.post('/create-task', async (req, res) => {
 
     if (!title || title.trim() === '') {
       return res.status(400).json({ error: 'Title is required' });
+    }
+
+    if (issueKey.length > 50) {
+      return res
+        .status(400)
+        .json({ error: 'Issue key must be 50 characters or fewer' });
+    }
+
+    if (title.length > 500) {
+      return res
+        .status(400)
+        .json({ error: 'Title must be 500 characters or fewer' });
+    }
+
+    if (description && description.length > 5000) {
+      return res
+        .status(400)
+        .json({ error: 'Description must be 5000 characters or fewer' });
     }
 
     const session = await dbPromise.get(
@@ -477,7 +490,7 @@ router.get('/', async (req, res) => {
 
     const processed = tasks.map((task) => ({
       ...task,
-      metadata: task.metadata ? JSON.parse(task.metadata) : {},
+      metadata: safeJsonParse(task.metadata, {}),
     }));
 
     res.json(processed);

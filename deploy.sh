@@ -140,8 +140,8 @@ setup() {
         cat > "$APP_DIR/.env" << EOF
 NODE_ENV=production
 PORT=5000
-BACKEND_URL=http://localhost:5000
-REACT_APP_API_URL=https://$DOMAIN/api
+BACKEND_URL=http://localhost:5001
+VITE_API_URL=https://$DOMAIN/api
 DATABASE_PATH=$DB_DIR/app.db
 EOF
         chmod 600 "$APP_DIR/.env"
@@ -169,7 +169,7 @@ WorkingDirectory=$APP_DIR
 Environment="NODE_ENV=production"
 Environment="PORT=5000"
 Environment="DATABASE_PATH=$DB_DIR/app.db"
-Environment="REACT_APP_API_URL=https://$DOMAIN/api"
+Environment="VITE_API_URL=https://$DOMAIN/api"
 
 ExecStart=/usr/bin/npm run start:backend
 
@@ -239,7 +239,7 @@ server {
     gzip_min_length 1000;
 
     location / {
-        root /var/www/relative-pointing/app/build;
+        root /var/www/relative-pointing/app/client/dist;
         try_files $uri $uri/ /index.html;
         
         location = /index.html {
@@ -253,7 +253,7 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://localhost:5000/api/;
+        proxy_pass http://localhost:5001/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

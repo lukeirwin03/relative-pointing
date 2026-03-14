@@ -40,6 +40,18 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'name and color required' });
     }
 
+    if (name.length > 50) {
+      return res
+        .status(400)
+        .json({ error: 'Tag name must be 50 characters or fewer' });
+    }
+
+    if (color.length > 30) {
+      return res
+        .status(400)
+        .json({ error: 'Tag color must be 30 characters or fewer' });
+    }
+
     const session = await dbPromise.get(
       `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
       [roomCode.toLowerCase()]

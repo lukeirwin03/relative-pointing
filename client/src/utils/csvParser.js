@@ -159,9 +159,6 @@ export function parseCSV(file) {
   });
 }
 
-// Keep old name as alias for backwards compat
-export const parseJiraCSV = parseCSV;
-
 /**
  * Extract Jira base URL from issue keys
  * @param {Array} tasks - Array of task objects
@@ -204,23 +201,4 @@ export function validateCSV(file) {
       },
     });
   });
-}
-
-// Keep old name as alias
-export const validateJiraCSV = validateCSV;
-
-/**
- * Generate sample CSV for testing
- * @returns {string} CSV content
- */
-export function generateSampleCSV() {
-  return `Issue Key,Summary,Issue Type,Status,Priority,Description
-PROJ-123,Implement user authentication,Story,To Do,High,Add login and signup functionality
-PROJ-124,Design homepage mockup,Story,To Do,Medium,Create visual design for landing page
-PROJ-125,Set up CI/CD pipeline,Task,To Do,High,Configure automated deployment
-PROJ-126,Write API documentation,Task,To Do,Low,Document all REST endpoints
-PROJ-127,Add error logging,Story,To Do,Medium,Implement error tracking system
-PROJ-128,Optimize database queries,Task,In Progress,High,Improve query performance
-PROJ-129,Create user onboarding flow,Story,To Do,Medium,Guide new users through app
-PROJ-130,Fix mobile responsive issues,Bug,To Do,High,Resolve layout problems on mobile`;
 }

@@ -246,12 +246,30 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  async function startSession() {
+  async function startSession({ autoMoveTopTask = false } = {}) {
     if (!roomCode.value) return;
     const userStore = useUserStore();
     try {
       await APIService.startSession(roomCode.value, userStore.userId);
-      await fetchSession();
+      await fetchSession(); // sync started_at + turn assignment
+
+      if (autoMoveTopTask && topUnsortedTask.value) {
+        const taskId = String(topUnsortedTask.value.id);
+        const columnId = `column-${Date.now()}`;
+        await APIService.createColumn(
+          roomCode.value,
+          columnId,
+          'New Column',
+          1
+        );
+        await APIService.moveTask(
+          roomCode.value,
+          taskId,
+          columnId,
+          userStore.userId
+        );
+        await fetchSession(); // sync the new column + task position
+      }
     } catch (err) {
       console.error('Error starting session:', err);
       throw err;
@@ -598,7 +616,7 @@ export const useSessionStore = defineStore('session', () => {
         taskIdStr,
         err.message
       );
-      alert('Failed to delete task: ' + err.message);
+      console.error('Failed to delete task:', err.message);
       const updated = new Set(deletedTaskIds.value);
       updated.delete(taskIdStr);
       deletedTaskIds.value = updated;

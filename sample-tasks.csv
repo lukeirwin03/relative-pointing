@@ -14,3 +14,18 @@ PROJ-134,Add email notifications,Story,To Do,Medium,Send email alerts for import
 PROJ-135,Create admin dashboard,Story,To Do,Low,Build admin interface for user management
 PROJ-136,Fix login redirect bug,Bug,To Do,High,Users not redirected after successful login
 PROJ-137,Add file upload feature,Story,To Do,Medium,Allow users to upload documents and images
+PROJ-138,Implement rate limiting,Task,To Do,High,Add API rate limiting to prevent abuse
+PROJ-139,Build notification center,Story,To Do,Medium,In-app notification panel with read/unread state
+PROJ-140,Add two-factor authentication,Story,To Do,High,Support TOTP and SMS-based 2FA
+PROJ-141,Create data export feature,Task,To Do,Low,Allow users to export their data as CSV or JSON
+PROJ-142,Fix timezone handling,Bug,To Do,Medium,Dates display incorrectly for non-UTC users
+PROJ-143,Add keyboard shortcuts,Story,To Do,Low,Implement common keyboard shortcuts for power users
+PROJ-144,Migrate to TypeScript,Task,To Do,Medium,Convert core modules from JavaScript to TypeScript
+PROJ-145,Implement WebSocket connections,Story,To Do,High,Replace polling with real-time WebSocket updates
+PROJ-146,Add audit logging,Task,To Do,Medium,Log all user actions for compliance and debugging
+PROJ-147,Build user profile page,Story,To Do,Low,Profile page with avatar upload and settings
+PROJ-148,Fix memory leak in dashboard,Bug,To Do,High,Dashboard component not cleaning up event listeners
+PROJ-149,Add bulk operations,Story,To Do,Medium,Select multiple items and perform batch actions
+PROJ-150,Implement role-based access control,Story,To Do,High,Define roles and permissions for different user types
+PROJ-151,Create integration tests,Task,To Do,Medium,Add end-to-end tests for critical user flows
+PROJ-152,Add localization support,Story,To Do,Low,Support multiple languages with i18n framework
