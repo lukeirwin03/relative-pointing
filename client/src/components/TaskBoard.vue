@@ -694,9 +694,16 @@ onUnmounted(() => {
         <!-- Task Board Area -->
         <div
           ref="boardAreaRef"
-          class="h-full overflow-x-auto overflow-y-auto p-4 relative z-10"
+          class="h-full overflow-x-hidden overflow-y-auto p-4 relative z-10 board-no-scrollbar"
         >
-          <div class="flex gap-4 min-h-full px-4 mx-auto w-fit">
+          <div
+            :class="[
+              'flex gap-4 min-h-full px-4 w-fit',
+              isDragging && sessionStore.isMyTurn && sortedColumns.length > 0
+                ? 'min-w-full'
+                : 'mx-auto',
+            ]"
+          >
             <template
               v-if="
                 sessionStore.displayTasks &&
@@ -726,6 +733,8 @@ onUnmounted(() => {
                     sessionStore.isMyTurn
                   "
                   zone-id="new-column-left"
+                  :expand="true"
+                  indicator-position="right"
                   @task-dropped="handleDropZoneTask"
                 />
 
@@ -767,6 +776,8 @@ onUnmounted(() => {
                     sessionStore.isMyTurn
                   "
                   zone-id="new-column"
+                  :expand="true"
+                  indicator-position="left"
                   @task-dropped="handleDropZoneTask"
                 />
               </template>

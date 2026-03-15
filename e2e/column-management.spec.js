@@ -193,7 +193,7 @@ test.describe('Column Management', () => {
       'Watcher'
     );
     // PROJ-123 is in the column on the board (not in the Tasks sidebar)
-    const boardArea = user.page.locator('.overflow-x-auto');
+    const boardArea = user.page.locator('.overflow-x-hidden');
     await expect(boardArea.getByText('PROJ-123').first()).toBeVisible(
       POLL_TIMEOUT
     );
@@ -246,7 +246,7 @@ test.describe('Column Management', () => {
       roomCode,
       'Watcher'
     );
-    const boardArea = user.page.locator('.overflow-x-auto');
+    const boardArea = user.page.locator('.overflow-x-hidden');
     await expect(boardArea.getByText('PROJ-123').first()).toBeVisible(
       POLL_TIMEOUT
     );
@@ -291,7 +291,7 @@ test.describe('Column Management', () => {
       roomCode,
       'Lifecycle'
     );
-    const boardArea = user.page.locator('.overflow-x-auto');
+    const boardArea = user.page.locator('.overflow-x-hidden');
 
     // Start with 0 columns
     const data = await getSessionViaAPI(request, roomCode);

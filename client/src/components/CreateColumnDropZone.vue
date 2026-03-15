@@ -7,6 +7,14 @@ const props = defineProps({
     type: String,
     default: 'new-column',
   },
+  expand: {
+    type: Boolean,
+    default: false,
+  },
+  indicatorPosition: {
+    type: String,
+    default: 'center',
+  },
 });
 
 const emit = defineEmits(['taskDropped']);
@@ -66,20 +74,28 @@ function onDragChange(evt) {
 </script>
 
 <template>
-  <!-- Outer wrapper controls layout size — 80px hitbox -->
-  <div class="flex-shrink-0 min-h-[500px] w-20 relative">
-    <!-- Visual indicator layer — inset horizontally so it doesn't crowd columns -->
+  <div
+    :class="[
+      expand
+        ? 'flex-shrink-0 min-h-[500px] min-w-[80px] flex-grow relative'
+        : 'flex-shrink-0 min-h-[500px] w-20 relative',
+    ]"
+  >
+    <!-- Visual indicator layer -->
     <div
       :class="[
-        'absolute inset-y-0 inset-x-3 flex items-center justify-center pointer-events-none transition-all duration-150',
+        'absolute flex items-center justify-center pointer-events-none transition-all duration-150',
+        indicatorPosition === 'center' ? 'inset-y-0 inset-x-3' : '',
+        indicatorPosition === 'left' ? 'inset-y-0 left-0 w-20' : '',
+        indicatorPosition === 'right' ? 'inset-y-0 right-0 w-20' : '',
         activated
           ? 'rounded-lg border-2 border-dashed border-blue-500 bg-blue-100/80 dark:border-accent-cyan/60 dark:bg-accent-cyan/15'
           : '',
       ]"
     >
       <div
-        v-if="!activated"
-        class="w-0.5 h-3/4 rounded-full bg-gray-300 dark:bg-white/15"
+        v-if="!activated && !expand"
+        class="w-0.5 h-full rounded-full bg-gray-300 dark:bg-white/15"
       ></div>
       <span
         v-else
