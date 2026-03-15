@@ -1,5 +1,0 @@
-"Issue Key","Summary","Description","Status","Assignee","Reporter","Priority","Created Date","Updated Date","Due Date","Labels","Components","Project"
-"PROJ-123","Implement User Authentication","Develop and test the user login and registration system.","In Progress","Alice Smith","Bob Johnson","High","2023-11-15","2023-11-17","2023-11-20","security, auth","Backend","Project Alpha"
-"PROJ-124","Design Homepage UI","Create mockups and wireframes for the new homepage.","To Do","Charlie Brown","Alice Smith","Medium","2023-11-16","2023-11-16","2023-11-22","ui, design","Frontend","Project Alpha"
-"PROJ-125","Database Schema Update","Update the database schema to accommodate new features.","Done","David Lee","Bob Johnson","Low","2023-11-10","2023-11-15","","database, schema","Database","Project Alpha"
-

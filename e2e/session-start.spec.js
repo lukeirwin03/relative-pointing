@@ -119,9 +119,9 @@ test.describe('Session Start Flow', () => {
       creator.page.getByRole('button', { name: 'End Session' })
     ).not.toBeVisible();
 
-    // Should see the pre-start banner
+    // Should see the pre-start banner (Alice is active, so the "begin" message shows)
     await expect(
-      creator.page.getByText('Please enable a participant to begin')
+      creator.page.getByText('Begin the session by clicking')
     ).toBeVisible(POLL_TIMEOUT);
 
     // Click Start Session

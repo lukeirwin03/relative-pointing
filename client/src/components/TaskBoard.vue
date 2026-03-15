@@ -63,6 +63,12 @@ const isCreator = computed(
 const dragDisabled = computed(
   () => !sessionStore.isMyTurn || sessionStore.isCurrentUserDisabled
 );
+
+// Whether any participants are enabled (not in skipped list)
+const hasActiveParticipants = computed(() => {
+  const skipped = new Set(sessionStore.session?.skipped_participants || []);
+  return sessionStore.participants.some((p) => !skipped.has(p.user_id));
+});
 const topTaskId = computed(() =>
   sessionStore.topUnsortedTask ? String(sessionStore.topUnsortedTask.id) : null
 );
@@ -303,16 +309,7 @@ function handleTaskCreated() {
 
 async function handleStartSession() {
   try {
-    await sessionStore.startSession();
-    // Auto-move the top unsorted task into a new column so the board isn't empty
-    const topTask = sessionStore.topUnsortedTask;
-    if (topTask) {
-      sessionStore.moveTaskToColumn(
-        String(topTask.id),
-        'new-column',
-        userStore.userId
-      );
-    }
+    await sessionStore.startSession({ autoMoveTopTask: true });
   } catch (err) {
     alert('Failed to start session: ' + err.message);
   }
@@ -491,8 +488,18 @@ onUnmounted(() => {
               <button
                 v-if="isCreator && !sessionStore.isStarted"
                 @click="handleStartSession"
-                class="px-3 py-2 text-sm rounded-lg transition-colors font-medium cursor-pointer btn-gradient-success"
-                title="Start the session and begin turn rotation"
+                :disabled="!hasActiveParticipants"
+                class="px-3 py-2 text-sm rounded-lg transition-colors font-medium btn-gradient-success"
+                :class="
+                  hasActiveParticipants
+                    ? 'cursor-pointer'
+                    : 'opacity-50 cursor-not-allowed'
+                "
+                :title="
+                  hasActiveParticipants
+                    ? 'Start the session and begin turn rotation'
+                    : 'Enable at least one participant first'
+                "
               >
                 Start Session
               </button>
@@ -536,18 +543,47 @@ onUnmounted(() => {
         </div>
       </header>
 
-      <!-- All participants disabled banner -->
-      <!-- Pre-start: prompt to enable participants -->
+      <!-- Pre-start banners -->
+      <!-- Host: prompt to enable participants or start session -->
       <div
         v-if="
+          isCreator &&
           !sessionStore.isStarted &&
           sessionStore.participants.length > 0 &&
           !sessionStore.loading
         "
-        class="px-4 py-3 flex items-center justify-between border-b bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800"
+        class="px-4 py-3 flex items-center justify-between border-b"
+        :class="
+          hasActiveParticipants
+            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'
+            : 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800'
+        "
       >
-        <span class="font-semibold text-amber-800 dark:text-amber-200">
-          Please enable a participant to begin.
+        <span
+          :class="
+            hasActiveParticipants
+              ? 'font-semibold text-blue-800 dark:text-blue-200'
+              : 'font-semibold text-amber-800 dark:text-amber-200'
+          "
+        >
+          <template v-if="hasActiveParticipants">
+            Begin the session by clicking <strong>Start Session</strong>.
+          </template>
+          <template v-else> Please enable a participant to begin. </template>
+        </span>
+      </div>
+      <!-- Participant: waiting for session to begin -->
+      <div
+        v-if="
+          !isCreator &&
+          !sessionStore.isStarted &&
+          sessionStore.participants.length > 0 &&
+          !sessionStore.loading
+        "
+        class="px-4 py-3 flex items-center justify-between border-b bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800"
+      >
+        <span class="font-semibold text-blue-800 dark:text-blue-200">
+          Waiting for the session to begin.
         </span>
       </div>
       <!-- Post-start: all participants disabled -->
@@ -658,9 +694,16 @@ onUnmounted(() => {
         <!-- Task Board Area -->
         <div
           ref="boardAreaRef"
-          class="h-full overflow-x-auto overflow-y-auto p-4 relative z-10"
+          class="h-full overflow-x-hidden overflow-y-auto p-4 relative z-10 board-no-scrollbar"
         >
-          <div class="flex gap-4 min-h-full px-4 mx-auto w-fit">
+          <div
+            :class="[
+              'flex gap-4 min-h-full px-4 w-fit',
+              isDragging && sessionStore.isMyTurn && sortedColumns.length > 0
+                ? 'min-w-full'
+                : 'mx-auto',
+            ]"
+          >
             <template
               v-if="
                 sessionStore.displayTasks &&
@@ -690,6 +733,8 @@ onUnmounted(() => {
                     sessionStore.isMyTurn
                   "
                   zone-id="new-column-left"
+                  :expand="true"
+                  indicator-position="right"
                   @task-dropped="handleDropZoneTask"
                 />
 
@@ -731,6 +776,8 @@ onUnmounted(() => {
                     sessionStore.isMyTurn
                   "
                   zone-id="new-column"
+                  :expand="true"
+                  indicator-position="left"
                   @task-dropped="handleDropZoneTask"
                 />
               </template>
