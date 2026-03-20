@@ -412,7 +412,7 @@ server {
 
     # Proxy API requests to backend
     location /api/ {
-        proxy_pass http://localhost:5001/api/;
+        proxy_pass http://localhost:5000/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";

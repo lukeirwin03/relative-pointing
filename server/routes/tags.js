@@ -1,6 +1,7 @@
 const express = require('express');
 const { dbPromise, touchSessionByRoomCode } = require('../db');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const uuidv4 = () => crypto.randomUUID();
 
 const router = express.Router({ mergeParams: true });
 

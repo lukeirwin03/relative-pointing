@@ -9,7 +9,8 @@ const {
   OFFLINE_THRESHOLD_S,
 } = require('../db');
 const { generateRoomCode } = require('../utils/roomCodeGenerator');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const uuidv4 = () => crypto.randomUUID();
 
 // Load sample tasks from CSV at startup
 function loadSampleTasks() {
