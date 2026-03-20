@@ -164,6 +164,55 @@ function tagClasses(tag) {
   return `${colors.bg} ${colors.text}`;
 }
 
+// --- Hide toggles (client-side only) ---
+const hiddenTaskIds = ref(new Set());
+const hiddenColumnIds = ref(new Set());
+
+function toggleTaskHidden(taskId) {
+  const next = new Set(hiddenTaskIds.value);
+  if (next.has(taskId)) {
+    next.delete(taskId);
+  } else {
+    next.add(taskId);
+  }
+  hiddenTaskIds.value = next;
+}
+
+function toggleColumnHidden(columnId) {
+  const next = new Set(hiddenColumnIds.value);
+  if (next.has(columnId)) {
+    next.delete(columnId);
+  } else {
+    next.add(columnId);
+  }
+  hiddenColumnIds.value = next;
+}
+
+const displaySortedColumns = computed(() => {
+  const sorted = [...columns.value].sort(
+    (a, b) => (a.column_order || 0) - (b.column_order || 0)
+  );
+  const visible = sorted.filter((c) => !hiddenColumnIds.value.has(c.id));
+  const hidden = sorted.filter((c) => hiddenColumnIds.value.has(c.id));
+  return [...visible, ...hidden];
+});
+
+function displayTasksForColumn(columnId) {
+  const all = tasks.value.filter((t) => t.column_id === columnId);
+  const visible = all.filter((t) => !hiddenTaskIds.value.has(t.id));
+  const hidden = all.filter((t) => hiddenTaskIds.value.has(t.id));
+  return [...visible, ...hidden];
+}
+
+const displayUnsortedTasks = computed(() => {
+  const all = tasks.value.filter(
+    (t) => t.column_id === 'unsorted' || !t.column_id
+  );
+  const visible = all.filter((t) => !hiddenTaskIds.value.has(t.id));
+  const hidden = all.filter((t) => hiddenTaskIds.value.has(t.id));
+  return [...visible, ...hidden];
+});
+
 onMounted(fetchReport);
 </script>
 
@@ -278,9 +327,12 @@ onMounted(fetchReport);
       <!-- Columns Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div
-          v-for="column in sortedColumns"
+          v-for="column in displaySortedColumns"
           :key="column.id"
-          class="bg-warm-50 dark:bg-dark-bg-800/60 rounded-xl border border-warm-300 dark:border-white/10 overflow-hidden"
+          :class="[
+            'bg-warm-50 dark:bg-dark-bg-800/60 rounded-xl border border-warm-300 dark:border-white/10 overflow-hidden transition-opacity',
+            hiddenColumnIds.has(column.id) ? 'opacity-40' : '',
+          ]"
         >
           <!-- Column Header -->
           <div
@@ -296,6 +348,51 @@ onMounted(fetchReport);
                     tasksForColumn(column.id).length !== 1 ? 's' : ''
                   }}
                 </span>
+                <button
+                  @click="toggleColumnHidden(column.id)"
+                  class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                  :title="
+                    hiddenColumnIds.has(column.id)
+                      ? 'Show column'
+                      : 'Hide column'
+                  "
+                >
+                  <svg
+                    v-if="!hiddenColumnIds.has(column.id)"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-4 h-4"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                    />
+                  </svg>
+                  <svg
+                    v-else
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-4 h-4"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
             <div class="mt-2 flex items-center gap-2">
@@ -322,9 +419,12 @@ onMounted(fetchReport);
           <!-- Tasks in Column -->
           <div class="p-3 space-y-2">
             <div
-              v-for="task in tasksForColumn(column.id)"
+              v-for="task in displayTasksForColumn(column.id)"
               :key="task.id"
-              class="p-3 bg-warm-100 dark:bg-dark-bg-700/50 rounded-lg border border-warm-200 dark:border-white/5"
+              :class="[
+                'p-3 bg-warm-100 dark:bg-dark-bg-700/50 rounded-lg border border-warm-200 dark:border-white/5 transition-opacity',
+                hiddenTaskIds.has(task.id) ? 'opacity-40' : '',
+              ]"
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
@@ -349,6 +449,49 @@ onMounted(fetchReport);
                 >
                   {{ getTagForTask(task).name }}
                 </span>
+                <button
+                  @click="toggleTaskHidden(task.id)"
+                  class="flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                  :title="
+                    hiddenTaskIds.has(task.id) ? 'Show task' : 'Hide task'
+                  "
+                >
+                  <svg
+                    v-if="!hiddenTaskIds.has(task.id)"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-3.5 h-3.5"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                    />
+                  </svg>
+                  <svg
+                    v-else
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-3.5 h-3.5"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
+                    />
+                  </svg>
+                </button>
               </div>
               <p
                 v-if="task.description"
@@ -404,9 +547,12 @@ onMounted(fetchReport);
         </div>
         <div class="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           <div
-            v-for="task in unsortedTasks"
+            v-for="task in displayUnsortedTasks"
             :key="task.id"
-            class="p-3 bg-warm-100 dark:bg-dark-bg-700/50 rounded-lg border border-warm-200 dark:border-white/5"
+            :class="[
+              'p-3 bg-warm-100 dark:bg-dark-bg-700/50 rounded-lg border border-warm-200 dark:border-white/5 transition-opacity',
+              hiddenTaskIds.has(task.id) ? 'opacity-40' : '',
+            ]"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0 flex-1">
@@ -431,6 +577,47 @@ onMounted(fetchReport);
               >
                 {{ getTagForTask(task).name }}
               </span>
+              <button
+                @click="toggleTaskHidden(task.id)"
+                class="flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                :title="hiddenTaskIds.has(task.id) ? 'Show task' : 'Hide task'"
+              >
+                <svg
+                  v-if="!hiddenTaskIds.has(task.id)"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-3.5 h-3.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                  />
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-3.5 h-3.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
+                  />
+                </svg>
+              </button>
             </div>
             <!-- Comments -->
             <div

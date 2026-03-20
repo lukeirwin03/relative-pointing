@@ -83,7 +83,7 @@ function onDragChange(evt) {
   <div>
     <div
       :class="[
-        'rounded-lg p-3 w-[220px] flex-shrink-0 transition-colors flex flex-col warm-glow-border',
+        'rounded-lg px-1.5 py-3 w-[220px] flex-shrink-0 transition-colors flex flex-col warm-glow-border',
         variantClasses,
       ]"
       style="min-height: 400px"
@@ -101,7 +101,7 @@ function onDragChange(evt) {
         :filter="'.no-drag'"
         :prevent-on-filter="false"
         :disabled="dragDisabled"
-        class="space-y-2 flex-1 overflow-y-auto"
+        class="space-y-2 flex-1 overflow-hidden"
         ghost-class="opacity-30"
         @change="onDragChange"
       >

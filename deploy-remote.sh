@@ -412,7 +412,7 @@ server {
 
     # Proxy API requests to backend
     location /api/ {
-        proxy_pass http://localhost:5000/api/;
+        proxy_pass http://localhost:5001/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -458,7 +458,7 @@ Environment="PATH=$HOME/.nvm/versions/node/v${NODE_VERSION}/bin:/usr/local/sbin:
 Environment="NODE_ENV=production"
 Environment="PORT=5000"
 Environment="DATABASE_PATH=${EC2_APP_DIR}/database/app.db"
-Environment="REACT_APP_API_URL=https://${EC2_DOMAIN}/api"
+Environment="VITE_API_URL=https://${EC2_DOMAIN}/api"
 
 ExecStart=$HOME/.nvm/versions/node/v${NODE_VERSION}/bin/npm run start:backend
 
@@ -515,8 +515,8 @@ create_env_on_ec2() {
 NODE_ENV=production
 PORT=5000
 DATABASE_PATH=$EC2_APP_DIR/database/app.db
-REACT_APP_API_URL=https://$EC2_DOMAIN/api
-BACKEND_URL=http://localhost:5000
+VITE_API_URL=https://$EC2_DOMAIN/api
+BACKEND_URL=http://localhost:5001
 EOF
     
     if [ $? -eq 0 ]; then
@@ -740,7 +740,7 @@ DEPLOYMENT SUMMARY:
   Domain:    $EC2_DOMAIN
   App Dir:   $EC2_APP_DIR
   Node:      $NODE_VERSION (via nvm)
-  Backend:   http://localhost:5000 (proxied through nginx)
+  Backend:   http://localhost:5001 (proxied through nginx)
 
 WHAT HAPPENED:
   ✓ Built React app locally

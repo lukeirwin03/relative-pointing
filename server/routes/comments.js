@@ -42,6 +42,18 @@ router.post('/', async (req, res) => {
         .json({ error: 'userId, userName, and content required' });
     }
 
+    if (content.length > 5000) {
+      return res
+        .status(400)
+        .json({ error: 'Comment must be 5000 characters or fewer' });
+    }
+
+    if (userName.length > 100) {
+      return res
+        .status(400)
+        .json({ error: 'Username must be 100 characters or fewer' });
+    }
+
     const session = await dbPromise.get(
       `SELECT * FROM sessions WHERE LOWER(room_code) = ?`,
       [roomCode.toLowerCase()]

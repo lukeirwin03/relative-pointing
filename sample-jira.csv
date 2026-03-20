@@ -1,8 +1,0 @@
-Summary,Issue key,Issue Type,Status,Priority,Description
-Data Services APIs - Investigate Grafana dashboards,JIRA-3743,Story,Backlog,Medium,Investigate what is needed to create Grafana dashboards for the Data Services APIs.
-VW - Update Observation maps to use OED source,JIRA-3740,Story,Backlog,Medium,We need to update all the observation maps to use OED as the data source.
-Create deployment documentation,JIRA-3739,Task,In Progress,High,Write comprehensive deployment guides for AWS EC2 setup.
-Fix authentication token refresh,JIRA-3738,Bug,In Progress,High,Backend authentication tokens not refreshing properly after 1 hour.
-Implement dark mode toggle,JIRA-3737,Story,To Do,Low,Add ability to toggle between light and dark themes.
-API rate limiting configuration,JIRA-3736,Task,To Do,Medium,Configure appropriate rate limits for API endpoints.
-Database backup automation,JIRA-3735,Task,Backlog,Medium,Set up automated daily backups of SQLite database to cloud storage.
