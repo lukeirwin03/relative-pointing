@@ -180,7 +180,7 @@ test_ssh_connection() {
 
 # Build React app locally
 build_locally() {
-    print_header "Building React App Locally"
+    print_header "Building Vue App Locally"
     
     if [ ! -f "$SCRIPT_DIR/package.json" ]; then
         print_error "package.json not found in $SCRIPT_DIR"
@@ -198,21 +198,50 @@ build_locally() {
     fi
     print_success "Dependencies installed"
     
-    print_info "Building React production bundle..."
-    # Set production API URL for React build
-    export VITE_API_URL="https://${EC2_DOMAIN}/api"
+    print_info "Building Vue production bundle..."
     if ! npm run build; then
-        print_error "Failed to build React app"
+        print_error "Failed to build Vue app"
         exit 1
     fi
-    print_success "Vue app built successfully (API: $VITE_API_URL)"
+    print_success "Vue app built successfully"
     
     if [ ! -d "$SCRIPT_DIR/client/dist" ]; then
-        print_error "Build directory not found after build!"
+        print_error "Build directory not found after build (expected client/dist)!"
         exit 1
     fi
     
     print_success "Build output ready to upload"
+}
+
+# Resolve SSL certificate paths from the remote server.
+# If Let's Encrypt certs exist, use them. Otherwise fall back to snakeoil.
+# This runs LOCALLY and sets global variables SSL_CERT_PATH and SSL_KEY_PATH.
+resolve_ssl_paths() {
+    print_info "Checking for existing SSL certificates on EC2..."
+    
+    local cert_path
+    cert_path=$(ssh -i "$EC2_KEY_PATH" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        "$EC2_USER@$EC2_HOST" \
+        "sudo certbot certificates 2>/dev/null | grep 'Certificate Path' | tail -1 | awk '{print \$NF}'" 2>/dev/null)
+    
+    local key_path
+    key_path=$(ssh -i "$EC2_KEY_PATH" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        "$EC2_USER@$EC2_HOST" \
+        "sudo certbot certificates 2>/dev/null | grep 'Private Key Path' | tail -1 | awk '{print \$NF}'" 2>/dev/null)
+    
+    if [ -n "$cert_path" ] && [ -n "$key_path" ]; then
+        SSL_CERT_PATH="$cert_path"
+        SSL_KEY_PATH="$key_path"
+        print_success "Found Let's Encrypt certificate: $SSL_CERT_PATH"
+    else
+        SSL_CERT_PATH="/etc/ssl/certs/ssl-cert-snakeoil.pem"
+        SSL_KEY_PATH="/etc/ssl/private/ssl-cert-snakeoil.key"
+        print_warning "No Let's Encrypt certificate found, using self-signed placeholder"
+    fi
 }
 
 # Setup EC2 instance with nvm
@@ -314,30 +343,23 @@ sudo chown -R "$USER:$USER" "$EC2_APP_DIR"
 chmod -R 755 "$EC2_APP_DIR"
 print_success "Directories created"
 
-# Determine SSL certificate paths
-# Prefer Let's Encrypt if available, otherwise use/generate self-signed
-if [ -f "/etc/letsencrypt/live/${EC2_DOMAIN}/fullchain.pem" ]; then
-    SSL_CERT="/etc/letsencrypt/live/${EC2_DOMAIN}/fullchain.pem"
-    SSL_KEY="/etc/letsencrypt/live/${EC2_DOMAIN}/privkey.pem"
-    print_success "Using Let's Encrypt certificate"
-else
-    # Generate self-signed certificate if snakeoil doesn't exist
-    if [ ! -f /etc/ssl/certs/ssl-cert-snakeoil.pem ]; then
-        print_info "Generating self-signed SSL certificate..."
-        sudo apt-get install -y -qq ssl-cert > /dev/null 2>&1 || \
-        sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-            -keyout /etc/ssl/private/ssl-cert-snakeoil.key \
-            -out /etc/ssl/certs/ssl-cert-snakeoil.pem \
-            -subj "/CN=${EC2_DOMAIN}" > /dev/null 2>&1
-        print_success "Self-signed certificate generated"
-    fi
-    SSL_CERT="/etc/ssl/certs/ssl-cert-snakeoil.pem"
-    SSL_KEY="/etc/ssl/private/ssl-cert-snakeoil.key"
-    print_info "Using self-signed certificate (run certbot for Let's Encrypt)"
+# Ensure self-signed cert exists as fallback (in case LE cert isn't available yet)
+if [ ! -f /etc/ssl/certs/ssl-cert-snakeoil.pem ]; then
+    print_info "Generating fallback self-signed SSL certificate..."
+    sudo apt-get install -y -qq ssl-cert > /dev/null 2>&1 || \
+    sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/ssl/private/ssl-cert-snakeoil.key \
+        -out /etc/ssl/certs/ssl-cert-snakeoil.pem \
+        -subj "/CN=${EC2_DOMAIN}" > /dev/null 2>&1
 fi
 
-# Create nginx config
-print_info "Configuring nginx..."
+# SSL_CERT and SSL_KEY are passed in as env vars from resolve_ssl_paths()
+SSL_CERT="${SSL_CERT:-/etc/ssl/certs/ssl-cert-snakeoil.pem}"
+SSL_KEY="${SSL_KEY:-/etc/ssl/private/ssl-cert-snakeoil.key}"
+print_info "Using SSL cert: ${SSL_CERT}"
+
+# Write nginx config (always, to keep in sync with deploy script changes)
+print_info "Writing nginx config..."
 sudo tee /etc/nginx/sites-available/$EC2_DOMAIN > /dev/null << NGINXEOF
 # Redirect HTTP to HTTPS
 server {
@@ -363,7 +385,6 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
 
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
 
@@ -374,7 +395,7 @@ server {
     gzip_types text/plain text/css text/javascript application/javascript application/json;
     gzip_min_length 1000;
 
-    # Serve React frontend (static)
+    # Serve Vue frontend (static)
     location / {
         root ${EC2_APP_DIR}/app/client/dist;
         try_files \$uri \$uri/ /index.html;
@@ -402,6 +423,7 @@ server {
     }
 }
 NGINXEOF
+    print_success "nginx config written"
 
     # Remove default site
     sudo rm -f /etc/nginx/sites-enabled/default
@@ -469,7 +491,7 @@ EOF
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
         "$EC2_USER@$EC2_HOST" \
-        "export EC2_APP_DIR='$EC2_APP_DIR'; export EC2_DOMAIN='$EC2_DOMAIN'; export NODE_VERSION='$NODE_VERSION'; bash -s" << SCRIPTEOF
+        "export EC2_APP_DIR='$EC2_APP_DIR'; export EC2_DOMAIN='$EC2_DOMAIN'; export NODE_VERSION='$NODE_VERSION'; export SSL_CERT='$SSL_CERT_PATH'; export SSL_KEY='$SSL_KEY_PATH'; bash -s" << SCRIPTEOF
 $setup_script
 SCRIPTEOF
 
@@ -519,16 +541,31 @@ upload_build() {
         exit 1
     fi
     
+    # Clean old build on EC2 before uploading new one
+    print_info "Cleaning old build on EC2..."
+    ssh -i "$EC2_KEY_PATH" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        "$EC2_USER@$EC2_HOST" \
+        "rm -rf $EC2_APP_DIR/app/client/dist" > /dev/null 2>&1
+    
+    # Ensure client directory exists on EC2
+    ssh -i "$EC2_KEY_PATH" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        "$EC2_USER@$EC2_HOST" \
+        "mkdir -p $EC2_APP_DIR/app/client" > /dev/null 2>&1
+    
     # Calculate total size
     local build_size=$(du -sh "$build_path" | cut -f1)
     print_info "Uploading build ($build_size) to EC2..."
     
-    # Upload build directory
+    # Upload client/dist directory
     scp -i "$EC2_KEY_PATH" \
         -r -o ConnectTimeout=10 \
         -o StrictHostKeyChecking=no \
         "$build_path" \
-        "$EC2_USER@$EC2_HOST:$EC2_APP_DIR/app/" > /dev/null 2>&1
+        "$EC2_USER@$EC2_HOST:$EC2_APP_DIR/app/client/" > /dev/null 2>&1
     
     if [ $? -ne 0 ]; then
         print_error "Failed to upload build directory"
@@ -588,29 +625,78 @@ install_dependencies() {
     fi
 }
 
-# Ensure Let's Encrypt certificate is configured
+# Obtain Let's Encrypt certificate if needed, update nginx config, and verify.
+# Uses simple sequential SSH commands — no heredocs, no escaping issues.
 setup_ssl() {
-    print_header "Configuring SSL Certificate"
+    print_header "Configuring SSL Certificate (Let's Encrypt)"
     
-    # Check if Let's Encrypt cert exists (needs sudo to access letsencrypt directory)
-    if ssh -i "$EC2_KEY_PATH" \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        "$EC2_USER@$EC2_HOST" \
-        "sudo test -f /etc/letsencrypt/live/$EC2_DOMAIN/fullchain.pem"; then
+    local certbot_email="${CERTBOT_EMAIL:-admin@$EC2_DOMAIN}"
+    local SSH_CMD="ssh -i $EC2_KEY_PATH -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST"
+    
+    # Step 1: Install certbot if not present
+    print_info "Ensuring certbot is installed..."
+    $SSH_CMD "command -v certbot > /dev/null 2>&1 || (sudo apt-get update -qq > /dev/null && sudo apt-get install -y -qq certbot python3-certbot-nginx > /dev/null)"
+    print_success "certbot available"
+    
+    # Step 2: Check if LE cert already exists
+    local le_cert
+    le_cert=$($SSH_CMD "sudo certbot certificates 2>/dev/null | grep 'Certificate Path' | tail -1 | awk '{print \$NF}'" 2>/dev/null)
+    local le_key
+    le_key=$($SSH_CMD "sudo certbot certificates 2>/dev/null | grep 'Private Key Path' | tail -1 | awk '{print \$NF}'" 2>/dev/null)
+    
+    # Step 3: Obtain cert if none exists
+    if [ -z "$le_cert" ] || [ -z "$le_key" ]; then
+        print_info "Obtaining Let's Encrypt certificate for $EC2_DOMAIN..."
+        $SSH_CMD "sudo certbot certonly --nginx -d $EC2_DOMAIN --non-interactive --agree-tos --email $certbot_email" 2>&1
         
-        print_info "Let's Encrypt certificate found, configuring nginx..."
-        ssh -i "$EC2_KEY_PATH" \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$EC2_USER@$EC2_HOST" \
-            "sudo certbot --nginx -d $EC2_DOMAIN -d www.$EC2_DOMAIN --non-interactive --agree-tos --email admin@$EC2_DOMAIN && sudo systemctl reload nginx"
-        print_success "Let's Encrypt certificate configured"
-    else
-        print_warning "No Let's Encrypt certificate found. Using self-signed certificate."
-        print_info "To get a real certificate, run on EC2:"
-        print_info "  sudo certbot --nginx -d $EC2_DOMAIN -d www.$EC2_DOMAIN"
+        # Re-read the cert paths
+        le_cert=$($SSH_CMD "sudo certbot certificates 2>/dev/null | grep 'Certificate Path' | tail -1 | awk '{print \$NF}'" 2>/dev/null)
+        le_key=$($SSH_CMD "sudo certbot certificates 2>/dev/null | grep 'Private Key Path' | tail -1 | awk '{print \$NF}'" 2>/dev/null)
     fi
+    
+    if [ -z "$le_cert" ] || [ -z "$le_key" ]; then
+        print_error "Failed to obtain Let's Encrypt certificate"
+        print_warning "Site will use self-signed cert. Fix manually:"
+        print_warning "  sudo certbot certonly --nginx -d $EC2_DOMAIN"
+        return 0
+    fi
+    
+    print_success "Let's Encrypt certificate: $le_cert"
+    
+    # Step 4: Update nginx config with correct cert paths
+    print_info "Updating nginx SSL cert paths..."
+    $SSH_CMD "sudo sed -i 's|ssl_certificate .*|ssl_certificate $le_cert;|' /etc/nginx/sites-available/$EC2_DOMAIN"
+    $SSH_CMD "sudo sed -i 's|ssl_certificate_key .*|ssl_certificate_key $le_key;|' /etc/nginx/sites-available/$EC2_DOMAIN"
+    
+    # Step 5: Verify the config was written correctly
+    local written_cert
+    written_cert=$($SSH_CMD "grep 'ssl_certificate ' /etc/nginx/sites-available/$EC2_DOMAIN | head -1" 2>/dev/null)
+    print_info "nginx config now has: $written_cert"
+    
+    # Step 6: Test and restart nginx
+    $SSH_CMD "sudo nginx -t" 2>&1
+    if [ $? -ne 0 ]; then
+        print_error "nginx config test failed"
+        return 1
+    fi
+    $SSH_CMD "sudo systemctl restart nginx"
+    print_success "nginx restarted"
+    
+    # Step 7: Verify the cert being served
+    sleep 2
+    local served_issuer
+    served_issuer=$($SSH_CMD "echo | openssl s_client -connect localhost:443 -servername $EC2_DOMAIN 2>/dev/null | openssl x509 -noout -issuer 2>/dev/null" 2>/dev/null)
+    
+    if echo "$served_issuer" | grep -qi "Let's Encrypt"; then
+        print_success "Verified: nginx is serving Let's Encrypt certificate"
+    else
+        print_error "CERT VERIFICATION FAILED. Served issuer: $served_issuer"
+        print_info "Debugging: checking nginx config..."
+        $SSH_CMD "grep ssl_certificate /etc/nginx/sites-available/$EC2_DOMAIN"
+        return 1
+    fi
+    
+    print_success "SSL setup complete"
 }
 
 # Start backend service
@@ -667,47 +753,16 @@ WHAT HAPPENED:
   ✓ Configured nginx
   ✓ Created systemd service (uses nvm environment)
   ✓ Started backend service
+  ✓ Obtained Let's Encrypt SSL certificate (auto-renews)
 
-NEXT STEPS:
+VERIFY IT WORKS:
+  Visit: https://$EC2_DOMAIN
+  API:   curl https://$EC2_DOMAIN/api/health
 
-1. Set Up AWS ACM Certificate:
-   a. Go to AWS Console → Certificate Manager (ACM)
-   b. Request certificate for $EC2_DOMAIN
-   c. Validate domain ownership via DNS
-   d. Download certificate files
-
-2. Update nginx with ACM Certificate:
-   a. SCP certificate files to EC2:
-      scp -i $EC2_KEY_PATH cert.pem ubuntu@$EC2_HOST:/tmp/
-      scp -i $EC2_KEY_PATH key.pem ubuntu@$EC2_HOST:/tmp/
-   
-   b. SSH to EC2 and install:
-      ssh -i $EC2_KEY_PATH ubuntu@$EC2_HOST
-      sudo mkdir -p /etc/ssl/acm
-      sudo mv /tmp/cert.pem /etc/ssl/acm/certificate.pem
-      sudo mv /tmp/key.pem /etc/ssl/acm/private-key.pem
-   
-   c. Update nginx config:
-      sudo nano /etc/nginx/sites-available/$EC2_DOMAIN
-      
-      Change these lines:
-      ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
-      ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
-      
-      To:
-      ssl_certificate /etc/ssl/acm/certificate.pem;
-      ssl_certificate_key /etc/ssl/acm/private-key.pem;
-   
-   d. Test and reload nginx:
-      sudo nginx -t
-      sudo systemctl reload nginx
-
-3. Configure Domain DNS:
-   Point A record to: $EC2_HOST
-
-4. Verify It Works:
-   curl http://$EC2_HOST:5001/api/health
-   # Should return: {"status":"ok"}
+SSL CERTIFICATE:
+  Let's Encrypt certificates auto-renew via certbot timer.
+  To manually renew: ssh to EC2 and run: sudo certbot renew
+  To check status:   sudo certbot certificates
 
 USEFUL COMMANDS:
 
@@ -723,10 +778,6 @@ Update code (redeploy):
   1. Make changes locally
   2. Run this script again: ./deploy-remote.sh
 
-═══════════════════════════════════════════════════════════════════════════════
-
-For detailed ACM setup, see: AWS-ACM-DEPLOYMENT.md
-
 EOF
 }
 
@@ -739,6 +790,7 @@ main() {
     verify_ssh_key
     test_ssh_connection
     build_locally
+    resolve_ssl_paths
     setup_ec2
     create_env_on_ec2
     upload_build
