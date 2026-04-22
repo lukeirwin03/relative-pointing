@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: relative-pointing:local
+    container_name: relative-pointing
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      NODE_ENV: production
+      PORT: "5001"
+      DB_PATH: /data/app.db
+
+    # Security hardening
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # RAM-backed writable paths. The SQLite DB lives only in /data (tmpfs),
+    # so nothing is persisted to the host and all session data is wiped when
+    # the container stops. uid/gid match the non-root `node` user (1000:1000)
+    # so the app can actually write to /data — tmpfs mounts default to
+    # root-owned and override any chown done during image build.
+    tmpfs:
+      - /data:rw,noexec,nosuid,size=128m,uid=1000,gid=1000,mode=0700
+      - /tmp:rw,noexec,nosuid,size=32m,uid=1000,gid=1000,mode=0700
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:5001/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

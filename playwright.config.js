@@ -1,7 +1,9 @@
 const { defineConfig } = require('@playwright/test');
 const { TEST_DB_PATH } = require('./e2e/globalSetup');
 
-const BACKEND_PORT = process.env.PORT || 5001;
+// Use a dedicated port for the test backend so it never collides with a
+// locally-running dev server or the docker-compose container on 5001.
+const BACKEND_PORT = process.env.PORT || 5002;
 
 module.exports = defineConfig({
   testDir: './e2e',
@@ -48,6 +50,11 @@ module.exports = defineConfig({
     },
     {
       command: `npm run dev:client`,
+      // Tell Vite to proxy /api to the test backend port above rather than
+      // the default 5001, so tests work regardless of what's on 5001.
+      env: {
+        VITE_PROXY_TARGET: `http://localhost:${BACKEND_PORT}`,
+      },
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,

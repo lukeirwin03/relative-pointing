@@ -1,4 +1,7 @@
-const API_URL = `http://localhost:${process.env.PORT || 5001}/api`;
+// Default matches the test backend port in playwright.config.js (5002), which
+// is off the dev/docker default (5001) so tests can run alongside a local
+// container.
+const API_URL = `http://localhost:${process.env.PORT || 5002}/api`;
 
 /** Timeout for assertions that depend on the 2-second poll cycle */
 const POLL_TIMEOUT = { timeout: 10000 };

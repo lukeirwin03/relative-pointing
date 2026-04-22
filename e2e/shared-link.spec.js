@@ -60,7 +60,7 @@ test.describe('Shared Link Flow', () => {
 
     // Join via API so the user is a valid participant
     await request.post(
-      `http://localhost:${process.env.PORT || 5001}/api/sessions/${roomCode}/join`,
+      `http://localhost:${process.env.PORT || 5002}/api/sessions/${roomCode}/join`,
       {
         headers: { 'Content-Type': 'application/json' },
         data: { userId, userName: 'AuthUser' },

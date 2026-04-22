@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-const API_URL = `http://localhost:${process.env.PORT || 5001}/api`;
+const API_URL = `http://localhost:${process.env.PORT || 5002}/api`;
 
 test.describe('Join Session', () => {
   let roomCode;

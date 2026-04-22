@@ -119,7 +119,7 @@ test.describe('Multi-User Session Management', () => {
   test('duplicate username is rejected', async ({ request }) => {
     // Creator is already "Creator" — try joining with the same name
     const response = await request.post(
-      `http://localhost:${process.env.PORT || 5001}/api/sessions/${roomCode}/join`,
+      `http://localhost:${process.env.PORT || 5002}/api/sessions/${roomCode}/join`,
       {
         headers: { 'Content-Type': 'application/json' },
         data: {

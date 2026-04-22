@@ -152,7 +152,7 @@
 ## Test Infrastructure
 
 - **Helper utilities**: `e2e/helpers/test-helpers.js` — shared API helpers (create/join/start session, end turn, skip task, etc.), user context creation, UUID generation
-- **Config**: `playwright.config.js` — Chromium only, `fullyParallel: true`, auto-starts frontend (port 3000) and backend (port 5001)
+- **Config**: `playwright.config.js` — Chromium only, `fullyParallel: true`, auto-starts frontend (port 3000) and backend (port 5002 by default, off the dev/docker port 5001 so tests can run alongside a local container)
 - **Poll timeout**: Cross-user assertions use `{ timeout: 5000 }` to account for the 2-second polling interval
 - **Multi-user pattern**: Uses `browser.newContext()` for isolated browser sessions with separate localStorage per user
 - **Session start**: Most turn-based and multi-user tests call `startSessionViaAPI()` in `beforeEach` to initialize turns before testing
