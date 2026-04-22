@@ -1,6 +1,13 @@
-# Deployment Guide
+# Deployment Guide — EC2 + nginx + systemd
 
-This guide covers deploying the Relative Pointing App on AWS EC2 with nginx and SSL.
+This guide covers deploying the Relative Pointing App on AWS EC2 with nginx
+and SSL. It's the **legacy path** — still supported, but the recommended
+deployment target is now the Docker image described in the root
+[`README.md`](README.md), which is designed to run on AWS ECS (Fargate).
+
+For the container path, you only need `docker compose up` locally to
+validate, then push the image to ECR. Skip to the EC2 instructions below
+only if you want a plain VM deploy.
 
 ## Prerequisites
 
@@ -8,7 +15,7 @@ This guide covers deploying the Relative Pointing App on AWS EC2 with nginx and 
 - SSH key pair for the instance
 - Security group allowing ports 22, 80, 443
 - Registered domain (optional but recommended for SSL)
-- Node.js 18+ installed locally (for building)
+- Node.js 20+ installed locally (for building — matches `.nvmrc`)
 
 ## Architecture
 
@@ -80,8 +87,8 @@ ssh -i your-key.pem ubuntu@your-ec2-ip
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y build-essential curl git nginx
 
-# Install Node.js 18+
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+# Install Node.js 20+
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
 # Install certbot for SSL

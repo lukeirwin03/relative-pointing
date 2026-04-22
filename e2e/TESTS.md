@@ -1,8 +1,12 @@
 # Playwright E2E Test Inventory
 
-> **Total: ~79 tests across 13 spec files**
+> **Total: 85 tests across 14 spec files**
 >
 > Run with: `npx playwright test`
+>
+> The test backend runs on port **5002** by default so the suite can run
+> alongside a local dev server or `docker compose` container on 5001.
+> Override with `PORT=<n>` if needed.
 
 ---
 
@@ -124,28 +128,42 @@
 | skipped participants are excluded from turn rotation                         | Skipped participants are bypassed in the turn order                    |
 | full workflow: two users take turns with stack mode                          | End-to-end test of multi-user turn-taking with stack mode enabled      |
 
-## Presence & Ownership (`presence-ownership.spec.js`) — 18 tests
+## Session Discard / End Auth (`session-discard.spec.js`) — 8 tests
 
-| Test                                                         | Description                                                                        |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| last_seen_at is updated when polling with userId             | Polling with userId updates the participant's last_seen_at timestamp               |
-| participants include last_seen_at in API response            | The API response includes last_seen_at for each participant                        |
-| offline user shows grey indicator in participant list        | Participants who haven't polled recently show an offline indicator                 |
-| online user does NOT show offline indicator                  | Active participants don't show the offline indicator                               |
-| creator can transfer ownership via API                       | Session creator can transfer ownership to another participant                      |
-| non-creator cannot transfer ownership                        | Non-creators get a 403 when trying to transfer ownership                           |
-| cannot transfer ownership to yourself                        | Self-transfer returns an error                                                     |
-| cannot transfer ownership to non-participant                 | Transfer to unknown user returns an error                                          |
-| new owner sees creator UI, old owner loses it                | After transfer, the new owner gets creator controls                                |
-| owner star indicator shown in participant list               | A star icon marks the session owner                                                |
-| transfer button is visible for eligible participants         | Creator sees transfer buttons next to other participants                           |
-| disabled user cannot move tasks via API                      | Skipped participants cannot move tasks                                             |
-| all participants disabled shows warning banner and null turn | When all participants are skipped, a warning banner appears                        |
-| re-enabling a participant restores the turn                  | Un-skipping a participant restores turn rotation                                   |
-| turn auto-advances when turn holder goes offline             | Turn advances past offline participants automatically                              |
-| turn becomes null when all users go offline                  | Turn is cleared when no online participants remain                                 |
-| ownership auto-transfers when creator goes offline           | Ownership transfers to the next eligible participant when the creator goes offline |
-| ownership does NOT transfer if creator stays online          | Ownership stays with the creator while they remain online                          |
+| Test                                                     | Description                                                               |
+| -------------------------------------------------------- | ------------------------------------------------------------------------- |
+| creator can discard an ended session and the row is gone | After `end`, `discard` deletes the session; subsequent lookup returns 404 |
+| creator can discard before ending (immediate delete)     | Discard works even without calling `end` first                            |
+| non-creator cannot discard — returns 403                 | Only the creator is authorized to discard; others get 403                 |
+| missing userId returns 400                               | Discard endpoint requires `userId` in the body                            |
+| discarding an unknown room code returns 404              | Unknown room code → 404                                                   |
+| tasks and comments are deleted via cascade               | Cascading FK delete wipes tasks and comments along with the session       |
+| non-creator cannot end the session — returns 403         | Only the creator can call `end`                                           |
+| ending an already-ended session returns 400              | Re-ending a finished session is rejected                                  |
+
+## Presence & Ownership (`presence-ownership.spec.js`) — 19 tests
+
+| Test                                                                  | Description                                                                          |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| last_seen_at is updated when polling with userId                      | Polling with userId updates the participant's last_seen_at timestamp                 |
+| participants include last_seen_at in API response                     | The API response includes last_seen_at for each participant                          |
+| offline user shows grey indicator in participant list                 | Participants who haven't polled recently show an offline indicator                   |
+| online user does NOT show offline indicator                           | Active participants don't show the offline indicator                                 |
+| creator can transfer ownership via API                                | Session creator can transfer ownership to another participant                        |
+| non-creator cannot transfer ownership                                 | Non-creators get a 403 when trying to transfer ownership                             |
+| cannot transfer ownership to yourself                                 | Self-transfer returns an error                                                       |
+| cannot transfer ownership to non-participant                          | Transfer to unknown user returns an error                                            |
+| new owner sees creator UI, old owner loses it                         | After transfer, the new owner gets creator controls                                  |
+| owner star indicator shown in participant list                        | A star icon marks the session owner                                                  |
+| transfer button is visible for eligible participants                  | Creator sees transfer buttons next to other participants                             |
+| disabled user cannot move tasks via API                               | Skipped participants cannot move tasks                                               |
+| all participants disabled shows warning banner and null turn          | When all participants are skipped, a warning banner appears                          |
+| re-enabling a participant restores the turn                           | Un-skipping a participant restores turn rotation                                     |
+| turn auto-advances when turn holder goes offline                      | Turn advances past offline participants automatically                                |
+| auto-skip advances to next participant in rotation, not back to first | Auto-skip walks forward from the offline holder's position, doesn't reset to index 0 |
+| turn becomes null when all users go offline                           | Turn is cleared when no online participants remain                                   |
+| ownership auto-transfers when creator goes offline                    | Ownership transfers to the next eligible participant when the creator goes offline   |
+| ownership does NOT transfer if creator stays online                   | Ownership stays with the creator while they remain online                            |
 
 ---
 

@@ -20,24 +20,29 @@ A collaborative web application for Scrum teams to perform relative story pointi
 
 ## Tech Stack
 
-| Layer     | Technology                 | Purpose                     |
-| --------- | -------------------------- | --------------------------- |
-| Frontend  | Vue 3 (Composition API)    | UI framework                |
-| State     | Pinia                      | Reactive stores             |
-| Drag-Drop | vuedraggable (Sortable.js) | Task/column reordering      |
-| Styling   | Tailwind CSS               | Utility-first CSS           |
-| Build     | Vite                       | Dev server and bundler      |
-| Backend   | Express.js                 | REST API with rate limiting |
-| Realtime  | Socket.io                  | WebSocket connections       |
-| Database  | SQLite                     | File-based persistence      |
-| CSV       | PapaParse                  | CSV file parsing            |
-| Testing   | Playwright                 | End-to-end tests            |
+| Layer     | Technology                 | Purpose                                                         |
+| --------- | -------------------------- | --------------------------------------------------------------- |
+| Frontend  | Vue 3 (Composition API)    | UI framework                                                    |
+| Router    | vue-router                 | Client-side routing                                             |
+| State     | Pinia                      | Reactive stores                                                 |
+| Drag-Drop | vuedraggable (Sortable.js) | Task/column reordering                                          |
+| Styling   | Tailwind CSS               | Utility-first CSS                                               |
+| Build     | Vite                       | Dev server and bundler                                          |
+| Backend   | Express.js                 | REST API with rate limiting                                     |
+| Sync      | HTTP polling (~2s)         | Multi-user sync (no WebSockets)                                 |
+| Database  | SQLite (via `sqlite3`)     | In-process store; backed by tmpfs in container (no disk writes) |
+| CSV       | PapaParse                  | CSV file parsing                                                |
+| Testing   | Playwright                 | End-to-end tests                                                |
+| Container | Docker + compose           | Reproducible build; read-only FS, non-root, tmpfs for DB        |
 
 ## Project Structure
 
 ```
 relative-pointing/
 ├── package.json            ← Root (npm workspaces)
+├── Dockerfile              ← Multi-stage build (builder → hardened runtime)
+├── docker-compose.yml      ← Local/ECS-friendly runtime with tmpfs DB
+├── .dockerignore
 ├── client/                 ← Vue 3 frontend
 │   ├── src/
 │   │   ├── components/     ← Vue components
@@ -45,6 +50,8 @@ relative-pointing/
 │   │   │   ├── TaskBoard.vue
 │   │   │   ├── ParticipantList.vue
 │   │   │   ├── Column.vue
+│   │   │   ├── CreateColumnDropZone.vue
+│   │   │   ├── DropZoneOverlay.vue
 │   │   │   ├── TaskItem.vue
 │   │   │   ├── CreateTaskModal.vue
 │   │   │   ├── CsvImportModal.vue
@@ -53,43 +60,64 @@ relative-pointing/
 │   │   │   ├── SessionReport.vue
 │   │   │   ├── SandTimer.vue
 │   │   │   ├── TurnTimer.vue
-│   │   │   └── ...
+│   │   │   ├── Snowflakes.vue
+│   │   │   ├── Version.vue
+│   │   │   ├── taskColors.js
+│   │   │   └── taskTags.js
+│   │   ├── router/
+│   │   │   └── index.js    ← Routes and auth-redirect guard
 │   │   ├── stores/         ← Pinia stores
 │   │   │   ├── session.js  ← Session state, polling, actions
 │   │   │   ├── user.js     ← User identity (localStorage)
 │   │   │   └── theme.js    ← Dark mode
 │   │   ├── services/
 │   │   │   └── api.js      ← REST API client
+│   │   ├── utils/          ← CSV parser, room code gen, Jira URL builder
 │   │   ├── App.vue
 │   │   ├── main.js
 │   │   └── style.css
 │   ├── package.json
-│   └── vite.config.js
+│   └── vite.config.js      ← Proxies /api to VITE_PROXY_TARGET (defaults to :5001)
 ├── server/
-│   ├── server.js           ← Express app + Socket.io
+│   ├── server.js           ← Express app (HTTP only — no WebSockets)
 │   ├── db.js               ← SQLite init, migrations, presence checker
 │   ├── schema.sql          ← Database schema
-│   └── routes/
-│       ├── sessions.js     ← Session, column, turn, and lifecycle endpoints
-│       ├── tasks.js        ← Task CRUD and movement
-│       ├── tags.js         ← Tag management
-│       └── comments.js     ← Task comments
-├── e2e/                    ← Playwright tests (13 spec files)
+│   ├── routes/
+│   │   ├── sessions.js     ← Session, column, turn, and lifecycle endpoints
+│   │   ├── tasks.js        ← Task CRUD and movement
+│   │   ├── tags.js         ← Tag management
+│   │   └── comments.js     ← Task comments
+│   └── utils/
+│       └── roomCodeGenerator.js
+├── e2e/                    ← Playwright tests (14 spec files, 85 tests)
 │   ├── helpers/
+│   ├── TESTS.md            ← Full test inventory
 │   └── *.spec.js
-├── sample-tasks.csv        ← Sample CSV for testing
-├── run                     ← Quick-start script
-├── deploy.sh               ← EC2 deployment script
-└── deploy-remote.sh        ← Remote deployment via SCP
+├── sample-tasks.csv        ← Sample CSV (not shipped in container image)
+├── run                     ← Quick-start script (local dev)
+├── deploy.sh               ← EC2 deployment script (legacy)
+└── deploy-remote.sh        ← Remote EC2 deployment via SCP (legacy)
 ```
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+ (see `.nvmrc`) — **or** Docker 24+ if you only want to run the container
+- npm 10+
 
-### Run the App
+### Run the App — Docker (recommended)
+
+```bash
+docker compose build && docker compose up
+```
+
+Open **http://localhost:5001** — the Node server serves both the built Vue app
+and the API from the same origin. The SQLite database is backed by a tmpfs
+mount, so session data never touches disk and is wiped when the container
+stops.
+
+### Run the App — Local dev
 
 ```bash
 # Option 1: Quick-start script
@@ -102,8 +130,8 @@ npm run dev
 
 This starts:
 
-- Backend on **http://localhost:5001** (Express API + Socket.io)
-- Frontend on **http://localhost:3000** (Vite dev server)
+- Backend on **http://localhost:5001** (Express, HTTP-only — multi-user sync is via ~2s polling)
+- Frontend on **http://localhost:3000** (Vite dev server; proxies `/api` to the backend)
 
 ### Using the App
 
@@ -217,26 +245,37 @@ npm run format           # Auto-format code (Prettier)
 
 ### E2E Tests
 
-The project has 13 Playwright spec files covering:
+The project has 14 Playwright spec files (85 tests) covering:
 
-- Session creation, joining, and shared links
+- Session creation, joining, shared links, and discard/end lifecycle
 - CSV import
 - Task and column management
 - Tag management
 - Multi-user sessions and task sync
 - Turn-based features (rotation, skip turn, stack mode)
-- Session start/end lifecycle
+- Session start/end/discard lifecycle
 - Presence detection and ownership transfer
 - Unique ID isolation
+
+The test backend runs on port **5002** by default (off the dev/docker port 5001)
+so `npx playwright test` works even while `docker compose up` is running.
+See [`e2e/TESTS.md`](e2e/TESTS.md) for the full inventory.
 
 ### Environment Variables
 
 ```bash
-# Frontend (client/.env)
+# Frontend (optional — client falls back to `/api` relative URLs which
+# work whenever the server serves the built SPA on the same origin)
 VITE_API_URL=http://localhost:5001/api
 
-# Server (auto-configured)
-PORT=5001                    # Backend port
+# Vite dev-server proxy target (used by `npm run dev` and by Playwright
+# to redirect /api traffic to the test backend on 5002).
+VITE_PROXY_TARGET=http://localhost:5001
+
+# Server
+PORT=5001                    # Backend port (container default is 5001)
+NODE_ENV=production          # Enables static serving of client/dist + rate limiter
+DB_PATH=/data/app.db         # SQLite path (container uses /data on tmpfs)
 OFFLINE_THRESHOLD_S=600      # Seconds before participant marked offline (10 min)
 AUTO_SKIP_TURN_S=600         # Seconds before auto-skipping offline turn holder (10 min)
 AUTO_TRANSFER_OWNER_S=900    # Seconds before auto-transferring ownership (15 min)
@@ -244,10 +283,18 @@ AUTO_TRANSFER_OWNER_S=900    # Seconds before auto-transferring ownership (15 mi
 
 ## Database
 
-- SQLite database at `server/app.db`
-- Created automatically on first run with migrations
-- Session data is deleted when the creator clicks "Finish & Discard" on the report page, or automatically after 15 minutes of inactivity (whichever comes first) — the app is designed to not retain session contents beyond active use
-- Delete `server/app.db` and restart to reset all data
+- SQLite, in-process via the `sqlite3` npm package
+- In local dev, the file lives at `server/app.db`. In the container, it lives
+  at `/data/app.db` on a **tmpfs** — RAM-only, never written to the host disk,
+  and wiped when the container stops
+- Created automatically on startup; schema lives in `server/schema.sql` and
+  additive migrations run at boot from `server/db.js`
+- Session data is deleted when the creator clicks "Finish & Discard" on the
+  report page, or automatically after 15 minutes of inactivity (whichever
+  comes first) — the app is **ephemeral by design** and never retains session
+  contents beyond active use
+- To reset in local dev: delete `server/app.db` and restart
+- To reset in docker: `docker compose restart` (everything goes with the tmpfs)
 
 ### Schema
 
@@ -271,7 +318,24 @@ comments    — id, task_id, session_id, user_id, user_name, content, created_at
 
 ## Deployment
 
-Deploy to AWS EC2 with one command:
+### Container (recommended — target: AWS ECS)
+
+The image is a single hardened artifact that serves the API and the built SPA
+on one port. It runs as the non-root `node` user, with a read-only root
+filesystem and a tmpfs for `/data` (SQLite) and `/tmp`.
+
+```bash
+docker compose build
+docker compose up
+```
+
+To deploy on ECS: push the image to ECR, run as a Fargate task with
+`desiredCount=1` (SQLite is single-node — scale-out requires migrating to
+RDS/Dynamo first), and put an ALB in front on port 5001. No volume is
+needed — task-level ephemeral storage is enough, and the tmpfs is what
+guarantees no session data lands on disk.
+
+### EC2 + nginx + systemd (legacy path)
 
 ```bash
 cp .env.example .env
@@ -279,7 +343,9 @@ cp .env.example .env
 ./deploy-remote.sh
 ```
 
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the complete deployment guide covering EC2 setup, nginx, SSL, and systemd configuration.
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the complete non-container deployment
+guide (nginx, SSL, systemd). Security posture and rate limiting notes live in
+**[SECURITY.md](SECURITY.md)**.
 
 ## License
 

@@ -8,52 +8,43 @@ This document outlines the security measures implemented to protect the Relative
 
 ### Purpose
 
-Rate limiting prevents attackers from making excessive requests to the API, protecting against brute force attacks on room codes and session takeover attempts.
+Rate limiting prevents attackers from making excessive requests to the API,
+dampens brute-force attempts against room codes, and reduces the blast
+radius of a single abusive client.
 
-### Implementation Details
+### Current Implementation
 
-#### General Rate Limiting
+**General limiter** — defined in `server/server.js`, applied to all `/api/*` routes:
 
 - **Window:** 15 minutes
-- **Limit:** 100 requests per IP
+- **Limit:** 1000 requests per IP
 - **Applied to:** All `/api/*` routes
-- **Exception:** `/api/health` (health checks are not rate limited)
+- **Exceptions:**
+  - `/api/health` (never rate limited)
+  - All requests when `NODE_ENV === 'test'` (for Playwright e2e runs)
+- **Response when exceeded:** HTTP 429 with a "Too many requests…" message
+- **Headers:** standard `RateLimit-*` headers (not legacy `X-RateLimit-*`)
 
 ```
-15 minutes = 100 requests maximum
-Average: ~6.67 requests per minute
+15 minutes ≈ 1000 requests → ~66 req/min average per IP
 ```
 
-#### Session Join Rate Limiting (Stricter)
-
-- **Window:** 15 minutes
-- **Limit:** 10 join attempts per IP
-- **Applied to:** `POST /api/sessions/:roomCode/join`
-- **Purpose:** Prevent brute force attacks on room codes
-- **Response:** HTTP 429 (Too Many Requests)
-
-```
-Blocks attackers trying more than 10 room codes in 15 minutes
-```
-
-#### Session Creation Rate Limiting
-
-- **Window:** 1 hour
-- **Limit:** 5 session creations per IP
-- **Applied to:** `POST /api/sessions`
-- **Purpose:** Prevent spam session creation
-- **Response:** HTTP 429 (Too Many Requests)
-
-```
-Maximum 5 new sessions per IP per hour
-```
+> **Note:** earlier revisions of this doc described per-endpoint limiters
+> for `POST /api/sessions` (create) and `POST /api/sessions/:roomCode/join`
+> (join). Those are **not currently implemented** — there is a single
+> global limiter only. The session-join limiter in particular is a
+> sensible future hardening step; see §8.
 
 ### How It Works
 
-- Each request is tracked by IP address
-- IP extracted from `X-Forwarded-For` header (for proxied requests) or direct socket
-- When limit is exceeded, server responds with 429 status code
-- Client receives clear error message to try again later
+- Each request is tracked by IP address via `express-rate-limit`
+- The app sets `app.set('trust proxy', 1)` so IP extraction works behind one
+  reverse proxy layer (nginx, ALB, Cloudflare). IP is taken from
+  `X-Forwarded-For`; falls back to the socket address
+- When the limit is exceeded, the server responds with 429 and a message
+- Rate-limit state is in-memory per process — single-node only. If you ever
+  scale past one backend instance, move to a shared store (Redis) or the
+  limit becomes per-instance, not per-cluster
 
 ---
 
@@ -166,29 +157,22 @@ proxy_set_header X-Real-IP $remote_addr;
 
 ---
 
-## 5. Brute Force Protection Examples
+## 5. Brute Force Protection — Current Behavior
 
-### Scenario 1: Attempting to Guess Room Codes
+### Scenario 1: Guessing Room Codes
 
-**Attack:** User tries 20 different room codes in 10 minutes
-
-**Result:**
-
-- First 10 attempts: Succeed (or fail with "not found")
-- 11th attempt: `429 Too Many Requests`
-- Attacker blocked for 15 minutes
-
-### Scenario 2: Attempting Session Spam
-
-**Attack:** Script creates 10 sessions in 5 minutes
+**Attack:** Attacker rapidly requests random room codes.
 
 **Result:**
 
-- First 5 sessions: Created successfully
-- 6th session: `429 Too Many Requests`
-- Attacker blocked for 1 hour
+- Up to 1000 requests in a 15-minute window succeed (or return 404 for
+  unknown codes / 400 for malformed ones)
+- Request 1001+: `429 Too Many Requests`
+- **Caveat:** 1000 tries per window is still a lot against the room-code
+  namespace. If this becomes a concern, add a dedicated per-route limiter on
+  `POST /api/sessions/:roomCode/join` (~10/15min) — see §8
 
-### Scenario 3: Invalid Input Attempts
+### Scenario 2: Invalid Input Attempts
 
 **Attack:** Attacker sends malformed room codes or IDs
 
@@ -200,7 +184,39 @@ proxy_set_header X-Real-IP $remote_addr;
 
 ---
 
-## 6. Best Practices for Deployment
+## 6. Container Security Posture
+
+The production Docker image (`Dockerfile` + `docker-compose.yml`) is hardened
+as follows. Keep these in mind when wiring the image up on ECS — most can be
+expressed as ECS task-definition fields.
+
+| Control                    | How                                                                          | Why it matters                                             |
+| -------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Non-root runtime           | `USER node` (uid 1000)                                                       | Container escape ≠ host root                               |
+| Read-only root filesystem  | `read_only: true`                                                            | Write-based malware / tampering blocked                    |
+| No new privileges          | `security_opt: no-new-privileges`                                            | setuid binaries can't elevate                              |
+| Dropped Linux capabilities | `cap_drop: [ALL]`                                                            | No raw sockets, no chroot, no setuid — not needed by Node  |
+| Ephemeral SQLite (tmpfs)   | `/data` and `/tmp` mounted as RAM-backed tmpfs with `noexec,nosuid,uid=1000` | **Session data never touches disk**; nothing to exfiltrate |
+| Multi-stage build          | Build tools (python3/make/g++) only in builder stage                         | Runtime image is smaller and has no compiler toolchain     |
+| Init process               | `tini` as PID 1                                                              | Clean signal forwarding + zombie reaping on `docker stop`  |
+| Liveness signal            | Healthcheck hits `/api/health` every 30s                                     | Orchestrator restarts unhealthy tasks                      |
+| Secrets excluded           | `.dockerignore` excludes `.env*`, DBs, test artifacts                        | Build context can't leak credentials into image layers     |
+
+**Caveat — healthcheck scope:** `/api/health` currently only confirms the
+HTTP server is responsive, _not_ that the database opened successfully. If
+SQLite init fails, the container will still report healthy while API calls
+fail. Before production, consider making `/api/health` probe the DB.
+
+**Ephemeral-by-design note:** the tmpfs is not just a performance choice —
+it's the core of the data-minimization story. CSV imports from Jira may
+contain confidential ticket content; by running the DB entirely in RAM and
+discarding it on container stop (and at `15 min` inactivity, and on explicit
+"Finish & Discard"), the app guarantees no long-lived copy of session
+contents exists on the host.
+
+---
+
+## 7. Best Practices for Deployment
 
 ### Production Checklist
 
@@ -236,7 +252,7 @@ add_header X-Frame-Options "SAMEORIGIN" always;
 
 ---
 
-## 7. Monitoring & Alerting
+## 8. Monitoring & Alerting
 
 ### What to Monitor
 
@@ -261,22 +277,24 @@ For production, consider using:
 
 ---
 
-## 8. Future Security Enhancements
+## 9. Future Security Enhancements
 
 Possible future improvements:
 
+- [ ] Per-endpoint rate limiters (tighter caps on join/create) — see §1 caveat
+- [ ] Make `/api/health` probe the DB, not just the HTTP server — see §6 caveat
 - [ ] JWT-based authentication
-- [ ] Room code expiration (destroy old sessions)
+- [ ] Room code expiration (destroy old sessions beyond inactivity timeout)
 - [ ] CAPTCHA for repeated failures
 - [ ] Bot detection (User-Agent validation)
-- [ ] Database-backed rate limiting (for multi-server deployments)
-- [ ] DDoS protection (Cloudflare, AWS Shield)
-- [ ] Audit logging to separate log file
+- [ ] Database-backed rate limiting (Redis) — required before horizontal scale-out
+- [ ] DDoS protection at the edge (Cloudflare, AWS Shield, ALB rules)
+- [ ] Audit logging to separate sink (CloudWatch, etc.)
 - [ ] Admin dashboard for monitoring
 
 ---
 
-## 9. Incident Response
+## 10. Incident Response
 
 ### If You Detect an Attack
 
@@ -310,17 +328,23 @@ sudo ufw delete deny from 192.168.1.100
 
 ---
 
-## 10. Security Testing
+## 11. Security Testing
 
 ### Test Rate Limiting
 
-```bash
-# Run 15 requests rapidly
-for i in {1..15}; do
-  curl -s http://localhost:5001/api/health
-done
+Health checks are exempt, so hammer a real endpoint instead:
 
-# Should see 429 on requests 11-15
+```bash
+# Fire 1100 requests at /api/sessions (the general limiter caps at 1000 / 15 min).
+# Run against a non-test NODE_ENV — tests bypass the limiter on purpose.
+for i in $(seq 1 1100); do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    -X POST http://localhost:5001/api/sessions \
+    -H 'Content-Type: application/json' \
+    -d '{"creatorId":"00000000-0000-4000-8000-000000000000","creatorName":"t"}'
+done | sort | uniq -c
+
+# Should show ~1000 × 200 and then 429s.
 ```
 
 ### Test Input Validation
@@ -345,7 +369,7 @@ ab -n 50 -c 5 http://localhost:5001/api/health
 
 ---
 
-## 11. Security Headers Reference
+## 12. Security Headers Reference
 
 | Header                    | Purpose                   | Value            |
 | ------------------------- | ------------------------- | ---------------- |
@@ -356,7 +380,7 @@ ab -n 50 -c 5 http://localhost:5001/api/health
 
 ---
 
-## 12. Questions or Issues?
+## 13. Questions or Issues?
 
 If you discover a security vulnerability:
 
@@ -369,8 +393,16 @@ If you discover a security vulnerability:
 
 ## Version History
 
-- **v1.0** - Initial security implementation (2024-01-15)
-  - Rate limiting (general, join, create)
+- **v1.1** — Container hardening + doc reconciliation (2026-04-21)
+  - Corrected general rate limit (1000/15min, not 100) and removed claims
+    about per-endpoint join/create limiters that were never implemented
+  - Added §6: container security posture (non-root, read-only FS, tmpfs,
+    `cap_drop: ALL`, no-new-privileges, multi-stage build, tini)
+  - Documented ephemeral-by-design data lifecycle (SQLite in RAM, purged on
+    "Finish & Discard", 15-min inactivity, or container stop)
+  - Flagged `/api/health` DB-scope caveat for future hardening
+- **v1.0** — Initial security implementation (2024-01-15)
+  - General rate limiting
   - Input validation
   - Security logging
   - IP address handling
