@@ -296,6 +296,24 @@ AUTO_TRANSFER_OWNER_S=900    # Seconds before auto-transferring ownership (15 mi
 - To reset in local dev: delete `server/app.db` and restart
 - To reset in docker: `docker compose restart` (everything goes with the tmpfs)
 
+## Logging
+
+- The app logs every API request (with timestamp, method, path, and client IP)
+  and every presence-check decision (with user name and room code) via
+  `console.log` / `console.error`
+- In dev, logs go to the terminal
+- In the container, logs go to **both** stdout (so `docker logs` / ECS
+  `awslogs` → CloudWatch keep working) **and** to a plain-text file at
+  `/var/log/app/app-YYYY-MM-DD.log`, which is bind-mounted to `./logs/` on
+  the host. These files survive `docker compose down` and are easy to
+  `tail -f` / `grep`
+- Set `LOG_DIR=<path>` to opt in outside the container; unset it to stay
+  stdout-only. See `server/logger.js`
+- **Privacy note:** logs contain IP addresses and participant names. Session
+  _contents_ (tasks, comments, points) are never logged, but the IP ↔ name
+  ↔ room-code correlation survives session deletion. If that's a concern for
+  your deployment, redact before writing or retain only short-term
+
 ### Schema
 
 ```sql

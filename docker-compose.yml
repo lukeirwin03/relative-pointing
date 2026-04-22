@@ -12,6 +12,10 @@ services:
       NODE_ENV: production
       PORT: "5001"
       DB_PATH: /data/app.db
+      # When set, the app tees every console.* call to a rolling file in this
+      # directory (see server/logger.js). The compose volume below bind-mounts
+      # ./logs on the host so these files survive container restart/removal.
+      LOG_DIR: /var/log/app
 
     # Security hardening
     read_only: true
@@ -28,6 +32,14 @@ services:
     tmpfs:
       - /data:rw,noexec,nosuid,size=128m,uid=1000,gid=1000,mode=0700
       - /tmp:rw,noexec,nosuid,size=32m,uid=1000,gid=1000,mode=0700
+
+    # Persistent logs. The container writes plain-text log files here (the
+    # root FS is still read-only). Bind-mounted to ./logs on the host so you
+    # can tail / grep them directly without going through `docker logs`.
+    # stdout is unchanged, so `docker logs` and ECS awslogs/CloudWatch still
+    # receive the same stream.
+    volumes:
+      - ./logs:/var/log/app
 
     healthcheck:
       test:

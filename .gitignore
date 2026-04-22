@@ -63,3 +63,6 @@ server/app.db
 playwright-report/
 test-results/
 /.test-tmp/
+
+# Persistent app logs (bind-mounted from docker-compose.yml)
+/logs/

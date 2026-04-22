@@ -125,7 +125,30 @@ Monitor logs regularly for:
 - Invalid input format attempts
 - Unusual access patterns
 
-Location: Check your application logs (PM2, systemd, or custom logging)
+**Location:**
+
+- **Container (docker compose):** plain-text files at `./logs/app-YYYY-MM-DD.log`
+  on the host (bind-mount from `/var/log/app`), plus the same stream on stdout
+  via `docker logs`
+- **ECS:** configure the `awslogs` driver in the task definition to ship stdout
+  to CloudWatch Logs. If you also want file-based logs in-task, mount an EFS
+  volume at `/var/log/app` and set `LOG_DIR=/var/log/app`
+- **EC2 (legacy):** systemd/journalctl as documented in `DEPLOYMENT.md`
+
+### What Logs Contain (privacy note)
+
+The application logs include:
+
+- Timestamps, HTTP method and path
+- Client IP (from `X-Forwarded-For` or socket)
+- Participant names and room codes in presence-check decisions
+  (auto-skip, auto-transfer ownership)
+
+The logs do **not** include session contents (task titles, descriptions,
+comments, or point assignments). Because the logs persist while session
+contents are purged, the IP ↔ name ↔ room-code correlation outlives the
+session data. If this retention window is a concern (e.g. GDPR, internal
+policy), redact IPs/names before writing or rotate aggressively.
 
 ---
 

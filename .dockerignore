@@ -33,6 +33,9 @@ test-results
 .test-tmp
 test.sh
 
+# Host-side log output (bind-mounted at runtime, never baked into image)
+logs
+
 # Editor / tool state
 .vscode
 .idea

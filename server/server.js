@@ -1,3 +1,4 @@
+require('./logger'); // Must be required first so it wraps console before any log is emitted
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
