@@ -145,10 +145,186 @@ The application logs include:
   (auto-skip, auto-transfer ownership)
 
 The logs do **not** include session contents (task titles, descriptions,
-comments, or point assignments). Because the logs persist while session
-contents are purged, the IP ↔ name ↔ room-code correlation outlives the
-session data. If this retention window is a concern (e.g. GDPR, internal
-policy), redact IPs/names before writing or rotate aggressively.
+jira keys, comments, tag names, or point assignments). Because the logs
+persist while session contents are purged, the IP ↔ name ↔ room-code
+correlation outlives the session data. If this retention window is a concern
+(e.g. GDPR, internal policy), redact IPs/names before writing or rotate
+aggressively.
+
+### Annotated Log Sample
+
+Below is a complete walkthrough of what a real log file looks like across
+one session's lifecycle. Every distinct log shape the server emits is
+included; comments after each block call out exactly what's in it and
+whether it carries PII.
+
+> Values shown are placeholders — real UUIDs are random v4 and real IPs
+> come from the request.
+
+#### 1. Boot / startup (one-time)
+
+```text
+[2026-04-22T03:48:27.147Z] [INFO]  [logger] writing to /var/log/app/app-2026-04-22.log
+[2026-04-22T03:48:27.183Z] [WARN]  Could not load sample-tasks.csv, using empty task list: ENOENT: no such file or directory, open '/app/sample-tasks.csv'
+[2026-04-22T03:48:27.187Z] [INFO]  ╔════════════════════════════════════════╗
+[2026-04-22T03:48:27.187Z] [INFO]  ║  Relative Pointing App - Backend       ║
+[2026-04-22T03:48:27.187Z] [INFO]  ╚════════════════════════════════════════╝
+[2026-04-22T03:48:27.187Z] [INFO]  Connected to SQLite database at /data/app.db
+[2026-04-22T03:48:27.191Z] [INFO]  Migration: last_activity_at column already exists
+[2026-04-22T03:48:27.191Z] [INFO]  Migration: color_tag column already exists
+[2026-04-22T03:48:27.192Z] [INFO]  Migration: skipped_participants column already exists
+[2026-04-22T03:48:27.193Z] [INFO]  Database schema initialized
+[2026-04-22T03:48:27.193Z] [INFO]  Presence check started (offline: 600s, auto-skip: 600s, auto-transfer: 900s)
+[2026-04-22T03:48:32.197Z] [INFO]  Session cleanup job started (timeout: 15 minutes)
+```
+
+Contains: config values, file paths, schema migration state. **No PII.**
+
+#### 2. Request access log (one line per API call)
+
+Emitted by the middleware in `server/server.js:29-34` on every `/api/*`
+request.
+
+```text
+[2026-04-22T03:50:10.001Z] [INFO]  [2026-04-22T03:50:10.001Z] POST /api/sessions - IP: ::ffff:192.168.65.1
+[2026-04-22T03:50:15.324Z] [INFO]  [2026-04-22T03:50:15.324Z] GET /api/sessions/friendly-tiger - IP: ::ffff:192.168.65.1
+[2026-04-22T03:50:42.801Z] [INFO]  [2026-04-22T03:50:42.801Z] POST /api/sessions/friendly-tiger/join - IP: ::ffff:203.0.113.42
+```
+
+Contains: **client IP**, HTTP method, and URL path. The path can include
+**room codes** and **UUIDs** for tasks/columns/comments. The duplicated
+leading timestamp is from the file logger adding one on top of the app's
+own timestamp — harmless cosmetic artifact.
+
+Does **not** contain: request bodies, query strings beyond the path,
+response bodies, response status codes (the app doesn't log those).
+
+#### 3. Session creation
+
+```text
+[2026-04-22T03:50:10.004Z] [INFO]  [CREATE] Creating session with room code: friendly-tiger
+[2026-04-22T03:50:10.007Z] [INFO]  [CREATE] Room code collision on "friendly-tiger", retrying...   ← only on collision
+[2026-04-22T03:50:10.010Z] [INFO]  [CREATE] Adding creator as participant: 11111111-1111-4111-8111-111111111111 (Carol)
+[2026-04-22T03:50:10.014Z] [INFO]  [CREATE] Session created successfully
+```
+
+Contains: **room code**, **creator user UUID**, **creator display name**.
+
+#### 4. User joining
+
+```text
+[2026-04-22T03:50:42.804Z] [INFO]  [JOIN] Attempting to join session: friendly-tiger (normalized: friendly-tiger) as user: Alice (22222222-2222-4222-8222-222222222222)
+[2026-04-22T03:50:42.807Z] [INFO]  [JOIN] Found session: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+[2026-04-22T03:50:42.811Z] [INFO]  [JOIN] Adding participant: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb to session aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+[2026-04-22T03:50:42.813Z] [INFO]  [JOIN] Successfully added participant
+```
+
+Contains: **room code** (raw + normalized), **user display name**, **user
+UUID**, **session UUID**, **participant UUID**. Alternative outcomes:
+
+```text
+[2026-04-22T03:51:02.510Z] [INFO]  [JOIN] Session not found with room code: typod-session
+[2026-04-22T03:51:14.902Z] [INFO]  [JOIN] Username already taken: Alice
+[2026-04-22T03:51:21.131Z] [INFO]  [JOIN] User already in session
+```
+
+Contains: same fields as above (room code, username when rejected for
+duplication).
+
+#### 5. Task operations (no content)
+
+```text
+[2026-04-22T03:52:14.220Z] [INFO]  [MOVE] Task cccccccc-cccc-4ccc-8ccc-cccccccccccc moved from dddddddd-dddd-4ddd-8ddd-dddddddddddd to eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee
+[2026-04-22T03:54:00.510Z] [INFO]  [DELETE] Task cccccccc-cccc-4ccc-8ccc-cccccccccccc deleted
+```
+
+Contains: **task UUID**, source/destination **column UUID**. **No** task
+title, description, jira key, tag, or comment text is ever logged.
+
+#### 6. Turns & ownership (manual)
+
+```text
+[2026-04-22T03:53:01.099Z] [INFO]  [TRANSFER] Ownership transferred in session friendly-tiger: Carol -> Alice
+```
+
+Contains: **room code**, **previous and new owner display names**.
+
+The `POST /api/sessions/:roomCode/end-turn` endpoint does not emit a
+dedicated log line — it appears only in the access log.
+
+#### 7. Presence (background, every 10 s)
+
+Emitted by the presence checker in `server/db.js:360-515` whenever it
+actually changes state — not on every tick.
+
+```text
+[2026-04-22T03:58:10.003Z] [INFO]  [PRESENCE] Auto-skipped turn in session friendly-tiger: Alice -> Bob
+[2026-04-22T04:03:20.044Z] [INFO]  [PRESENCE] Cleared turn in session friendly-tiger — no online active participants
+[2026-04-22T04:04:30.112Z] [INFO]  [PRESENCE] Assigned turn in session friendly-tiger to Bob (was null)
+[2026-04-22T04:08:40.201Z] [INFO]  [PRESENCE] Auto-transferred ownership in session friendly-tiger: Carol -> Bob
+[2026-04-22T04:20:00.000Z] [ERROR] [PRESENCE] Error in presence check: <error message>
+```
+
+Contains: **room code**, **user display names** (old/new turn holder,
+old/new owner).
+
+#### 8. Session end / cleanup
+
+```text
+[2026-04-22T04:15:12.812Z] [INFO]  Cleaned up 1 expired session(s)
+```
+
+Contains: count only. No room codes, no names, no UUIDs.
+
+#### 9. Security / validation rejections
+
+Emitted when an incoming request violates input validation — e.g. a
+malformed user ID or a path-traversal attempt in a room code.
+
+```text
+[2026-04-22T04:12:01.003Z] [WARN] [SECURITY] Invalid userId format attempted: not-a-uuid
+[2026-04-22T04:12:05.441Z] [WARN] [SECURITY] Invalid room code format attempted: ../../../etc/passwd
+```
+
+Contains: the **offending input value** (an attacker's raw input). Still
+safe to persist — this is the kind of thing you want to keep.
+
+#### 10. Error lines
+
+Wrapping `try/catch` blocks across the routes emit error messages via
+`console.error`:
+
+```text
+[2026-04-22T04:17:33.207Z] [ERROR] Error creating task: Error: SQLITE_CONSTRAINT: FOREIGN KEY constraint failed
+[2026-04-22T04:18:05.910Z] [ERROR] Server error: TypeError: Cannot read properties of undefined (reading 'length')
+    at /app/server/routes/tasks.js:312:27
+    ...
+```
+
+Contains: **error message** and sometimes a **stack trace**. SQLite errors
+generally do **not** include bound parameter values, so task content and
+names don't leak here in normal operation — but if a future route is
+written to throw errors that embed user input, that would surface in logs.
+Worth reviewing before enabling broader log retention.
+
+### Summary: what's in / what's out
+
+| Item                                       | In logs? |
+| ------------------------------------------ | -------- |
+| Client IP                                  | Yes      |
+| Participant display names                  | Yes      |
+| Room codes                                 | Yes      |
+| User / session / task / column / tag UUIDs | Yes      |
+| HTTP method & URL path                     | Yes      |
+| Timestamps                                 | Yes      |
+| Task titles / descriptions / jira keys     | **No**   |
+| Comment text                               | **No**   |
+| Tag names                                  | **No**   |
+| Point values / scale presets               | **No**   |
+| CSV file contents                          | **No**   |
+| Request bodies                             | **No**   |
+| Response bodies and status codes           | **No**   |
+| Jira base URLs                             | **No**   |
 
 ---
 

@@ -313,6 +313,8 @@ AUTO_TRANSFER_OWNER_S=900    # Seconds before auto-transferring ownership (15 mi
   _contents_ (tasks, comments, points) are never logged, but the IP ↔ name
   ↔ room-code correlation survives session deletion. If that's a concern for
   your deployment, redact before writing or retain only short-term
+- For a line-by-line breakdown of every log shape the server emits, see the
+  **"Annotated Log Sample"** section in [`SECURITY.md`](SECURITY.md#annotated-log-sample)
 
 ### Schema
 
