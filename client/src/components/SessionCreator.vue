@@ -10,7 +10,7 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
-const userName = ref('');
+const userName = ref(userStore.userName || '');
 const roomCode = ref('');
 const mode = ref('create');
 const loading = ref(false);

@@ -5,6 +5,11 @@ import { useSessionStore } from '../stores/session';
 import { useUserStore } from '../stores/user';
 import { useThemeStore } from '../stores/theme';
 import APIService from '../services/api';
+import {
+  getCachedJiraBaseUrl,
+  setCachedJiraBaseUrl,
+} from '../utils/jiraUrlBuilder';
+import { getIdenticonColor } from '../utils/identicon';
 import Column from './Column.vue';
 import CreateColumnDropZone from './CreateColumnDropZone.vue';
 import ParticipantList from './ParticipantList.vue';
@@ -73,26 +78,9 @@ const topTaskId = computed(() =>
   sessionStore.topUnsortedTask ? String(sessionStore.topUnsortedTask.id) : null
 );
 
-// Participant colors (same as ParticipantList)
-const COLORS = [
-  '#FF6B6B',
-  '#4ECDC4',
-  '#45B7D1',
-  '#FFA07A',
-  '#98D8C8',
-  '#F7DC6F',
-  '#BB8FCE',
-  '#85C1E2',
-];
-
-function getColorForUserId(userId) {
-  const idx = sessionStore.participants.findIndex((p) => p.user_id === userId);
-  return idx >= 0 ? COLORS[idx % COLORS.length] : '#4ECDC4';
-}
-
 const currentTurnColor = computed(() => {
   if (!sessionStore.currentTurnUserId) return '#4ECDC4';
-  return getColorForUserId(sessionStore.currentTurnUserId);
+  return getIdenticonColor(sessionStore.currentTurnUserId);
 });
 
 const turnActive = computed(() => !!sessionStore.currentTurnParticipant);
@@ -122,7 +110,7 @@ watch(
       );
       // Convert seconds to particle count (matches spawn rate: ~1/sec base)
       const particleCount = Math.floor(elapsed * 1);
-      const color = getColorForUserId(oldUserId);
+      const color = getIdenticonColor(oldUserId);
       turnHistory.value = [
         ...turnHistory.value,
         { userId: oldUserId, color, particleCount },
@@ -265,6 +253,7 @@ async function handleSaveJiraUrl() {
   try {
     await APIService.updateSessionJiraUrl(roomCode.value, jiraUrlInput.value);
     jiraBaseUrl.value = jiraUrlInput.value;
+    setCachedJiraBaseUrl(jiraUrlInput.value);
     showJiraUrlInput.value = false;
   } catch (err) {
     console.error('Error saving Jira URL:', err);
@@ -470,7 +459,8 @@ onUnmounted(() => {
                   <template v-else>
                     <span
                       @click="
-                        jiraUrlInput = jiraBaseUrl;
+                        jiraUrlInput =
+                          jiraBaseUrl || getCachedJiraBaseUrl() || '';
                         showJiraUrlInput = true;
                       "
                       class="font-mono font-semibold cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-white/5 transition-colors"

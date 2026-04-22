@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import APIService from '../services/api';
 import SandTimer from './SandTimer.vue';
+import Identicon from './Identicon.vue';
 import { useSessionStore } from '../stores/session';
 
 const sessionStore = useSessionStore();
@@ -67,22 +68,7 @@ const props = defineProps({
 
 const emit = defineEmits(['toggleCollapse']);
 
-const COLORS = [
-  '#FF6B6B',
-  '#4ECDC4',
-  '#45B7D1',
-  '#FFA07A',
-  '#98D8C8',
-  '#F7DC6F',
-  '#BB8FCE',
-  '#85C1E2',
-];
-
 const confirmTransferId = ref(null);
-
-function getColorForParticipant(index) {
-  return COLORS[index % COLORS.length];
-}
 
 const disabledParticipants = computed(() => new Set(props.skippedParticipants));
 
@@ -201,7 +187,7 @@ function cancelTransfer() {
       <div class="relative z-10 flex-1 overflow-y-auto p-2 space-y-1">
         <template v-if="participants.length > 0">
           <div
-            v-for="(participant, index) in participants"
+            v-for="participant in participants"
             :key="participant.id"
             :class="[
               'flex items-center gap-3 rounded-lg transition-all',
@@ -212,17 +198,19 @@ function cancelTransfer() {
             <!-- Avatar -->
             <div class="relative flex-shrink-0">
               <div
-                class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold transition-all"
+                class="w-9 h-9 rounded-full overflow-hidden transition-all"
                 :class="[
                   participant.user_id === currentTurnUserId
                     ? 'ring-2 ring-accent-green shadow-glow-success-sm animate-glow-pulse'
                     : 'ring-2 ring-white/20',
                   { grayscale: !isOnline(participant) },
                 ]"
-                :style="{ backgroundColor: getColorForParticipant(index) }"
                 :title="collapsed ? participant.user_name : undefined"
               >
-                {{ participant.user_name?.[0]?.toUpperCase() || '?' }}
+                <Identicon
+                  :seed="participant.user_id"
+                  class="w-full h-full block"
+                />
               </div>
               <!-- Offline dot -->
               <div
