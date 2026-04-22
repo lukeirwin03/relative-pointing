@@ -95,11 +95,12 @@ test.describe('Presence Tracking', () => {
     // Close Alice's browser to stop her polling
     await aliceCtx.context.close();
 
-    // Wait for Alice to be considered offline (>15s threshold)
-    await sleep(17000);
-
-    // Alice should be shown as offline in the sidebar participant list
-    await expect(creator.page.getByText('(offline)')).toBeVisible(POLL_TIMEOUT);
+    // Poll for the offline indicator. Generous upper bound covers the 15s
+    // threshold + client 2s poll + variance on slow CI, but the assertion
+    // resolves as soon as the indicator appears.
+    await expect(creator.page.getByText('(offline)')).toBeVisible({
+      timeout: 25000,
+    });
 
     await creator.context.close();
   });
@@ -334,9 +335,11 @@ test.describe('Disabled User Protection', () => {
       skipped_participants: [alice.userId],
     });
 
-    // Turn should have auto-advanced away from Alice
+    // Turn should have auto-advanced away from Alice. Creator is the only
+    // non-skipped participant, so the turn must be on the creator — a null
+    // value would wrongly pass a bare `not.toBe(alice.userId)` check.
     const afterSkip = await getSessionViaAPI(request, roomCode);
-    expect(afterSkip.session.current_turn_user_id).not.toBe(alice.userId);
+    expect(afterSkip.session.current_turn_user_id).toBe(creatorId);
 
     // Alice tries to move a task — should get 403
     const task = data.tasks[0];
@@ -450,6 +453,42 @@ test.describe('Auto-skip Turn on Disconnect', () => {
     const afterSkip = await getSessionViaAPI(request, roomCode, creatorId);
     expect(afterSkip.session.current_turn_user_id).not.toBe(alice.userId);
     expect(afterSkip.session.current_turn_user_id).toBe(creatorId);
+  });
+
+  test('auto-skip advances to next participant in rotation, not back to first', async ({
+    request,
+  }) => {
+    // Regression test: 3-participant rotation must not collapse to position 0
+    // when the current turn holder goes offline.
+    // Rotation order (by joined_at): Creator(0), Alice(1), Bob(2).
+    // If Alice (position 1) goes offline, turn must advance to Bob (position 2),
+    // NOT wrap back to Creator (position 0).
+    const alice = await joinSessionViaAPI(request, roomCode, 'Alice');
+    const bob = await joinSessionViaAPI(request, roomCode, 'Bob');
+
+    // Register all three as online
+    await getSessionViaAPI(request, roomCode, creatorId);
+    await getSessionViaAPI(request, roomCode, alice.userId);
+    await getSessionViaAPI(request, roomCode, bob.userId);
+
+    // Move turn onto Alice (position 1)
+    await endTurnViaAPI(request, roomCode, creatorId);
+    const mid = await getSessionViaAPI(request, roomCode, creatorId);
+    expect(mid.session.current_turn_user_id).toBe(alice.userId);
+
+    // Alice stops polling. Creator and Bob keep polling to stay online.
+    // Wait for auto-skip threshold (30s) + presence check interval (10s) + buffer.
+    for (let i = 0; i < 22; i++) {
+      await sleep(2000);
+      await getSessionViaAPI(request, roomCode, creatorId);
+      await getSessionViaAPI(request, roomCode, bob.userId);
+    }
+
+    const afterSkip = await getSessionViaAPI(request, roomCode, creatorId);
+    // The fix: turn advances to Bob (next in rotation after Alice), not back to Creator.
+    expect(afterSkip.session.current_turn_user_id).toBe(bob.userId);
+    expect(afterSkip.session.current_turn_user_id).not.toBe(creatorId);
+    expect(afterSkip.session.current_turn_user_id).not.toBe(alice.userId);
   });
 
   test('turn becomes null when all users go offline', async ({ request }) => {

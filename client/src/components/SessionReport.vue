@@ -85,9 +85,26 @@ async function fetchReport() {
     tags.value = data.tags || [];
     error.value = null;
   } catch (err) {
-    error.value = err.message || 'Failed to load report';
+    if (err.message === 'Session not found') {
+      error.value = 'This session has ended and its data has been cleared.';
+    } else {
+      error.value = err.message || 'Failed to load report';
+    }
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleDiscard() {
+  const confirmed = window.confirm(
+    'This will permanently delete all session data (tasks, comments, and point assignments). Export anything you need first. Continue?'
+  );
+  if (!confirmed) return;
+  try {
+    await APIService.discardSession(roomCode.value, userId);
+    router.push('/');
+  } catch (err) {
+    error.value = err.message || 'Failed to discard session';
   }
 }
 
@@ -282,6 +299,14 @@ onMounted(fetchReport);
             </div>
           </div>
           <div class="flex items-center gap-3">
+            <button
+              v-if="isCreator"
+              @click="handleDiscard"
+              class="px-4 py-2 text-sm rounded-lg transition-colors font-medium cursor-pointer bg-red-600 hover:bg-red-700 text-white"
+              title="Permanently delete all session data"
+            >
+              Finish &amp; Discard
+            </button>
             <button
               @click="themeStore.toggleTheme()"
               class="p-2 rounded-lg hover:bg-warm-200 dark:hover:bg-white/5 transition-colors"

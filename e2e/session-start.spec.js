@@ -43,7 +43,12 @@ test.describe('Session Start Flow', () => {
     await startSessionViaAPI(request, roomCode, creatorId);
 
     const data = await getSessionViaAPI(request, roomCode);
+    // started_at must be a recent timestamp (within the last 5s), not just any
+    // truthy value — catches stale/bogus values a toBeTruthy check would miss.
     expect(data.session.started_at).toBeTruthy();
+    const startedAtMs = new Date(data.session.started_at + 'Z').getTime();
+    expect(startedAtMs).toBeGreaterThan(Date.now() - 5000);
+    expect(startedAtMs).toBeLessThanOrEqual(Date.now() + 1000);
     // Turn goes to Alice (first non-skipped participant)
     expect(data.session.current_turn_user_id).toBe(alice.userId);
   });

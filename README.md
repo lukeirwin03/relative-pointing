@@ -7,7 +7,8 @@ A collaborative web application for Scrum teams to perform relative story pointi
 - **Session-based Collaboration** — Create sessions with shareable room codes
 - **Turn-based Facilitation** — Structured turn rotation so one person points at a time
 - **Stack Mode** — Focus on one task at a time; skip tasks to reorder the backlog
-- **Session Lifecycle** — Creator starts the session when all participants have joined, then ends it to generate a report
+- **Session Lifecycle** — Creator starts the session when all participants have joined, ends it to generate a report, and clicks "Finish & Discard" on the report to permanently delete all session data
+- **Ephemeral by Design** — Session data (tasks, comments, point assignments) is deleted when the creator clicks "Finish & Discard" or automatically after 15 minutes of inactivity — nothing persists indefinitely
 - **CSV Import** — Upload Jira task exports (or create tasks manually)
 - **Drag-and-drop Columns** — Create complexity columns by dragging tasks into gaps between existing columns
 - **Tags and Comments** — Label tasks with color-coded tags; add comments for discussion
@@ -113,13 +114,15 @@ This starts:
 5. **Start Session** — Creator clicks "Start Session" to begin turn-based pointing
 6. **Point Stories** — Upload a CSV or create tasks manually, then drag tasks into complexity columns on your turn
 7. **End Session** — Creator clicks "End Session" to generate a report
+8. **Finish & Discard** — On the report page, creator clicks "Finish & Discard" to permanently delete all session data
 
 ## Session Lifecycle
 
 ```
 Created → Participants join → Creator clicks "Start Session"
   → Turns begin (round-robin) → Creator clicks "End Session"
-  → Report generated
+  → Report generated → Creator clicks "Finish & Discard"
+  → All session data deleted
 ```
 
 - The **creator is auto-skipped** from the turn rotation on session creation. Enable them in the participant list if they should also take turns.
@@ -142,6 +145,7 @@ Base URL: `http://localhost:5001/api`
 | `POST`  | `/sessions/:roomCode/join`               | Join existing session                                                |
 | `POST`  | `/sessions/:roomCode/start`              | Start session (creator only)                                         |
 | `POST`  | `/sessions/:roomCode/end`                | End session (creator only)                                           |
+| `POST`  | `/sessions/:roomCode/discard`            | Discard session and delete all data (creator only)                   |
 | `POST`  | `/sessions/:roomCode/end-turn`           | End current turn                                                     |
 | `POST`  | `/sessions/:roomCode/transfer-ownership` | Transfer session ownership                                           |
 | `GET`   | `/sessions/:roomCode/report`             | Get session report                                                   |
@@ -233,16 +237,16 @@ VITE_API_URL=http://localhost:5001/api
 
 # Server (auto-configured)
 PORT=5001                    # Backend port
-OFFLINE_THRESHOLD_S=15       # Seconds before participant marked offline
-AUTO_SKIP_TURN_S=30          # Seconds before auto-skipping offline turn holder
-AUTO_TRANSFER_OWNER_S=60     # Seconds before auto-transferring ownership
+OFFLINE_THRESHOLD_S=600      # Seconds before participant marked offline (10 min)
+AUTO_SKIP_TURN_S=600         # Seconds before auto-skipping offline turn holder (10 min)
+AUTO_TRANSFER_OWNER_S=900    # Seconds before auto-transferring ownership (15 min)
 ```
 
 ## Database
 
 - SQLite database at `server/app.db`
 - Created automatically on first run with migrations
-- Sessions auto-expire after 15 minutes of inactivity
+- Session data is deleted when the creator clicks "Finish & Discard" on the report page, or automatically after 15 minutes of inactivity (whichever comes first) — the app is designed to not retain session contents beyond active use
 - Delete `server/app.db` and restart to reset all data
 
 ### Schema

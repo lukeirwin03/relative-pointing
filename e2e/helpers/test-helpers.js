@@ -191,6 +191,30 @@ async function startSessionViaAPI(request, roomCode, userId) {
   return response.json();
 }
 
+/** POST /api/sessions/:roomCode/end — end the session (creator only). Returns raw {status, data}. */
+async function endSessionViaAPI(request, roomCode, userId) {
+  const response = await request.post(`${API_URL}/sessions/${roomCode}/end`, {
+    headers: JSON_HEADERS,
+    data: { userId },
+  });
+  return {
+    status: response.status(),
+    data: await response.json(),
+  };
+}
+
+/** POST /api/sessions/:roomCode/discard — discard session and delete all data (creator only). Returns raw {status, data}. */
+async function discardSessionViaAPI(request, roomCode, userId) {
+  const response = await request.post(
+    `${API_URL}/sessions/${roomCode}/discard`,
+    { headers: JSON_HEADERS, data: { userId } }
+  );
+  return {
+    status: response.status(),
+    data: await response.json(),
+  };
+}
+
 /** POST /api/sessions/:roomCode/end-turn */
 async function endTurnViaAPI(request, roomCode, userId) {
   const response = await request.post(
@@ -269,6 +293,8 @@ module.exports = {
   createUserContext,
   createAuthenticatedUserInSession,
   startSessionViaAPI,
+  endSessionViaAPI,
+  discardSessionViaAPI,
   endTurnViaAPI,
   updateSessionViaAPI,
   skipTopTaskViaAPI,

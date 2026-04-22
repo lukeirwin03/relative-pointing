@@ -62,3 +62,4 @@ server/app.db
 # Playwright
 playwright-report/
 test-results/
+/.test-tmp/

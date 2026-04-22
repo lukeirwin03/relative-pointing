@@ -852,6 +852,38 @@ router.post('/:roomCode/end', async (req, res) => {
   }
 });
 
+router.post('/:roomCode/discard', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const session = await dbPromise.get(
+      `SELECT * FROM sessions WHERE LOWER(room_code) = LOWER(?)`,
+      [roomCode]
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    if (userId !== session.creator_id) {
+      return res
+        .status(403)
+        .json({ error: 'Only the session creator can discard the session' });
+    }
+
+    await dbPromise.run(`DELETE FROM sessions WHERE id = ?`, [session.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error discarding session:', err);
+    res.status(500).json({ error: 'Failed to discard session' });
+  }
+});
+
 // Get session report
 router.get('/:roomCode/report', async (req, res) => {
   try {

@@ -1,4 +1,5 @@
 const { defineConfig } = require('@playwright/test');
+const { TEST_DB_PATH } = require('./e2e/globalSetup');
 
 const BACKEND_PORT = process.env.PORT || 5001;
 
@@ -27,10 +28,23 @@ module.exports = defineConfig({
   ],
   webServer: [
     {
-      command: `NODE_ENV=test PORT=${BACKEND_PORT} node server/server.js`,
+      command: `node server/server.js`,
+      // Pin presence thresholds to the fast values the e2e tests assume.
+      // Production defaults are much longer (see server/db.js).
+      // DB_PATH points the server at an isolated test DB (wiped by globalSetup).
+      env: {
+        NODE_ENV: 'test',
+        PORT: String(BACKEND_PORT),
+        DB_PATH: TEST_DB_PATH,
+        OFFLINE_THRESHOLD_S: '15',
+        AUTO_SKIP_TURN_S: '30',
+        AUTO_TRANSFER_OWNER_S: '60',
+      },
       url: `http://localhost:${BACKEND_PORT}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
     {
       command: `npm run dev:client`,

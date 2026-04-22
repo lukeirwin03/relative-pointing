@@ -6,12 +6,17 @@ const fs = require('fs');
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 
 // Presence thresholds (configurable via env for testing)
-const OFFLINE_THRESHOLD_S = parseInt(process.env.OFFLINE_THRESHOLD_S, 10) || 15;
-const AUTO_SKIP_TURN_S = parseInt(process.env.AUTO_SKIP_TURN_S, 10) || 30;
+const OFFLINE_THRESHOLD_S =
+  parseInt(process.env.OFFLINE_THRESHOLD_S, 10) || 600;
+const AUTO_SKIP_TURN_S = parseInt(process.env.AUTO_SKIP_TURN_S, 10) || 600;
 const AUTO_TRANSFER_OWNER_S =
-  parseInt(process.env.AUTO_TRANSFER_OWNER_S, 10) || 60;
+  parseInt(process.env.AUTO_TRANSFER_OWNER_S, 10) || 900;
 
-const DB_PATH = path.join(__dirname, 'app.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'app.db');
+
+// Ensure the parent directory exists so sqlite3 can create/open the file.
+// Matters when DB_PATH points outside the default server/ directory (e.g. tests).
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 // Create database connection
 const db = new sqlite3.Database(DB_PATH, (err) => {
@@ -274,7 +279,7 @@ function cleanupExpiredSessions() {
     .replace(/\.\d{3}Z$/, '');
 
   db.run(
-    `DELETE FROM sessions WHERE last_activity_at IS NOT NULL AND last_activity_at < ? AND ended_at IS NULL`,
+    `DELETE FROM sessions WHERE last_activity_at IS NOT NULL AND last_activity_at < ?`,
     [cutoffTime],
     function (err) {
       if (err) {
@@ -395,26 +400,42 @@ function startPresenceCheck() {
             turnHolder.last_seen_at &&
             turnHolder.last_seen_at < skipCutoff
           ) {
-            // Turn holder has been offline for > AUTO_SKIP_TURN_S
-            const rotation = participants.filter(
-              (p) =>
-                !skippedList.includes(p.user_id) &&
-                p.last_seen_at &&
-                p.last_seen_at >= onlineCutoff
+            // Turn holder has been offline for > AUTO_SKIP_TURN_S.
+            // Locate their position in the full (non-skipped) rotation, then
+            // walk forward in joined_at order to find the next ONLINE participant.
+            // This prevents the rotation from collapsing back to position 0 when
+            // the offline turn holder isn't present in an online-only filter.
+            const fullRotation = participants.filter(
+              (p) => !skippedList.includes(p.user_id)
+            );
+            const currentIndex = fullRotation.findIndex(
+              (p) => p.user_id === session.current_turn_user_id
             );
 
-            if (rotation.length > 0) {
-              const currentIndex = rotation.findIndex(
-                (p) => p.user_id === session.current_turn_user_id
-              );
-              const nextIndex =
-                currentIndex === -1 ? 0 : (currentIndex + 1) % rotation.length;
+            let nextParticipant = null;
+            for (let i = 0; i < fullRotation.length; i++) {
+              const idx =
+                currentIndex === -1
+                  ? i
+                  : (currentIndex + 1 + i) % fullRotation.length;
+              const candidate = fullRotation[idx];
+              if (candidate.user_id === session.current_turn_user_id) continue;
+              if (
+                candidate.last_seen_at &&
+                candidate.last_seen_at >= onlineCutoff
+              ) {
+                nextParticipant = candidate;
+                break;
+              }
+            }
+
+            if (nextParticipant) {
               await dbPromise.run(
                 `UPDATE sessions SET current_turn_user_id = ?, turn_started_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                [rotation[nextIndex].user_id, session.id]
+                [nextParticipant.user_id, session.id]
               );
               console.log(
-                `[PRESENCE] Auto-skipped turn in session ${session.room_code}: ${turnHolder.user_name} -> ${rotation[nextIndex].user_name}`
+                `[PRESENCE] Auto-skipped turn in session ${session.room_code}: ${turnHolder.user_name} -> ${nextParticipant.user_name}`
               );
             } else {
               // No online, non-skipped participants — clear the turn

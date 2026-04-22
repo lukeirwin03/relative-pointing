@@ -586,6 +586,32 @@ class APIService {
   }
 
   /**
+   * Discard a session (leader only) — permanently deletes all session data
+   */
+  static async discardSession(roomCode, userId) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/sessions/${roomCode}/discard`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to discard session');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error discarding session:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get session report
    */
   static async getReport(roomCode) {

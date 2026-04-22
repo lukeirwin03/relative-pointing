@@ -288,6 +288,19 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  async function discardSession() {
+    if (!roomCode.value) return;
+    const userStore = useUserStore();
+    try {
+      await APIService.discardSession(roomCode.value, userStore.userId);
+      stopPolling();
+      resetState();
+    } catch (err) {
+      console.error('Error discarding session:', err);
+      throw err;
+    }
+  }
+
   async function transferOwnership(newOwnerId) {
     if (!roomCode.value) return;
     const userStore = useUserStore();
@@ -707,6 +720,7 @@ export const useSessionStore = defineStore('session', () => {
     endTurn,
     startSession,
     endSession,
+    discardSession,
     toggleStackMode,
     skipTopTask,
     transferOwnership,
